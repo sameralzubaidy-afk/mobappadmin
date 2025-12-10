@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
 
-export async function GET(_request: Request) {
+export async function GET() {
   // dev-only guard
   if (process.env.NODE_ENV !== 'development') {
     return NextResponse.json({ error: 'Forbidden: Dev-only endpoint' }, { status: 403 })
