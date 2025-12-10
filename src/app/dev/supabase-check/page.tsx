@@ -3,17 +3,19 @@
 import React, { useEffect, useState } from 'react'
 
 export default function SupabaseDevCheckPage() {
-  const [data, setData] = useState(null)
+  type DevData = Record<string, unknown> | { error: string } | null
+  const [data, setData] = useState<DevData>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const res = await fetch('/api/debug/supabase')
-        const json = await res.json()
+        const json = (await res.json()) as Record<string, unknown>
         setData(json)
-      } catch (err) {
-        setData({ error: String(err) })
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : String(err)
+        setData({ error: errorMessage })
       } finally {
         setLoading(false)
       }
