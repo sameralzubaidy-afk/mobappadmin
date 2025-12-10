@@ -1,0 +1,34 @@
+{
+  "name": "p2p-kids-admin",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test-auth": "node scripts/test-auth.js",
+    "test-is-admin": "node scripts/test-is-admin.js"
+  },
+  "dependencies": {
+    "@supabase/auth-helpers-nextjs": "^0.8.7",
+    "@supabase/supabase-js": "^2.39.1",
+    "next": "14.2.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "react-hot-toast": "^2.4.1",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.6",
+    "@types/react": "18.2.21",
+    "@types/react-dom": "18.2.7",
+    "autoprefixer": "^10.4.14",
+    "eslint": "^8.36.0",
+    "eslint-config-next": "^14.2.0",
+    "postcss": "^8.4.21",
+    "tailwindcss": "^3.4.18",
+    "prettier": "^3.1.1",
+    "typescript": "^5.5.6"
+  }
+}
