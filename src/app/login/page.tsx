@@ -45,13 +45,14 @@ export default function LoginPage() {
 
       toast.success('Login successful')
       router.push('/dashboard')
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Show full error in dev; show only message in prod
       console.error('DEBUG: login error', err)
+      const errorMessage = err instanceof Error ? err.message : String(err)
       if (process.env.NODE_ENV === 'development') {
-        toast.error(`Login failed: ${err?.message || String(err)}`)
+        toast.error(`Login failed: ${errorMessage}`)
       } else {
-        toast.error(err.message || 'Login failed')
+        toast.error(errorMessage || 'Login failed')
       }
     } finally {
       setLoading(false)
