@@ -24,7 +24,7 @@ export async function GET() {
       profileError = pErr
 
       // call RPC is_admin
-      const { data: rpcData, error: rpcErr } = await supabase.rpc<boolean, { p_uid?: string }>('is_admin', { p_uid: user.id })
+      const { data: rpcData, error: rpcErr } = await (supabase as any).rpc('is_admin', { p_uid: user.id })
       isAdminRpc = rpcData
       isAdminError = rpcErr
     }
