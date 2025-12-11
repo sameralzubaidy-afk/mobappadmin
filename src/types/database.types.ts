@@ -86,7 +86,20 @@ export interface Database {
 			}
 		}
 		Views: { [key: string]: never }
-		Functions: { [key: string]: never }
+		Functions: {
+			is_admin: {
+				Args: { p_uid?: string | null }
+				Returns: boolean
+			}
+			get_subscription_summary: {
+				Args: { p_user_id?: string | null }
+				Returns: { status: string; can_spend_sp: boolean; availablePoints: number } | null
+			}
+			get_user_sp_wallet_summary: {
+				Args: { p_user_id?: string | null }
+				Returns: { availablePoints: number } | null
+			}
+		}
 		Enums: { [key: string]: never }
 	}
 }
