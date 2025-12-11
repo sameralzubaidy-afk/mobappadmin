@@ -7,3 +7,4 @@ node_modules
 DIST
 /.vscode
 .DS_Store
+.env*.local

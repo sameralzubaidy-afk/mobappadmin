@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server'
+// Initialize server-side Sentry for this API route (dev-only test)
+// import '../../../../sentry.server.config';
 import { createServerClient } from '@/lib/supabase/server'
 
 export async function GET() {
@@ -47,6 +49,7 @@ export async function GET() {
     return NextResponse.json(result)
   } catch (err) {
     console.error('DEBUG: /api/debug/supabase error', err)
+    // TODO: Add Sentry capture here when DSN is configured
     return NextResponse.json({ error: String(err) }, { status: 500 })
   }
 }
