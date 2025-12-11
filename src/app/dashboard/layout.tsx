@@ -9,7 +9,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   // check role
   const { data: userData } = await supabase.from('users').select('role').eq('id', data.user.id).single()
-  if ((userData as any)?.role !== 'admin') return redirect('/login')
+  if ((((userData as unknown) as { role?: string })?.role) !== 'admin') return redirect('/login')
 
   return (
     <div className="min-h-screen bg-gray-100">

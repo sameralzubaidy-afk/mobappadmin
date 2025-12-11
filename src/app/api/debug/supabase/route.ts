@@ -24,6 +24,8 @@ export async function GET() {
       profileError = pErr
 
       // call RPC is_admin
+      // supabase.rpc typing can be strict; use a local assertion in this dev-only route
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: rpcData, error: rpcErr } = await (supabase as any).rpc('is_admin', { p_uid: user.id })
       isAdminRpc = rpcData
       isAdminError = rpcErr

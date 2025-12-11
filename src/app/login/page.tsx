@@ -38,7 +38,7 @@ export default function LoginPage() {
       console.debug('DEBUG: users.select result', { userData, userError })
 
       if (userError) throw userError
-      if ((userData as any)?.role !== 'admin') {
+      if ((((userData as unknown) as { role?: string })?.role) !== 'admin') {
         await supabase.auth.signOut()
         throw new Error('Unauthorized: Admin access only')
       }
