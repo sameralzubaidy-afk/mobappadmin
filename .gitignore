@@ -1,10 +1,43 @@
-node_modules
-.next
-.env
+# Dependencies
+node_modules/
+*.pnp
+.pnp.js
+
+# Next.js build artifacts
+.next/
+out/
+*.tsbuildinfo
+
+# Environment variables
 .env.local
-.env.*.local
-.vercel
-DIST
-/.vscode
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Vercel
+.vercel/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
 .DS_Store
-.env*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Package managers
+yarn-error.log
+npm-debug.log
+pnpm-debug.log
+
+# Testing
+coverage/
+.pytest_cache/
+
+# Build
+dist/
+build/
