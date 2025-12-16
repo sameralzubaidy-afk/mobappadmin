@@ -23,11 +23,15 @@ export default function ConfigPage() {
       const res = await fetch('/api/admin/config');
       const json = await res.json();
       if (json.error) throw new Error(json.error);
-      setConfig(json.data || []);
+      
+      // Filter out any invalid items (missing key or value)
+      const validConfig = (json.data || []).filter((item: any) => item && item.key && item.value !== undefined);
+      
+      setConfig(validConfig);
       // read can_write flag from server
       setCanWrite(!!json.can_write);
       const initial: Record<string, string> = {};
-      (json.data || []).forEach((item: any) => (initial[item.key] = item.value));
+      validConfig.forEach((item: any) => (initial[item.key] = item.value));
       setEditValues(initial);
     } catch (err: any) {
       setError(err.message || 'Failed to load configuration');
@@ -45,6 +49,8 @@ export default function ConfigPage() {
     setError(null);
     setSuccess(null);
     try {
+      console.log(`[Config Save] Attempting to save ${key} with value:`, editValues[key]);
+      
       const res = await fetch('/api/admin/config', {
         method: 'PATCH',
         headers: {
@@ -53,13 +59,25 @@ export default function ConfigPage() {
         },
         body: JSON.stringify({ key, value: editValues[key] }),
       });
+      
+      console.log(`[Config Save] Response status:`, res.status);
       const json = await res.json();
-      if (json.error) throw new Error(json.error);
+      console.log(`[Config Save] Response body:`, json);
+      
+      if (!res.ok || json.error) {
+        throw new Error(json.error || `HTTP ${res.status}`);
+      }
+      
       setSuccess(`Successfully updated ${key}`);
+      console.log(`[Config Save] ✅ Success! Updated: ${key} = ${editValues[key]}`);
+      
+      // Reload config from API
       await loadConfigFromApi();
-      setTimeout(() => setSuccess(null), 3000);
+      setTimeout(() => setSuccess(null), 5000);
     } catch (err: any) {
-      setError(err.message || 'Failed to save configuration');
+      const errorMsg = err.message || 'Failed to save configuration';
+      console.error(`[Config Save] ❌ Error:`, errorMsg, err);
+      setError(errorMsg);
     } finally {
       setSaving(false);
     }
@@ -149,19 +167,40 @@ export default function ConfigPage() {
       {/* SMS Rate Limit Stats */}
       <SMSRateLimitStats />
 
-      {/* Configuration Items */}
+      {/* Configuration Items - Grouped by Category */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
           <h2 className="text-xl font-semibold">Configuration Settings</h2>
+          <p className="text-sm text-gray-600 mt-1">{config.length} settings organized by category</p>
         </div>
         
-        <div className="divide-y divide-gray-200">
-          {config.map((item) => (
-            <div key={item.key} className="p-6">
+        {Object.entries(
+          config.reduce((acc, item) => {
+            const category = (item as any).category || 'general';
+            if (!acc[category]) acc[category] = [];
+            acc[category].push(item);
+            return acc;
+          }, {} as Record<string, any[]>)
+        ).sort().map(([category, items]) => (
+          <div key={category}>
+            {/* Category Header */}
+            <div className="px-6 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 border-t border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 capitalize">
+                {category.replace(/_/g, ' ')}
+              </h3>
+              <p className="text-xs text-gray-600 mt-1">{items.length} settings</p>
+            </div>
+            
+            {/* Category Items */}
+            <div className="divide-y divide-gray-200">
+              {items.map((item) => {
+                if (!item || !item.key) return null;
+                return (
+                <div key={item.key} className="p-6">
               <div className="flex items-start justify-between">
                 <div className="flex-1 mr-4">
                   <label className="block text-sm font-medium text-gray-900 mb-1">
-                    {item.key.split('_').map(word => 
+                    {item.key.split('_').map((word: string) => 
                       word.charAt(0).toUpperCase() + word.slice(1)
                     ).join(' ')}
                   </label>
@@ -192,8 +231,11 @@ export default function ConfigPage() {
                 Last updated: {new Date(item.updated_at).toLocaleString()}
               </div>
             </div>
-          ))}
-        </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Help Section */}
