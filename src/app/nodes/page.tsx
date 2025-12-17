@@ -26,7 +26,7 @@ export default function NodesPage() {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('geographic_nodes')
+        .from('nodes')
         .select('*')
         .order('created_at', { ascending: false });
 
@@ -77,7 +77,7 @@ export default function NodesPage() {
 
       // Update node status
       const { error: updateError } = await supabase
-        .from('geographic_nodes')
+        .from('nodes')
         .update({
           is_active: !node.is_active,
           updated_at: new Date().toISOString(),
@@ -94,7 +94,7 @@ export default function NodesPage() {
           .insert({
             admin_id: adminId,
             action: node.is_active ? 'deactivate_node' : 'activate_node',
-            entity_type: 'geographic_node',
+            entity_type: 'node',
             entity_id: node.id,
             changes: {
               node_name: node.name,

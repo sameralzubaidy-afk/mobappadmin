@@ -135,7 +135,7 @@ export default function NodeFormModal({ node, onClose }: NodeFormModalProps) {
       if (node) {
         // Update existing node
         const { error: updateError } = await supabase
-          .from('geographic_nodes')
+          .from('nodes')
           .update({
             name: formData.name.trim(),
             city: formData.city.trim(),
@@ -156,7 +156,7 @@ export default function NodeFormModal({ node, onClose }: NodeFormModalProps) {
         const { error: auditError } = await supabase.from('admin_audit_log').insert({
           admin_id: adminId,
           action: 'update_node',
-          entity_type: 'geographic_node',
+          entity_type: 'node',
           entity_id: node.id,
           changes: {
             before: node,
@@ -166,19 +166,24 @@ export default function NodeFormModal({ node, onClose }: NodeFormModalProps) {
 
         if (auditError) console.error('Failed to log audit entry:', auditError);
       } else {
-        // Create new node
-        const { error: insertError } = await supabase.from('geographic_nodes').insert({
-          name: formData.name.trim(),
-          city: formData.city.trim(),
-          state: formData.state.toUpperCase(),
-          zip_code: formData.zip_code,
-          latitude: formData.latitude,
-          longitude: formData.longitude,
-          radius_miles: formData.radius_miles,
-          description: formData.description.trim() || null,
-          is_active: formData.is_active,
-          member_count: 0,
-        });
+        // Create new node - use nodes table (not geographic_nodes)
+        const { data: insertData, error: insertError } = await supabase
+          .from('nodes')
+          .insert({
+            name: formData.name.trim(),
+            city: formData.city.trim(),
+            state: formData.state.toUpperCase(),
+            zip_code: formData.zip_code,
+            latitude: formData.latitude,
+            longitude: formData.longitude,
+            radius_miles: formData.radius_miles,
+            description: formData.description.trim() || null,
+            is_active: formData.is_active,
+            member_count: 0,
+            status: formData.is_active ? 'active' : 'inactive', // Set status based on is_active
+          })
+          .select()
+          .single();
 
         if (insertError) throw insertError;
 
@@ -186,7 +191,7 @@ export default function NodeFormModal({ node, onClose }: NodeFormModalProps) {
         const { error: auditError } = await supabase.from('admin_audit_log').insert({
           admin_id: adminId,
           action: 'create_node',
-          entity_type: 'geographic_node',
+          entity_type: 'node',
           changes: formData,
         });
 
