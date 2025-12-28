@@ -109,6 +109,12 @@ export function ProtectedLayout({ children }: { children: React.ReactNode }) {
                   Configuration
                 </Link>
                 <Link
+                  href="/payouts"
+                  className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                >
+                  Payout Fees
+                </Link>
+                <Link
                   href="/nodes"
                   className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
                 >
