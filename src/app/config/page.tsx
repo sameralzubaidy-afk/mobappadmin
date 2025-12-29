@@ -90,6 +90,7 @@ export default function ConfigPage() {
       sms_rate_limit_per_hour: 'Maximum number of SMS verification codes that can be sent per hour per phone number. Helps prevent SMS spam and abuse.',
       verification_code_expiry_minutes: 'How long verification codes remain valid before expiring (in minutes).',
       max_verification_attempts: 'Maximum number of incorrect code attempts before requiring a new code.',
+      minimum_withdrawal_amount_cents: 'Minimum seller withdrawal amount in cents (e.g., 500 = $5.00). Set to 0 to disable the minimum requirement entirely.',
     };
     return descriptions[key] || '';
   };
