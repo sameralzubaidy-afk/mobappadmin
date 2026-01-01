@@ -21,6 +21,15 @@ export default function HomePage() {
           </p>
         </a>
         <a
+          href="/payouts/earnings"
+          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+        >
+          <h2 className="text-xl font-semibold mb-2">💰 Payouts</h2>
+          <p className="text-gray-600 text-sm">
+            Manage seller payouts, view earnings statistics, and handle failed payments.
+          </p>
+        </a>
+        <a
           href="/config"
           className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
         >
