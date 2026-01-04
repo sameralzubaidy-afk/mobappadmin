@@ -102,6 +102,7 @@ export default function PayoutFeesPage() {
   const renderConfigItem = (item: AdminConfigItem) => {
     const isEdited = editValues[item.key] !== item.value;
     const isSaving = saving === item.key;
+    const isBooleanConfig = item.key === 'enable_automatic_seller_payout';
 
     return (
       <div key={item.key} className="border rounded-lg p-4 bg-white">
@@ -114,17 +115,31 @@ export default function PayoutFeesPage() {
         </div>
 
         <div className="flex gap-2 mt-3">
-          <input
-            type={item.value_type === 'integer' ? 'number' : 'text'}
-            value={editValues[item.key] || ''}
-            onChange={(e) =>
-              setEditValues((prev) => ({ ...prev, [item.key]: e.target.value }))
-            }
-            className="flex-1 px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            disabled={isSaving}
-            step={item.value_type === 'decimal' ? '0.01' : '1'}
-            min="0"
-          />
+          {isBooleanConfig ? (
+            <select
+              value={editValues[item.key] || 'false'}
+              onChange={(e) =>
+                setEditValues((prev) => ({ ...prev, [item.key]: e.target.value }))
+              }
+              className="flex-1 px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={isSaving}
+            >
+              <option value="true">Enabled</option>
+              <option value="false">Disabled</option>
+            </select>
+          ) : (
+            <input
+              type={item.value_type === 'integer' ? 'number' : 'text'}
+              value={editValues[item.key] || ''}
+              onChange={(e) =>
+                setEditValues((prev) => ({ ...prev, [item.key]: e.target.value }))
+              }
+              className="flex-1 px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={isSaving}
+              step={item.value_type === 'decimal' ? '0.01' : '1'}
+              min="0"
+            />
+          )}
           
           <button
             onClick={() => handleSave(item.key)}

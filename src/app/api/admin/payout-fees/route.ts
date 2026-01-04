@@ -14,7 +14,8 @@ if (!supabaseUrl || !supabaseServiceKey) {
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-const PAYOUT_FEE_KEYS = [
+const PAYOUT_KEYS = [
+  'enable_automatic_seller_payout',
   'payout_fee_stripe_fixed_cents',
   'payout_fee_stripe_percentage',
   'payout_fee_paypal_percentage',
@@ -26,11 +27,11 @@ const PAYOUT_FEE_KEYS = [
 
 export async function GET() {
   try {
-    // Fetch all payout fee config from admin_config
+    // Fetch all payout config from admin_config
     const { data, error } = await supabase
       .from('admin_config')
       .select('*')
-      .in('key', PAYOUT_FEE_KEYS)
+      .in('key', PAYOUT_KEYS)
       .order('key');
 
     if (error) {
@@ -65,12 +66,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing key or value' }, { status: 400 });
     }
 
-    if (!PAYOUT_FEE_KEYS.includes(key)) {
-      return NextResponse.json({ error: 'Invalid payout fee key' }, { status: 400 });
+    if (!PAYOUT_KEYS.includes(key)) {
+      return NextResponse.json({ error: 'Invalid payout configuration key' }, { status: 400 });
     }
 
     // Validate value types
-    if (key.includes('percentage')) {
+    if (key === 'enable_automatic_seller_payout') {
+      if (value !== 'true' && value !== 'false') {
+        return NextResponse.json({ error: 'Auto-payout must be true or false' }, { status: 400 });
+      }
+    } else if (key.includes('percentage')) {
       const numValue = parseFloat(value);
       if (isNaN(numValue) || numValue < 0 || numValue > 100) {
         return NextResponse.json({ error: 'Percentage must be between 0 and 100' }, { status: 400 });
