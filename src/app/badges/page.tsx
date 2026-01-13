@@ -123,9 +123,15 @@ export default function BadgesPage() {
             </p>
           </div>
           <div className="flex space-x-3">
+            <a
+              href="/badges/sandbox"
+              className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors flex items-center"
+            >
+              🧪 Sandbox
+            </a>
             <button
               onClick={() => setShowManualAward(true)}
-              className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
             >
               Manual Award
             </button>

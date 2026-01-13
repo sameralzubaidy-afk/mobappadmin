@@ -26,7 +26,7 @@ interface ListingSearchResult {
     subscription_status_at_creation?: string;
   };
   created_at: string;
-  images?: Array<{ url: string; thumbnail_url?: string }>;
+  images?: { url: string; thumbnail_url?: string }[];
   seller_items_count?: number;
 }
 
