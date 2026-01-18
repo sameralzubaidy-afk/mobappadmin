@@ -21,9 +21,10 @@ interface AdminConfigItem {
 }
 
 interface PayoutFeeConfigResponse {
-  data: AdminConfigItem[];
-  rpc_data: PayoutFeeConfig | null;
-  can_write: boolean;
+  data?: AdminConfigItem[];
+  rpc_data?: PayoutFeeConfig | null;
+  can_write?: boolean;
+  error?: string;
 }
 
 export default function PayoutFeesPage() {
@@ -51,10 +52,10 @@ export default function PayoutFeesPage() {
       if (json.error) throw new Error(json.error);
       
       setConfig(json.data || []);
-      setRpcConfig(json.rpc_data);
+      setRpcConfig(json.rpc_data || null);
       
       const initial: Record<string, string> = {};
-      json.data.forEach((item) => (initial[item.key] = item.value));
+      (json.data || []).forEach((item) => (initial[item.key] = item.value));
       setEditValues(initial);
     } catch (err: any) {
       setError(err.message || 'Failed to load payout fee configuration');

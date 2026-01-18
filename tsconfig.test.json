@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["jest", "@testing-library/jest-dom", "node"],
+    "noEmit": false
+  },
+  "include": [
+    "jest-globals.d.ts",
+    "jest.config.js",
+    "jest.setup.js",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "src/**/*.e2e.test.ts",
+    "src/**/__tests__/**/*.ts",
+    "__tests__/**/*.ts"
+  ]
+}
