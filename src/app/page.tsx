@@ -88,7 +88,17 @@ export default function HomePage() {
             Review system changes, configuration updates, and admin actions.
           </p>
         </a>
+
+        <a
+          href="/reviews"
+          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+        >
+          <h2 className="text-xl font-semibold mb-2">🚩 Review Moderation</h2>
+          <p className="text-gray-600 text-sm">
+            Review and moderate reported reviews from the community.
+          </p>
+        </a>
       </div>
     </div>
-  )
+  );
 }
