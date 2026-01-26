@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
+import { AdminNotifications } from './AdminNotifications';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -147,6 +148,7 @@ export function ProtectedLayout({ children }: { children: React.ReactNode }) {
               </div>
             </div>
             <div className="flex items-center space-x-4">
+              <AdminNotifications />
               <span className="text-sm text-gray-600">{userEmail}</span>
               <button
                 onClick={handleLogout}

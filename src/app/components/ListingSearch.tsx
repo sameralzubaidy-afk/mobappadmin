@@ -21,6 +21,9 @@ interface ListingSearchResult {
   accepts_swap_points: boolean;
   status: string;
   seller_id: string;
+  eligible_for_starter_pack?: boolean;
+  starter_pack_claimed?: boolean;
+  approved_at?: string;
   seller?: { 
     name?: string;
     subscription_status_at_creation?: string;
@@ -53,9 +56,10 @@ export default function ListingSearch() {
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [selectedListing, setSelectedListing] = useState<ListingSearchResult | null>(null);
-  const [adminAction, setAdminAction] = useState<'force_delete' | 'pause' | null>(null);
+  const [adminAction, setAdminAction] = useState<'force_delete' | 'pause' | 'approve' | null>(null);
   const [actionReason, setActionReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [approvalMessage, setApprovalMessage] = useState('');
   
   const ITEMS_PER_PAGE = 10;
 
@@ -68,7 +72,7 @@ export default function ListingSearch() {
       let countQuery = supabase.from('items').select('id', { count: 'exact', head: true });
       
       // Build query for data
-      let dataQuery = supabase.from('items').select('id, title, price, accepts_swap_points, status, seller_id, created_at');
+      let dataQuery = supabase.from('items').select('id, title, price, accepts_swap_points, status, seller_id, created_at, eligible_for_starter_pack, starter_pack_claimed, approved_at');
 
       // Filter by status - map UI values to database values
       if (filters.status !== 'all') {
@@ -251,6 +255,62 @@ export default function ListingSearch() {
     }
   };
 
+  const handleApproveListing = async () => {
+    if (!selectedListing) {
+      alert('No listing selected');
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+
+      // Get current user (admin)
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        alert('Failed to get admin user ID');
+        return;
+      }
+
+      // Call RPC function to approve listing
+      const { data, error } = await supabase.rpc('admin_approve_listing', {
+        p_listing_id: selectedListing.id,
+        p_admin_user_id: user.id,
+        p_reason: actionReason || 'Admin approval via listing dashboard',
+      });
+
+      if (error) {
+        console.error('[ListingSearch] Approval error:', error);
+        alert(`Failed to approve listing: ${error.message}`);
+        return;
+      }
+
+      // Check if RPC response indicates failure
+      if (data && !data.success) {
+        console.error('[ListingSearch] Approval failed:', data.error);
+        alert(`Failed to approve listing: ${data.error}`);
+        return;
+      }
+
+      console.log('[ListingSearch] Approval response:', data);
+      setApprovalMessage(data.message || 'Listing approved successfully');
+      alert(data.message || 'Listing approved successfully');
+      
+      setSelectedListing(null);
+      setAdminAction(null);
+      setActionReason('');
+      setApprovalMessage('');
+      
+      // Refresh search results
+      setFilters(prev => ({ ...prev, page: 1 }));
+      setTimeout(() => handleSearch(), 100);
+    } catch (err) {
+      console.error('[ListingSearch] Approval exception:', err);
+      alert(`Error approving listing: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <h1 className="text-3xl font-bold mb-6">📋 Listing Management</h1>
@@ -349,6 +409,7 @@ export default function ListingSearch() {
                         <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Price</th>
                         <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">SP</th>
                         <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Status</th>
+                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Starter Pack</th>
                         <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Seller Items</th>
                         <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Action</th>
                       </tr>
@@ -389,6 +450,15 @@ export default function ListingSearch() {
                             >
                               {listing.status.charAt(0).toUpperCase() + listing.status.slice(1)}
                             </span>
+                          </td>
+                          <td className="px-6 py-4 text-sm">
+                            {listing.eligible_for_starter_pack ? (
+                              <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
+                                {listing.starter_pack_claimed ? '🎁 Claimed' : '🎁 Eligible'}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400">—</span>
+                            )}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-600">
                             {listing.seller_items_count}
@@ -498,7 +568,14 @@ export default function ListingSearch() {
                 <label className="text-sm font-medium text-gray-700">Status</label>
                 <p className="text-sm text-gray-900 capitalize">{selectedListing.status}</p>
               </div>
-
+              {selectedListing.eligible_for_starter_pack && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <label className="text-sm font-medium text-green-900">🎁 Starter Pack Eligible</label>
+                  <p className="text-sm text-green-700 mt-1">
+                    {selectedListing.starter_pack_claimed ? '✓ Claimed' : 'Pending claim - seller can earn SP when approved'}
+                  </p>
+                </div>
+              )}
               <div>
                 <label className="text-sm font-medium text-gray-700">Created</label>
                 <p className="text-sm text-gray-900">
@@ -522,6 +599,14 @@ export default function ListingSearch() {
             {/* Admin Actions */}
             {!adminAction ? (
               <div className="space-y-2">
+                {selectedListing.status === 'pending' && (
+                  <button
+                    onClick={() => setAdminAction('approve')}
+                    className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm"
+                  >
+                    ✅ Approve Listing
+                  </button>
+                )}
                 {selectedListing.status !== 'deleted' && (
                   <button
                     onClick={() => setAdminAction('pause')}
@@ -549,12 +634,12 @@ export default function ListingSearch() {
               <div className="space-y-3 bg-red-50 p-4 rounded-lg border border-red-200">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Reason for {adminAction === 'force_delete' ? 'deletion' : 'pausing'}:
+                    {adminAction === 'approve' ? 'Admin Notes (optional):' : `Reason for ${adminAction === 'force_delete' ? 'deletion' : 'pausing'}:`}
                   </label>
                   <textarea
                     value={actionReason}
                     onChange={(e) => setActionReason(e.target.value)}
-                    placeholder="Enter reason for admin action..."
+                    placeholder={adminAction === 'approve' ? 'e.g., Listing verified as appropriate' : 'Enter reason for admin action...'}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                     rows={3}
                   />
@@ -562,11 +647,11 @@ export default function ListingSearch() {
 
                 <div className="space-y-2">
                   <button
-                    onClick={adminAction === 'force_delete' ? handleForceDelete : handlePauseListing}
-                    disabled={actionLoading || !actionReason.trim()}
+                    onClick={adminAction === 'approve' ? handleApproveListing : (adminAction === 'force_delete' ? handleForceDelete : handlePauseListing)}
+                    disabled={actionLoading || (adminAction !== 'approve' && !actionReason.trim())}
                     className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-400 font-medium text-sm"
                   >
-                    {actionLoading ? 'Processing...' : `Confirm ${adminAction === 'force_delete' ? 'Delete' : 'Pause'}`}
+                    {actionLoading ? 'Processing...' : `Confirm ${adminAction === 'approve' ? 'Approval' : (adminAction === 'force_delete' ? 'Delete' : 'Pause')}`}
                   </button>
                   <button
                     onClick={() => {
