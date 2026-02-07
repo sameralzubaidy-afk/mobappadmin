@@ -26,6 +26,7 @@ interface ListingSearchResult {
   approved_at?: string;
   seller?: { 
     name?: string;
+    email?: string;
     subscription_status_at_creation?: string;
   };
   created_at: string;
@@ -61,103 +62,37 @@ export default function ListingSearch() {
   const [actionLoading, setActionLoading] = useState(false);
   const [approvalMessage, setApprovalMessage] = useState('');
   
-  const ITEMS_PER_PAGE = 10;
+  const ITEMS_PER_PAGE = 20;
 
-  const handleSearch = async () => {
+  React.useEffect(() => {
+    handleSearch(false);
+  }, [filters.page]);
+
+  const handleSearch = async (resetPage = true) => {
     try {
       setLoading(true);
-      setFilters({ ...filters, page: 1 });
+      const targetPage = resetPage ? 1 : filters.page;
+      if (resetPage && filters.page !== 1) {
+        setFilters({ ...filters, page: 1 });
+        return; // handleSearch will be re-triggered by useEffect
+      }
       
-      // Build query for counting total
-      let countQuery = supabase.from('items').select('id', { count: 'exact', head: true });
-      
-      // Build query for data
-      let dataQuery = supabase.from('items').select('id, title, price, accepts_swap_points, status, seller_id, created_at, eligible_for_starter_pack, starter_pack_claimed, approved_at');
-
-      // Filter by status - map UI values to database values
-      if (filters.status !== 'all') {
-        const dbStatusMap: Record<string, string> = {
-          'active': 'available',   // UI "active" = DB "available"
-          'pending': 'pending',    // UI "pending" = DB "pending"
-          'sold': 'sold',          // UI "sold" = DB "sold"
-          'draft': 'draft',        // UI "draft" = DB "draft"
-          'deleted': 'deleted',    // UI "deleted" = DB "deleted"
-        };
-        const dbStatus = dbStatusMap[filters.status];
-        dataQuery = dataQuery.eq('status', dbStatus);
-        countQuery = countQuery.eq('status', dbStatus);
-      }
-
-      // Filter by SP eligibility
-      if (filters.spEligibleOnly) {
-        dataQuery = dataQuery.eq('accepts_swap_points', true);
-        countQuery = countQuery.eq('accepts_swap_points', true);
-      }
-
-      // Text search (by title ONLY - id and seller_id are UUIDs and can't use ilike)
-      if (filters.query) {
-        dataQuery = dataQuery.ilike('title', `%${filters.query}%`);
-        countQuery = countQuery.ilike('title', `%${filters.query}%`);
-      }
-
-      // Get total count first
-      const { count } = await countQuery;
-      setTotalCount(count || 0);
-
-      // Get paginated data
-      const offset = (filters.page - 1) * ITEMS_PER_PAGE;
-      const { data, error } = await dataQuery
-        .order('created_at', { ascending: false })
-        .range(offset, offset + ITEMS_PER_PAGE - 1);
+      const { data, error } = await supabase.rpc('admin_search_listings_v2', {
+        p_query: filters.query,
+        p_status: filters.status,
+        p_sp_eligible: filters.spEligibleOnly,
+        p_page: targetPage,
+        p_items_per_page: ITEMS_PER_PAGE
+      });
 
       if (error) {
-        console.error('[ListingSearch] Query error:', error);
+        console.error('[ListingSearch] RPC Error:', error);
         alert('Failed to search listings');
         return;
       }
 
-      // Fetch seller info and images for each listing
-      const enrichedListings = await Promise.all(
-        (data || []).map(async (listing) => {
-          // Fetch seller profile using user_id FK (NOT profiles.id)
-          const { data: sellerData, error: sellerError } = await supabase
-            .from('profiles')
-            .select('name')
-            .eq('user_id', listing.seller_id)  // Match on user_id FK, not id
-            .single();
-
-          if (sellerError) {
-            console.warn(`[ListingSearch] Could not fetch seller profile for ${listing.seller_id}:`, sellerError);
-          }
-
-          // Fetch item images
-          const { data: imagesData } = await supabase
-            .from('item_images')
-            .select('url, thumbnail_url')
-            .eq('item_id', listing.id)
-            .order('display_order', { ascending: true });
-
-          // Count seller's active items
-          const { count: sellerItemsCount } = await supabase
-            .from('items')
-            .select('id', { count: 'exact', head: true })
-            .eq('seller_id', listing.seller_id)
-            .eq('status', 'available');
-
-          const fullName = sellerData?.name || 'Unknown';
-
-          return {
-            ...listing,
-            seller: {
-              name: fullName,
-            },
-            images: imagesData || [],
-            seller_items_count: sellerItemsCount || 0,
-          };
-        })
-      );
-
-      setListings(enrichedListings);
+      setListings(data.listings || []);
+      setTotalCount(data.total_count || 0);
     } catch (err) {
       console.error('[ListingSearch] Error searching listings:', err);
     } finally {
@@ -312,7 +247,7 @@ export default function ListingSearch() {
   };
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="p-6 max-w-full mx-auto">
       <h1 className="text-3xl font-bold mb-6">📋 Listing Management</h1>
 
       {/* Search & Filter Controls */}
@@ -369,7 +304,7 @@ export default function ListingSearch() {
           {/* Search button */}
           <div className="flex items-end">
             <button
-              onClick={handleSearch}
+              onClick={() => handleSearch(true)}
               disabled={loading}
               className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 font-medium"
             >
@@ -380,9 +315,9 @@ export default function ListingSearch() {
       </div>
 
       {/* Results Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Listings Table */}
-        <div className="lg:col-span-2">
+        <div className={selectedListing ? "lg:col-span-3" : "lg:col-span-4"}>
           <div className="bg-white rounded-lg shadow overflow-hidden">
             <div className="bg-gray-50 px-6 py-4 border-b">
               <h3 className="text-lg font-semibold">
@@ -408,8 +343,7 @@ export default function ListingSearch() {
                         <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Item</th>
                         <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Price</th>
                         <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">SP</th>
-                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Status</th>
-                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Starter Pack</th>
+                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Status</th>                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Seller Email</th>                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Starter Pack</th>
                         <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Seller Items</th>
                         <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Action</th>
                       </tr>
@@ -450,8 +384,9 @@ export default function ListingSearch() {
                             >
                               {listing.status.charAt(0).toUpperCase() + listing.status.slice(1)}
                             </span>
-                          </td>
-                          <td className="px-6 py-4 text-sm">
+                          </td>                          <td className="px-6 py-4 text-sm text-gray-600 truncate max-w-[200px]">
+                            {listing.seller?.email || '—'}
+                          </td>                          <td className="px-6 py-4 text-sm">
                             {listing.eligible_for_starter_pack ? (
                               <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
                                 {listing.starter_pack_claimed ? '🎁 Claimed' : '🎁 Eligible'}
