@@ -4,9 +4,20 @@
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
-const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || '';
 
-const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE);
+// Initialize client lazily to avoid "supabaseKey is required" error during import in client-side bundles
+let cachedAdminClient: any = null;
+
+function getAdminClient() {
+  if (!cachedAdminClient) {
+    if (!SUPABASE_URL || !SERVICE_ROLE) {
+      throw new Error('Supabase URL or Service Role Key is missing. Check your environment variables.');
+    }
+    cachedAdminClient = createClient(SUPABASE_URL, SERVICE_ROLE);
+  }
+  return cachedAdminClient;
+}
 
 export interface ReferralMetrics {
   total_users: number;
@@ -43,7 +54,8 @@ export class AdminReferralAnalyticsService {
    * Get referral program metrics
    */
   static async getMetrics(): Promise<ReferralMetrics> {
-    const { data, error } = await adminClient.rpc('get_referral_metrics');
+    const client = getAdminClient();
+    const { data, error } = await client.rpc('get_referral_metrics');
 
     if (error) {
       console.error('[AdminReferralAnalytics] Failed to get metrics:', error);
@@ -57,7 +69,8 @@ export class AdminReferralAnalyticsService {
    * Get top referrers leaderboard
    */
   static async getTopReferrers(limit: number = 10): Promise<TopReferrer[]> {
-    const { data, error } = await adminClient.rpc('get_top_referrers', {
+    const client = getAdminClient();
+    const { data, error } = await client.rpc('get_top_referrers', {
       p_limit: limit,
     });
 
@@ -73,7 +86,8 @@ export class AdminReferralAnalyticsService {
    * Get referral conversion funnel
    */
   static async getFunnel(): Promise<ReferralFunnel> {
-    const { data, error } = await adminClient.rpc('get_referral_funnel');
+    const client = getAdminClient();
+    const { data, error } = await client.rpc('get_referral_funnel');
 
     if (error) {
       console.error('[AdminReferralAnalytics] Failed to get funnel:', error);

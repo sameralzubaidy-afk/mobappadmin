@@ -20,7 +20,8 @@ export default function ConfigPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/admin/config');
+      // Cache-bust to avoid any browser/CDN caching of the API response
+      const res = await fetch(`/api/admin/config?ts=${Date.now()}`, { cache: 'no-store' });
       const json = await res.json();
       if (json.error) throw new Error(json.error);
       
@@ -261,7 +262,7 @@ function SMSRateLimitStats() {
 
   const loadStatsFromApi = async () => {
     try {
-      const res = await fetch('/api/admin/sms-stats');
+      const res = await fetch(`/api/admin/sms-stats?ts=${Date.now()}`, { cache: 'no-store' });
       const json = await res.json();
       if (json.error) throw new Error(json.error);
       setStats(json);

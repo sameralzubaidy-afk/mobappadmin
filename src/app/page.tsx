@@ -30,6 +30,15 @@ export default function HomePage() {
           </p>
         </a>
         <a
+          href="/referrals"
+          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+        >
+          <h2 className="text-xl font-semibold mb-2">🔗 Manage Referral</h2>
+          <p className="text-gray-600 text-sm">
+            Configure SP bonus rewards, trial extensions, and view referral program analytics.
+          </p>
+        </a>
+        <a
           href="/config"
           className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
         >
