@@ -1,3 +1,4 @@
+// File: p2p-kids-admin/src/app/page.tsx
 import TradeAnalytics from './components/TradeAnalytics';
 
 export default function HomePage() {
@@ -18,6 +19,15 @@ export default function HomePage() {
           <h2 className="text-xl font-semibold mb-2">Trades</h2>
           <p className="text-gray-600 text-sm">
             Inspect and manage marketplace trades, handle refunds, and view audit trails.
+          </p>
+        </a>
+        <a
+          href="/id-badges"
+          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+        >
+          <h2 className="text-xl font-semibold mb-2">🪪 ID Badge Verification</h2>
+          <p className="text-gray-600 text-sm">
+            Review and approve user identity verification requests and manage badges.
           </p>
         </a>
         <a

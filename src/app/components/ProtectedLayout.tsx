@@ -116,6 +116,12 @@ export function ProtectedLayout({ children }: { children: React.ReactNode }) {
                   Badges
                 </Link>
                 <Link
+                  href="/id-badges"
+                  className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                >
+                  ID Badges
+                </Link>
+                <Link
                   href="/payouts"
                   className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
                 >

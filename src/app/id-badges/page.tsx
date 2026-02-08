@@ -15,6 +15,7 @@ interface IDVerificationRequest {
   email: string;
   phone_number: string;
   node_id: string;
+  nodes?: { zip_code: string };
   status: 'pending' | 'approved' | 'rejected';
   submitted_at: string;
   reviewed_at: string | null;
@@ -51,7 +52,9 @@ export default function IDBadgeQueuePage() {
       if (filter !== 'all') params.append('status', filter);
       if (searchQuery) params.append('search', searchQuery);
 
-      const response = await fetch(`/api/admin/id-badges?${params}`);
+      const response = await fetch(`/api/admin/id-badges?${params}`, {
+        cache: 'no-store'
+      });
       const data = await response.json();
       setRequests(data.requests || []);
     } catch (error) {
@@ -63,7 +66,9 @@ export default function IDBadgeQueuePage() {
 
   const loadStats = async () => {
     try {
-      const response = await fetch('/api/admin/id-badges/stats');
+      const response = await fetch('/api/admin/id-badges/stats', {
+        cache: 'no-store'
+      });
       const data = await response.json();
       setStats(data);
     } catch (error) {
@@ -174,7 +179,7 @@ export default function IDBadgeQueuePage() {
                   </td>
                   <td className="px-4 py-3">{req.email}</td>
                   <td className="px-4 py-3">{req.phone_number || '-'}</td>
-                  <td className="px-4 py-3">{req.node_id || '-'}</td>
+                  <td className="px-4 py-3">{req.nodes?.zip_code || '-'}</td>
                   <td className="px-4 py-3">{formatDate(req.submitted_at)}</td>
                   <td className="px-4 py-3">
                     <span

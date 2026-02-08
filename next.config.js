@@ -1,8 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    // appDir is now default in Next.js 13+, remove this line
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'drntwgporzabmxdqykrp.supabase.co',
+        port: '',
+        pathname: '/storage/v1/object/**',
+      },
+    ],
   },
-}
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;
