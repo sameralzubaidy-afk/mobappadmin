@@ -30,11 +30,13 @@ export async function POST(
 
     if (reqError) throw reqError;
 
+    const adminUserId = request.headers.get('x-admin-user-id') || null;
+
     // Update request with decision
     const updateData: any = {
       status: decision === 'approve' ? 'approved' : 'rejected',
       reviewed_at: new Date().toISOString(),
-      reviewed_by: request.headers.get('x-admin-user-id') || null,
+      reviewed_by: adminUserId,
     };
 
     if (decision === 'reject') {
@@ -58,8 +60,54 @@ export async function POST(
         .remove([req.screenshot_path]);
     }
 
-    // TODO: Send notifications to user
-    // TODO: Log admin activity
+    // Trigger user notification (Edge Function)
+    try {
+      console.log(`[ADMIN-DECISION] Triggering notification for ${req.user_id}`);
+      const notificationRes = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/id-badge-notifications`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+            'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+          },
+          body: JSON.stringify({
+            type: decision === 'approve' ? 'id_badge_approved' : 'id_badge_rejected',
+            userId: req.user_id,
+            requestId: params.requestId,
+            rejectionReason: rejection_reason,
+            adminNotes: decision === 'approve' ? approval_notes : rejection_notes,
+          }),
+        }
+      );
+
+      if (!notificationRes.ok) {
+        throw new Error(`Notification function error: ${notificationRes.status}`);
+      }
+      console.log('[ADMIN-DECISION] Notification triggered successfully');
+    } catch (notifErr) {
+      console.error('[ADMIN-DECISION] Notification failure (non-blocking):', notifErr);
+    }
+
+    // Log admin activity
+    if (adminUserId) {
+      try {
+        await supabase.from('admin_activity_log').insert({
+          admin_id: adminUserId,
+          action_type: decision === 'approve' ? 'id_badge_approved' : 'id_badge_rejected',
+          entity_type: 'id_badge_verification',
+          entity_id: params.requestId,
+          details: {
+            decision,
+            rejection_reason: decision === 'reject' ? rejection_reason : null,
+            notes: decision === 'approve' ? approval_notes : rejection_notes,
+          },
+        });
+      } catch (logErr) {
+        console.error('[ADMIN-DECISION] Activity log failure:', logErr);
+      }
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
