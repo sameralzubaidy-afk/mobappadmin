@@ -6,6 +6,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { IDBadgeTabs } from './IDBadgeTabs';
 
 interface IDVerificationRequest {
   id: string;
@@ -94,7 +95,7 @@ export default function IDBadgeQueuePage() {
   return (
     <div className="container mx-auto p-6">
       <h1 className="text-3xl font-bold mb-6">ID Badge Verification</h1>
-
+      <IDBadgeTabs />
       {/* Stats Section */}
       {stats && (
         <div className="grid grid-cols-4 gap-4 mb-8">
