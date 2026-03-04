@@ -22,6 +22,16 @@ export default function HomePage() {
           </p>
         </a>
         <a
+          href="/subscriptions"
+          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+          data-testid="card-subscriptions"
+        >
+          <h2 className="text-xl font-semibold mb-2">Subscriptions</h2>
+          <p className="text-gray-600 text-sm">
+            View subscription metrics, manage grace periods and reminder thresholds.
+          </p>
+        </a>
+        <a
           href="/id-badges"
           className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
         >

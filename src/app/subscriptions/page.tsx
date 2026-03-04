@@ -21,7 +21,16 @@ export default async function SubscriptionsPage({ searchParams }: Props) {
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <h1 className="text-2xl font-bold mb-4">Subscriptions</h1>
-      <p className="text-gray-600 mb-6">{userId ? `Subscriptions for user ${userId}` : 'Provide ?user_id=... to view subscriptions'}</p>
+      <div className="flex items-center justify-between mb-6">
+        <p className="text-gray-600">{userId ? `Subscriptions for user ${userId}` : 'Provide ?user_id=... to view subscriptions'}</p>
+        <a
+          href="/subscriptions/manage"
+          className="bg-indigo-600 text-white px-4 py-2 rounded shadow-sm hover:bg-indigo-700 text-sm"
+          data-testid="btn-manage-subscriptions"
+        >
+          Manage Subscriptions
+        </a>
+      </div>
 
       {subs.length === 0 && <div className="bg-white p-4 rounded border text-sm">No subscriptions found.</div>}
 

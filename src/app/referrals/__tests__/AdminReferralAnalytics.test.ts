@@ -1,28 +1,29 @@
 // Unit Tests: Admin Referral Analytics Service
 // filepath: p2p-kids-admin/src/app/referrals/__tests__/AdminReferralAnalytics.test.ts
 
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { AdminReferralAnalyticsService } from '@/lib/adminReferralAnalytics';
 
 // Mock the entire module to replace adminClient
-jest.mock('@supabase/supabase-js');
-jest.mock('@/lib/adminReferralAnalytics', () => {
-  const mockRpc = jest.fn();
+vi.mock('@supabase/supabase-js');
+vi.mock('@/lib/adminReferralAnalytics', () => {
+  const mockRpc = vi.fn();
   return {
     AdminReferralAnalyticsService: {
-      getMetrics: jest.fn(),
-      getTopReferrers: jest.fn(),
-      getFunnel: jest.fn(),
+      getMetrics: vi.fn(),
+      getTopReferrers: vi.fn(),
+      getFunnel: vi.fn(),
     },
   };
 });
 
 describe('AdminReferralAnalyticsService', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('getMetrics', () => {
@@ -38,7 +39,7 @@ describe('AdminReferralAnalyticsService', () => {
         total_sp_distributed: 1400,
       };
 
-      (AdminReferralAnalyticsService.getMetrics as jest.Mock).mockResolvedValue(mockMetrics);
+      (AdminReferralAnalyticsService.getMetrics as any).mockResolvedValue(mockMetrics);
 
       const result = await AdminReferralAnalyticsService.getMetrics();
 
@@ -48,7 +49,7 @@ describe('AdminReferralAnalyticsService', () => {
 
     it('should throw error when RPC fails', async () => {
       const error = new Error('Database error');
-      (AdminReferralAnalyticsService.getMetrics as jest.Mock).mockRejectedValue(error);
+      (AdminReferralAnalyticsService.getMetrics as any).mockRejectedValue(error);
 
       await expect(AdminReferralAnalyticsService.getMetrics()).rejects.toThrow(
         'Database error'
@@ -67,7 +68,7 @@ describe('AdminReferralAnalyticsService', () => {
         total_sp_distributed: 700,
       };
 
-      (AdminReferralAnalyticsService.getMetrics as jest.Mock).mockResolvedValue(mockMetrics);
+      (AdminReferralAnalyticsService.getMetrics as any).mockResolvedValue(mockMetrics);
 
       const result = await AdminReferralAnalyticsService.getMetrics();
 
@@ -96,7 +97,7 @@ describe('AdminReferralAnalyticsService', () => {
         },
       ];
 
-      (AdminReferralAnalyticsService.getTopReferrers as jest.Mock).mockResolvedValue(mockReferrers);
+      (AdminReferralAnalyticsService.getTopReferrers as any).mockResolvedValue(mockReferrers);
 
       const result = await AdminReferralAnalyticsService.getTopReferrers(10);
 
@@ -108,7 +109,7 @@ describe('AdminReferralAnalyticsService', () => {
     });
 
     it('should return empty array when no referrers exist', async () => {
-      (AdminReferralAnalyticsService.getTopReferrers as jest.Mock).mockResolvedValue([]);
+      (AdminReferralAnalyticsService.getTopReferrers as any).mockResolvedValue([]);
 
       const result = await AdminReferralAnalyticsService.getTopReferrers(10);
 
@@ -127,7 +128,7 @@ describe('AdminReferralAnalyticsService', () => {
         },
       ];
 
-      (AdminReferralAnalyticsService.getTopReferrers as jest.Mock).mockResolvedValue(mockReferrers);
+      (AdminReferralAnalyticsService.getTopReferrers as any).mockResolvedValue(mockReferrers);
 
       const result = await AdminReferralAnalyticsService.getTopReferrers(10);
 
@@ -148,7 +149,7 @@ describe('AdminReferralAnalyticsService', () => {
         reward_rate: 100.0,
       };
 
-      (AdminReferralAnalyticsService.getFunnel as jest.Mock).mockResolvedValue(mockFunnel);
+      (AdminReferralAnalyticsService.getFunnel as any).mockResolvedValue(mockFunnel);
 
       const result = await AdminReferralAnalyticsService.getFunnel();
 
@@ -167,7 +168,7 @@ describe('AdminReferralAnalyticsService', () => {
         reward_rate: 100.0, // 30 / 30 = 100%
       };
 
-      (AdminReferralAnalyticsService.getFunnel as jest.Mock).mockResolvedValue(mockFunnel);
+      (AdminReferralAnalyticsService.getFunnel as any).mockResolvedValue(mockFunnel);
 
       const result = await AdminReferralAnalyticsService.getFunnel();
 
@@ -186,7 +187,7 @@ describe('AdminReferralAnalyticsService', () => {
         reward_rate: 0,
       };
 
-      (AdminReferralAnalyticsService.getFunnel as jest.Mock).mockResolvedValue(mockFunnel);
+      (AdminReferralAnalyticsService.getFunnel as any).mockResolvedValue(mockFunnel);
 
       const result = await AdminReferralAnalyticsService.getFunnel();
 

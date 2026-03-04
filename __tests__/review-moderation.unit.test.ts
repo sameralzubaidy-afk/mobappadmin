@@ -5,7 +5,7 @@
  * Tests filter logic, pagination, and moderation actions
  */
 
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect } from 'vitest';
 
 // Mock data types
 interface SubReport {

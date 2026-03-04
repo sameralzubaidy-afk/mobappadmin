@@ -38,7 +38,10 @@ describe('SPConfigService', () => {
 
       const result = await SPConfigService.getAll();
 
-      expect(global.fetch).toHaveBeenCalledWith('/api/admin/sp-config');
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringMatching(/^\/api\/admin\/sp-config\?ts=\d+$/),
+        { cache: 'no-store' }
+      );
       expect(result).toEqual(mockData);
     });
 
@@ -50,7 +53,10 @@ describe('SPConfigService', () => {
 
       await SPConfigService.getAll('referral');
 
-      expect(global.fetch).toHaveBeenCalledWith('/api/admin/sp-config?category=referral');
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringMatching(/^\/api\/admin\/sp-config\?category=referral&ts=\d+$/),
+        { cache: 'no-store' }
+      );
     });
 
     it('should throw error on API failure', async () => {
@@ -82,7 +88,8 @@ describe('SPConfigService', () => {
       const result = await SPConfigService.get('referral_reward_referrer_sp');
 
       expect(global.fetch).toHaveBeenCalledWith(
-        '/api/admin/sp-config?key=referral_reward_referrer_sp'
+        expect.stringMatching(/^\/api\/admin\/sp-config\?key=referral_reward_referrer_sp&ts=\d+$/),
+        { cache: 'no-store' }
       );
       expect(result).toEqual(mockItem);
     });
@@ -133,17 +140,25 @@ describe('SPConfigService', () => {
 
   describe('getReferralConfig', () => {
     it('should return parsed referral config', async () => {
-      const mockData = [
+      const referralData = [
         { config_key: 'referral_reward_referrer_sp', config_value: '30', value_type: 'number' },
         { config_key: 'referral_reward_referee_sp', config_value: '15', value_type: 'number' },
-        { config_key: 'max_referral_extensions', config_value: '5', value_type: 'number' },
-        { config_key: 'referral_extension_days', config_value: '10', value_type: 'number' },
+        { config_key: 'referral_reward_referrer_listing_sp', config_value: '40', value_type: 'number' },
+        { config_key: 'referral_reward_referee_listing_sp', config_value: '20', value_type: 'number' },
         { config_key: 'referral_program_enabled', config_value: 'true', value_type: 'boolean' },
+      ];
+
+      const starterPackData = [
+        { config_key: 'starter_pack_amount', config_value: '12', value_type: 'number' },
       ];
 
       (global.fetch as any).mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ success: true, data: mockData }),
+        json: async () => ({ success: true, data: referralData }),
+      });
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: starterPackData }),
       });
 
       const result = await SPConfigService.getReferralConfig();
@@ -151,13 +166,18 @@ describe('SPConfigService', () => {
       expect(result).toEqual({
         referrer_sp: 30,
         referee_sp: 15,
-        max_extensions: 5,
-        extension_days: 10,
+        referrer_listing_sp: 40,
+        referee_listing_sp: 20,
+        starter_pack_amount: 12,
         program_enabled: true,
       });
     });
 
     it('should return defaults if config missing', async () => {
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: [] }),
+      });
       (global.fetch as any).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ success: true, data: [] }),
@@ -168,8 +188,9 @@ describe('SPConfigService', () => {
       expect(result).toEqual({
         referrer_sp: 25,
         referee_sp: 10,
-        max_extensions: 3,
-        extension_days: 7,
+        referrer_listing_sp: 25,
+        referee_listing_sp: 10,
+        starter_pack_amount: 10,
         program_enabled: true,
       });
     });

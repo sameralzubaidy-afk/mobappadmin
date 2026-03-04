@@ -5,6 +5,8 @@
  * Tests validation logic and settings management
  */
 
+import { describe, it, expect } from 'vitest';
+
 describe('Node Settings Validation', () => {
   describe('validateSettings', () => {
     it('should validate default_radius_miles range', () => {

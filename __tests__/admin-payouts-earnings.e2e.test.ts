@@ -7,11 +7,36 @@
 
 import { test, expect } from '@playwright/test';
 
+const PLAYWRIGHT_ADMIN_E2E = process.env.PLAYWRIGHT_ADMIN_E2E === 'true';
+const ADMIN_E2E_EMAIL = process.env.ADMIN_E2E_EMAIL;
+const ADMIN_E2E_PASSWORD = process.env.ADMIN_E2E_PASSWORD;
+
+async function ensureAdminSession(page: any) {
+  await page.goto('/payouts/earnings');
+
+  if (page.url().includes('/auth/login')) {
+    if (!ADMIN_E2E_EMAIL || !ADMIN_E2E_PASSWORD) {
+      test.skip(true, 'Set ADMIN_E2E_EMAIL and ADMIN_E2E_PASSWORD for authenticated E2E runs.');
+    }
+
+    const emailInput = page.locator('input[type="email"], input[name="email"]').first();
+    const passwordInput = page.locator('input[type="password"], input[name="password"]').first();
+    const submitButton = page.locator('button[type="submit"], button:has-text("Sign in"), button:has-text("Login")').first();
+
+    await emailInput.fill(ADMIN_E2E_EMAIL!);
+    await passwordInput.fill(ADMIN_E2E_PASSWORD!);
+    await submitButton.click();
+    await page.waitForLoadState('networkidle');
+
+    await page.goto('/payouts/earnings');
+  }
+}
+
 test.describe('Admin Payouts Management', () => {
+  test.skip(!PLAYWRIGHT_ADMIN_E2E, 'Set PLAYWRIGHT_ADMIN_E2E=true to run admin UI Playwright tests.');
+
   test.beforeEach(async ({ page }) => {
-    // TODO: Implement admin login
-    await page.goto('/auth/login');
-    // Perform admin login steps
+    await ensureAdminSession(page);
   });
 
   test('displays payout stats correctly', async ({ page }) => {

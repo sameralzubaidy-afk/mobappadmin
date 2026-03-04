@@ -8,9 +8,10 @@
     "start": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:e2e": "jest --testPathPattern=e2e"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "jest --testPathPattern=e2e",
+    "test:playwright": "playwright test"
   },
   "dependencies": {
     "@supabase/auth-helpers-nextjs": "^0.8.7",
@@ -22,6 +23,7 @@
   },
   "devDependencies": {
     "@jest/globals": "^29.7.0",
+    "@playwright/test": "^1.58.2",
     "@types/jest": "^29.5.11",
     "@types/node": "^20",
     "@types/react": "^18",
@@ -34,6 +36,7 @@
     "postcss": "^8",
     "tailwindcss": "^3.3.0",
     "ts-jest": "^29.1.1",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.0.18"
   }
 }

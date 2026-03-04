@@ -47,7 +47,16 @@ export async function GET(req: NextRequest) {
     let query = adminClient.from('sp_config').select('*');
 
     if (key) {
-      query = query.eq('config_key', key).limit(1).single();
+      const { data, error } = await query.eq('config_key', key).limit(1).single();
+
+      if (error) {
+        console.error('[sp-config API] GET single error:', error);
+        return jsonNoStore(
+          { error: error.message },
+          { status: error.code === 'PGRST116' ? 404 : 500 }
+        );
+      }
+      return jsonNoStore({ success: true, data });
     } else if (prefix) {
       query = query.like('config_key', `${prefix}%`);
     } else if (category) {
@@ -110,7 +119,7 @@ export async function PATCH(req: NextRequest) {
         updated_at: new Date().toISOString(),
       })
       .eq('config_key', key)
-      .select();
+      .select('*');
 
     // If update succeeded and returned rows, return success
     if (updateData && updateData.length > 0) {
@@ -119,7 +128,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     // If update returned 0 rows, the key doesn't exist - insert it
-    if (!updateError || updateData?.length === 0) {
+    if (!updateError || (updateData && (updateData as any[]).length === 0)) {
       const { data: insertData, error: insertError } = await adminClient
         .from('sp_config')
         .insert([

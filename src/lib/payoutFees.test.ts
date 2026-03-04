@@ -2,7 +2,7 @@
 // Module: MODULE-06-TRADE-FLOW-sellerpayouts.md (TASK PAY-002)
 // Description: Unit tests for payout fee helpers
 
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect } from 'vitest';
 import {
   getPayoutFeeCents,
   computeNetPayoutCents,

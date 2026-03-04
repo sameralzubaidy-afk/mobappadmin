@@ -6,23 +6,24 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // Mock Supabase client
-jest.mock('@supabase/supabase-js');
+vi.mock('@supabase/supabase-js');
 
 const mockSupabase = {
-  from: jest.fn(),
+  from: vi.fn(),
   storage: {
-    from: jest.fn(),
+    from: vi.fn(),
   },
-  rpc: jest.fn(),
+  rpc: vi.fn(),
 };
 
-(createClient as jest.Mock).mockReturnValue(mockSupabase);
+(createClient as any).mockReturnValue(mockSupabase);
 
 describe('Badge Management - Unit Tests', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('Badge List Loading', () => {
@@ -51,8 +52,8 @@ describe('Badge Management - Unit Tests', () => {
       ];
 
       mockSupabase.from.mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          order: jest.fn().mockResolvedValue({
+        select: vi.fn().mockReturnValue({
+          order: vi.fn().mockResolvedValue({
             data: mockBadges,
             error: null,
           }),
@@ -75,8 +76,8 @@ describe('Badge Management - Unit Tests', () => {
       const mockError = { message: 'Database connection failed' };
 
       mockSupabase.from.mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          order: jest.fn().mockResolvedValue({
+        select: vi.fn().mockReturnValue({
+          order: vi.fn().mockResolvedValue({
             data: null,
             error: mockError,
           }),
@@ -98,8 +99,8 @@ describe('Badge Management - Unit Tests', () => {
       const badgeId = 'badge-1';
 
       mockSupabase.from.mockReturnValue({
-        update: jest.fn().mockReturnValue({
-          eq: jest.fn().mockResolvedValue({
+        update: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({
             data: { id: badgeId, is_active: false },
             error: null,
           }),
@@ -128,8 +129,8 @@ describe('Badge Management - Unit Tests', () => {
       };
 
       mockSupabase.from.mockReturnValue({
-        update: jest.fn().mockReturnValue({
-          eq: jest.fn().mockResolvedValue({
+        update: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({
             data: { id: badgeId, ...updates },
             error: null,
           }),
@@ -153,11 +154,11 @@ describe('Badge Management - Unit Tests', () => {
       const mockFile = new Blob(['fake-image-data'], { type: 'image/png' });
 
       mockSupabase.storage.from.mockReturnValue({
-        upload: jest.fn().mockResolvedValue({
+        upload: vi.fn().mockResolvedValue({
           data: { path: filePath },
           error: null,
         }),
-        getPublicUrl: jest.fn().mockReturnValue({
+        getPublicUrl: vi.fn().mockReturnValue({
           data: { publicUrl: `https://example.com/storage/badge-icons/${filePath}` },
         }),
       });
@@ -257,9 +258,9 @@ describe('Badge Management - Unit Tests', () => {
       };
 
       mockSupabase.from.mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
               data: mockUser,
               error: null,
             }),
@@ -282,9 +283,9 @@ describe('Badge Management - Unit Tests', () => {
       const mockError = { message: 'No rows returned', code: 'PGRST116' };
 
       mockSupabase.from.mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
               data: null,
               error: mockError,
             }),

@@ -2,7 +2,7 @@
 // TASK BADGE-010: Unit tests for ID Badge Admin functionality
 // Module: MODULE-10-ID-BADGE-VERIFICATION-V2.md
 
-import { describe, test, expect, beforeEach, jest } from '@jest/globals';
+import { describe, test, expect, beforeEach } from 'vitest';
 
 /**
  * Unit tests for ID Badge Admin Queue & Review functionality
@@ -270,9 +270,9 @@ describe('ID Badge Admin - Date Formatting', () => {
     const dateString = '2026-02-08T10:30:00Z';
     const date = new Date(dateString);
     const formatted =
-      date.toLocaleDateString() +
+      date.toLocaleDateString('en-US', { timeZone: 'UTC' }) +
       ' ' +
-      date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
 
     expect(formatted).toContain('2/8/2026');
     expect(formatted).toContain('10:30');

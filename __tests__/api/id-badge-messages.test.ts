@@ -1,14 +1,17 @@
 // File: p2p-kids-admin/__tests__/api/id-badge-messages.test.ts
 
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const hasSupabaseEnv = Boolean(supabaseUrl && supabaseServiceKey);
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+const supabase = hasSupabaseEnv ? createClient(supabaseUrl, supabaseServiceKey) : null;
 
-describe('ID Badge Messages API — Unit Tests', () => {
+const describeIfSupabase = hasSupabaseEnv ? describe : describe.skip;
+
+describeIfSupabase('ID Badge Messages API — Unit Tests', () => {
   let testMessageId: string;
 
   beforeAll(async () => {

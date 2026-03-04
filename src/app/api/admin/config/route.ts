@@ -123,7 +123,7 @@ export async function PATCH(req: Request) {
     console.log(`[Admin Config PATCH] ✅ RPC Result:`, result);
 
     if (!result.success) {
-        throw new Error(result.error || 'Failed to update configuration via secure RPC');
+      throw new Error(result.error || 'Failed to update configuration via secure RPC');
     }
 
     // Try to log to audit trail (non-blocking)
@@ -132,7 +132,7 @@ export async function PATCH(req: Request) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': ANON_KEY,
+          'apikey': ANON_KEY || '',
           'Authorization': `Bearer ${ANON_KEY}`,
         },
         body: JSON.stringify({
