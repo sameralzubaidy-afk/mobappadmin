@@ -17,7 +17,14 @@ describe('Subscription Metrics Calculation', () => {
     },
   };
 
-  const resolveSubscriptionPrice = (row: any, tierMap: Record<string, any>): number | null => {
+  const resolveSubscriptionPrice = (
+    row: any,
+    tierMap: Record<string, any>,
+    billingMap?: Record<string, number>
+  ): number | null => {
+    if (billingMap && billingMap[row.user_id] != null) {
+      return billingMap[row.user_id];
+    }
     if (row.monthly_price_cents != null) {
       return row.monthly_price_cents;
     }
@@ -104,7 +111,14 @@ describe('Subscription Metrics Calculation', () => {
   });
 
   it('resolves subscription price correctly from multiple sources', () => {
-    // Priority: monthly_price_cents > last_payment_amount > tier price
+    // Priority: billing_history amount > monthly_price_cents > last_payment_amount > tier price
+
+    const billingMap = {
+      'user-1': 150000,
+    };
+
+    const sub0 = { user_id: 'user-1', monthly_price_cents: 499, last_payment_amount: 499, tier_id: 'tier-1' };
+    expect(resolveSubscriptionPrice(sub0, mockTierMap, billingMap)).toBe(150000);
     
     const sub1 = { monthly_price_cents: 599, last_payment_amount: 499, tier_id: 'tier-1' };
     expect(resolveSubscriptionPrice(sub1, mockTierMap)).toBe(599);

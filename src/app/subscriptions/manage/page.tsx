@@ -626,11 +626,9 @@ export default function SubscriptionManagementPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                    {sub.status === 'active' && sub.display_price_cents
+                    {sub.display_price_cents !== null && sub.display_price_cents !== undefined
                       ? formatPrice(sub.display_price_cents)
-                      : sub.tier?.display_name
-                        ? sub.tier.display_name
-                        : (sub.stripe_subscription_id ? 'Stripe Tier' : 'N/A')
+                      : (sub.tier?.display_name || 'N/A')
                     }
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm">

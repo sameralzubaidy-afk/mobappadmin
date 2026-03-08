@@ -19,7 +19,19 @@ type TierInfo = {
   stripe_price_id: string | null;
 };
 
-const resolveSubscriptionPrice = (row: any, tierMap: Record<string, TierInfo>): number | null => {
+type BillingAmountRow = {
+  user_id: string;
+  amount?: number | string | null;
+  amount_cents?: number | string | null;
+  charged_at?: string | null;
+  created_at?: string | null;
+};
+
+const resolveSubscriptionPrice = (row: any, tierMap: Record<string, TierInfo>, billingMap?: Record<string, number>): number | null => {
+  // For admin display, prefer the latest successful billed amount when available.
+  if (billingMap && billingMap[row.user_id] != null) {
+    return billingMap[row.user_id];
+  }
   if (row.monthly_price_cents != null) {
     return row.monthly_price_cents;
   }
@@ -29,9 +41,78 @@ const resolveSubscriptionPrice = (row: any, tierMap: Record<string, TierInfo>): 
   if (row.tier_id && tierMap[row.tier_id]) {
     return tierMap[row.tier_id].price_cents;
   }
-  // Default fallback for Kids Club app if no other info is present
-  return 499;
+  return null;
 };
+
+const toSafeNumber = (value: unknown): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  return null;
+};
+
+async function fetchLatestSuccessfulBillingAmounts(
+  userIds: string[]
+): Promise<Record<string, number>> {
+  const billingMap: Record<string, number> = {};
+
+  if (userIds.length === 0) {
+    return billingMap;
+  }
+
+  // Try canonical schema first: billing_history.amount (stored in cents)
+  const amountQuery = await supabase
+    .from('billing_history')
+    .select('user_id, amount, charged_at, created_at')
+    .in('user_id', userIds)
+    .eq('status', 'succeeded')
+    .order('charged_at', { ascending: false, nullsFirst: false })
+    .order('created_at', { ascending: false, nullsFirst: false });
+
+  let rows: BillingAmountRow[] = [];
+
+  if (!amountQuery.error && amountQuery.data) {
+    rows = amountQuery.data as BillingAmountRow[];
+  } else {
+    // Backward-compatible fallback for environments using amount_cents
+    const amountCentsQuery = await supabase
+      .from('billing_history')
+      .select('user_id, amount_cents, charged_at, created_at')
+      .in('user_id', userIds)
+      .eq('status', 'succeeded')
+      .order('charged_at', { ascending: false, nullsFirst: false })
+      .order('created_at', { ascending: false, nullsFirst: false });
+
+    if (amountCentsQuery.error) {
+      console.warn('[Subscriptions API] billing_history query error:', amountCentsQuery.error);
+      return billingMap;
+    }
+
+    rows = (amountCentsQuery.data || []) as BillingAmountRow[];
+  }
+
+  rows.forEach((record) => {
+    if (billingMap[record.user_id] !== undefined) {
+      return;
+    }
+
+    const amount = toSafeNumber(record.amount);
+    const amountCents = toSafeNumber(record.amount_cents);
+    const resolved = amount ?? amountCents;
+
+    if (resolved !== null) {
+      billingMap[record.user_id] = resolved;
+    }
+  });
+
+  return billingMap;
+}
 
 const escapeForLike = (value: string) => value.replace(/([%_])/g, '\\$1');
 
@@ -218,11 +299,13 @@ export async function GET(request: Request) {
 
     const metrics = calculateMetrics(allSubscriptions || [], tierMap);
 
+    const billingMap = await fetchLatestSuccessfulBillingAmounts(subscriptionIds);
+
     // Check if we should include Free users (those in profiles but NOT in subscriptions)
     const enrichedSubscriptions = (subscriptions || []).map((sub) => {
       const profile = profiles[sub.user_id];
       const tierEntry = sub.tier_id ? tierMap[sub.tier_id] : null;
-      const displayPriceCents = resolveSubscriptionPrice(sub, tierMap);
+      const displayPriceCents = resolveSubscriptionPrice(sub, tierMap, billingMap);
 
       return {
         ...sub,
