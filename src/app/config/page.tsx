@@ -92,6 +92,7 @@ export default function ConfigPage() {
       verification_code_expiry_minutes: 'How long verification codes remain valid before expiring (in minutes).',
       max_verification_attempts: 'Maximum number of incorrect code attempts before requiring a new code.',
       minimum_withdrawal_amount_cents: 'Minimum seller withdrawal amount in cents (e.g., 500 = $5.00). Set to 0 to disable the minimum requirement entirely.',
+      max_trial_uses: 'Lifetime number of free-trial starts allowed per user. Set to 1 to allow one trial ever; set to 0 or negative for unlimited.',
     };
     return descriptions[key] || '';
   };

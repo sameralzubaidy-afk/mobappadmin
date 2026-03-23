@@ -13,6 +13,40 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+async function getGracePeriodDaysFromConfig(): Promise<number> {
+  const DEFAULT_GRACE_DAYS = 90;
+
+  const { data, error } = await supabase
+    .from('admin_config')
+    .select('value')
+    .eq('key', 'grace_period_days')
+    .eq('is_active', true)
+    .maybeSingle();
+
+  if (!error && data?.value != null) {
+    const parsed = Number(data.value);
+    if (Number.isFinite(parsed)) {
+      return Math.max(parsed, 0);
+    }
+  }
+
+  const { data: legacyData, error: legacyError } = await supabase
+    .from('admin_config')
+    .select('config_value')
+    .eq('config_key', 'grace_period_days')
+    .eq('is_active', true)
+    .maybeSingle();
+
+  if (!legacyError && legacyData?.config_value != null) {
+    const parsed = Number(legacyData.config_value);
+    if (Number.isFinite(parsed)) {
+      return Math.max(parsed, 0);
+    }
+  }
+
+  return DEFAULT_GRACE_DAYS;
+}
+
 /**
  * POST /api/admin/subscriptions/actions
  * 
@@ -102,6 +136,7 @@ export async function POST(request: Request) {
 
 async function handleManualCancel(subscription: any, reason?: string) {
   const now = new Date().toISOString();
+  const gracePeriodDays = await getGracePeriodDaysFromConfig();
   
   // For active/trial subscriptions, move to grace_period
   const newStatus = ['active', 'trial'].includes(subscription.status) 
@@ -109,7 +144,7 @@ async function handleManualCancel(subscription: any, reason?: string) {
     : 'cancelled';
   
   const gracePeriodEnds = newStatus === 'grace_period'
-    ? new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
+    ? new Date(Date.now() + gracePeriodDays * 24 * 60 * 60 * 1000).toISOString()
     : null;
 
   const { data, error } = await supabase
