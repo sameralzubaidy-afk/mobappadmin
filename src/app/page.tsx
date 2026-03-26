@@ -1,5 +1,6 @@
 // File: p2p-kids-admin/src/app/page.tsx
 import TradeAnalytics from './components/TradeAnalytics';
+import SPEconomySummary from './components/SPEconomySummary';
 
 export default function HomePage() {
   return (
@@ -10,8 +11,19 @@ export default function HomePage() {
       </p>
 
       <TradeAnalytics />
-      
+      <SPEconomySummary />
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <a
+          href="/sp-wallet"
+          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+          data-testid="card-sp-wallet"
+        >
+          <h2 className="text-xl font-semibold mb-2">💎 SP Wallet Operations</h2>
+          <p className="text-gray-600 text-sm">
+            Inspect user wallets, manually adjust Swap Points, manage wallet status, and monitor the SP economy.
+          </p>
+        </a>
         <a
           href="/trades"
           className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
