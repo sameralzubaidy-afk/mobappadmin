@@ -15,6 +15,16 @@ export default function HomePage() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <a
+          href="/analytics"
+          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+          data-testid="card-analytics"
+        >
+          <h2 className="text-xl font-semibold mb-2">📊 Revenue & Analytics</h2>
+          <p className="text-gray-600 text-sm">
+            View comprehensive revenue metrics (MRR, ARR, churn), transaction fees, and user engagement (DAU/MAU).
+          </p>
+        </a>
+        <a
           href="/sp-wallet"
           className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
           data-testid="card-sp-wallet"

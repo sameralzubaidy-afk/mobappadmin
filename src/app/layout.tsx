@@ -1,24 +1,18 @@
-import './globals.css'
-import { Inter } from 'next/font/google'
-import { ProtectedLayout } from './components/ProtectedLayout'
+import type { Metadata } from 'next';
+import './globals.css';
+import { AdminShell } from '@/components/layout/AdminShell';
 
-const inter = Inter({ subsets: ['latin'] })
+export const metadata: Metadata = {
+  title:       'Kids Marketplace Admin',
+  description: 'Admin panel for Kids P2P Marketplace',
+};
 
-export const metadata = {
-  title: 'P2P Kids Marketplace - Admin Portal',
-  description: 'Admin portal for P2P Kids Marketplace',
-}
-
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
-        <ProtectedLayout>{children}</ProtectedLayout>
+      <body>
+        <AdminShell>{children}</AdminShell>
       </body>
     </html>
-  )
+  );
 }

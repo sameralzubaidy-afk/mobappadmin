@@ -1,19 +1,75 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 249, 250, 251;
-  --background-end-rgb: 255, 255, 255;
+  /* Sidebar */
+  --sidebar-bg:       #3D1073;
+  --sidebar-active:   #5A2D9C;
+  --sidebar-text:     #FFFFFF;
+  --sidebar-muted:    #C4A8E8;
+  --sidebar-width:    256px;
+
+  /* Topbar */
+  --topbar-bg:        #FFFFFF;
+  --topbar-border:    #F0EDF9;
+  --topbar-height:    64px;
+
+  /* Brand */
+  --brand-primary:    #6C3CE1;
+  --brand-accent:     #FF6B35;
+  --brand-green:      #28A745;
+  --brand-blue:       #17A2B8;
+
+  /* Content */
+  --content-bg:       #F2F0FB;
+
+  /* Cards */
+  --card-bg:          #FFFFFF;
+  --card-border:      #F0EDF9;
+  --card-shadow:      0 1px 3px rgba(109, 60, 225, 0.06), 0 4px 16px rgba(109, 60, 225, 0.04);
+
+  /* Text */
+  --text-primary:     #2D2D4E;
+  --text-secondary:   #6B6B8F;
+  --text-muted:       #9B97B5;
 }
 
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
 body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  height: 100%;
+  font-family: 'Inter', system-ui, sans-serif;
+  background-color: var(--content-bg);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--sidebar-muted);
+  border-radius: 999px;
+}
+
+/* Sidebar transition */
+.sidebar-collapsed {
+  width: 64px !important;
+}
+.sidebar-collapsed .nav-label,
+.sidebar-collapsed .nav-arrow,
+.sidebar-collapsed .sidebar-brand-text {
+  display: none;
 }
