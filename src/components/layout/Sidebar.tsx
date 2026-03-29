@@ -20,6 +20,7 @@ import {
   TrendingUp,
   IdCard,
   Gift,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface NavItem {
@@ -37,6 +38,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'SP Wallet',     href: '/sp-wallet',      icon: <Coins          size={18} /> },
   { label: 'Badges',        href: '/badges',         icon: <Award          size={18} /> },
   { label: 'Listings',      href: '/listings',       icon: <Package        size={18} /> },
+  { label: 'Flagged Items', href: '/items/flagged',  icon: <AlertTriangle  size={18} /> },
   { label: 'Trades',        href: '/trades',         icon: <TrendingUp     size={18} /> },
   { label: 'Reviews',       href: '/reviews',        icon: <MessageSquare  size={18} /> },
   { label: 'Analytics',     href: '/analytics',      icon: <BarChart2      size={18} /> },
