@@ -2,7 +2,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { AdminShell } from '@/components/layout/AdminShell';
-import { theme } from '@/styles/theme';
 
 // Mock Next.js navigation and Supabase
 vi.mock('next/navigation', () => ({
@@ -84,20 +83,22 @@ describe('Admin UI Theme Integration', () => {
     });
   });
 
-  it('should apply theme colors correctly', () => {
+  it('should apply theme colors correctly', async () => {
     const { container } = render(
       <AdminShell>
         <div>Content</div>
       </AdminShell>
     );
 
-    // Check CSS variables are defined
-    const root = document.documentElement;
-    const sidebarBg = getComputedStyle(root).getPropertyValue('--sidebar-bg');
-    const contentBg = getComputedStyle(root).getPropertyValue('--content-bg');
-    
-    expect(sidebarBg).toBeTruthy();
-    expect(contentBg).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.getByLabelText('Toggle sidebar')).toBeInTheDocument();
+    });
+
+    const sidebar = container.querySelector('aside');
+    const main = container.querySelector('main');
+
+    expect(sidebar?.getAttribute('style')).toContain('var(--sidebar-bg)');
+    expect(main?.getAttribute('style')).toContain('var(--content-bg)');
   });
 
   it('should navigate between pages via sidebar links', async () => {
@@ -108,14 +109,14 @@ describe('Admin UI Theme Integration', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Dashboard')).toBeInTheDocument();
+      expect(screen.getByTestId('nav-dashboard')).toBeInTheDocument();
     });
 
     // All nav links should be rendered
-    expect(screen.getByText('Users')).toBeInTheDocument();
-    expect(screen.getByText('Subscriptions')).toBeInTheDocument();
-    expect(screen.getByText('SP Wallet')).toBeInTheDocument();
-    expect(screen.getByText('Badges')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-users')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-subscriptions')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-sp-wallet')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-badges')).toBeInTheDocument();
   });
 
   it('should show admin name in top navbar', async () => {

@@ -1,12 +1,13 @@
 // Unit Tests: Revenue Analytics Service
 // filepath: p2p-kids-admin/src/lib/__tests__/revenueAnalytics.test.ts
 
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { RevenueAnalyticsService } from '../revenueAnalytics';
 import { createClient } from '@/lib/supabase/server';
 
 // Mock Supabase client
-jest.mock('@/lib/supabase/server', () => ({
-  createClient: jest.fn(),
+vi.mock('@/lib/supabase/server', () => ({
+  createClient: vi.fn(),
 }));
 
 describe('RevenueAnalyticsService', () => {
@@ -14,13 +15,13 @@ describe('RevenueAnalyticsService', () => {
 
   beforeEach(() => {
     mockSupabase = {
-      rpc: jest.fn(),
+      rpc: vi.fn(),
     };
-    (createClient as jest.Mock).mockReturnValue(mockSupabase);
+    (createClient as any).mockReturnValue(mockSupabase);
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('getRevenueMetrics', () => {

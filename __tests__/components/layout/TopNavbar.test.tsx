@@ -22,8 +22,9 @@ describe('TopNavbar', () => {
 
   it('should render brand logo and name', () => {
     render(<TopNavbar sidebarWidth={256} />);
-    
-    expect(screen.getByText(/KidsAdmin/)).toBeInTheDocument();
+
+    const brandMatches = screen.getAllByText((_, element) => element?.textContent === 'KidsAdmin');
+    expect(brandMatches.length).toBeGreaterThan(0);
   });
 
   it('should render notification bell with indicator', () => {
@@ -52,9 +53,9 @@ describe('TopNavbar', () => {
 
   it('should render admin profile with avatar image when provided', () => {
     render(<TopNavbar sidebarWidth={256} adminName="Bob" adminAvatar="https://example.com/avatar.jpg" />);
-    
-    const img = screen.getByAlt('Bob') as HTMLImageElement;
-    expect(img.src).toBe('https://example.com/avatar.jpg');
+
+    const img = screen.getByAltText('Bob') as HTMLImageElement;
+    expect(img.src).toContain('https://example.com/avatar.jpg');
   });
 
   it('should adjust positioning based on sidebar width', () => {

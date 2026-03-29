@@ -2,19 +2,19 @@
 // Task: ADMIN-V2-006
 // Tests all RPC wrapper API routes
 
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 describe('Admin User Management API - Unit Tests', () => {
   // Mock Supabase client
   const mockSupabase = {
     auth: {
-      getUser: jest.fn(),
+      getUser: vi.fn(),
     },
-    rpc: jest.fn(),
+    rpc: vi.fn(),
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('GET /api/admin/users', () => {

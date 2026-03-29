@@ -17,7 +17,7 @@ describe('MetricCard', () => {
       />
     );
     
-    expect(screen.getByText('TOTAL USERS')).toBeInTheDocument(); // Uppercase from component
+    expect(screen.getByText('Total Users')).toBeInTheDocument();
     expect(screen.getByText('1,234')).toBeInTheDocument();
     expect(screen.getByText('Active users')).toBeInTheDocument();
   });
@@ -82,7 +82,7 @@ describe('MetricCard', () => {
       />
     );
     
-    expect(screen.getByText('SIMPLE METRIC')).toBeInTheDocument();
+    expect(screen.getByText('Simple Metric')).toBeInTheDocument();
     expect(screen.getByText('999')).toBeInTheDocument();
   });
 
