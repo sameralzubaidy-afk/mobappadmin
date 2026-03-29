@@ -93,6 +93,8 @@ export default function ConfigPage() {
       max_verification_attempts: 'Maximum number of incorrect code attempts before requiring a new code.',
       minimum_withdrawal_amount_cents: 'Minimum seller withdrawal amount in cents (e.g., 500 = $5.00). Set to 0 to disable the minimum requirement entirely.',
       max_trial_uses: 'Lifetime number of free-trial starts allowed per user. Set to 1 to allow one trial ever; set to 0 or negative for unlimited.',
+      cpsc_recall_check_enabled: 'Enable automatic CPSC recall matching for new listings. When enabled, item titles/descriptions are checked against the CPSC recalls database. Set to "true" to enable or "false" to disable.',
+      cpsc_match_threshold: 'Confidence threshold (0.0 to 1.0) for automatic item flagging. Items with similarity score >= this value will be flagged for review. Recommended: 0.5 (50%). Lower values increase sensitivity (more false positives).',
     };
     return descriptions[key] || '';
   };
@@ -250,6 +252,8 @@ export default function ConfigPage() {
           <li>• <strong>SMS Rate Limit:</strong> Recommended range is 5-15 per hour. Too low may frustrate users, too high risks abuse.</li>
           <li>• <strong>Code Expiry:</strong> Standard is 10 minutes. Shorter times increase security but may inconvenience users.</li>
           <li>• <strong>Max Attempts:</strong> 3 attempts is industry standard. Prevents brute force while allowing for typos.</li>
+          <li>• <strong>CPSC Check Enabled:</strong> Safety feature that checks listings against recalled products. Disable only for testing or if CPSC database is unavailable.</li>
+          <li>• <strong>CPSC Match Threshold:</strong> Higher values (0.7-0.9) reduce false positives but may miss some recalls. Lower values (0.3-0.5) catch more recalls but require more admin review.</li>
           <li>• All changes are logged in the audit trail for compliance and security review.</li>
         </ul>
       </div>
