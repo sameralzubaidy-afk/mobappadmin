@@ -2,7 +2,10 @@
 
 export interface AdminConfigItem {
   key: string;
-  value: string;
+  value: string | number | boolean;
+  data_type?: string;
+  category?: string;
+  is_active?: boolean;
   description: string | null;
   created_at: string;
   updated_at: string;

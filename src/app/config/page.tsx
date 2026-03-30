@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import type { AdminConfigItem, SMSRateLimitStats } from '@/types/config';
 
 export default function ConfigPage() {
-    const [config, setConfig] = useState<AdminConfigItem[]>([]);
+  const [config, setConfig] = useState<AdminConfigItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editValues, setEditValues] = useState<Record<string, string>>({});
@@ -27,12 +27,25 @@ export default function ConfigPage() {
       
       // Filter out any invalid items (missing key or value)
       const validConfig = (json.data || []).filter((item: any) => item && item.key && item.value !== undefined);
+
+      // Ensure AI moderation toggle is always present in UI (RPC upsert will create if absent).
+      if (!validConfig.some((item: AdminConfigItem) => item.key === 'moderation_ai_enabled')) {
+        validConfig.push({
+          key: 'moderation_ai_enabled',
+          value: 'true',
+          data_type: 'boolean',
+          category: 'moderation',
+          description: 'Enable or disable Google Vision AI image moderation on listing photo upload.',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+      }
       
       setConfig(validConfig);
       // read can_write flag from server
       setCanWrite(!!json.can_write);
       const initial: Record<string, string> = {};
-      validConfig.forEach((item: any) => (initial[item.key] = item.value));
+      validConfig.forEach((item: AdminConfigItem) => (initial[item.key] = String(item.value ?? '')));
       setEditValues(initial);
     } catch (err: any) {
       setError(err.message || 'Failed to load configuration');
@@ -93,10 +106,24 @@ export default function ConfigPage() {
       max_verification_attempts: 'Maximum number of incorrect code attempts before requiring a new code.',
       minimum_withdrawal_amount_cents: 'Minimum seller withdrawal amount in cents (e.g., 500 = $5.00). Set to 0 to disable the minimum requirement entirely.',
       max_trial_uses: 'Lifetime number of free-trial starts allowed per user. Set to 1 to allow one trial ever; set to 0 or negative for unlimited.',
+      moderation_ai_enabled: 'Enable or disable Google Vision AI image moderation on listing photo upload. Disable only for maintenance or troubleshooting.',
       cpsc_recall_check_enabled: 'Enable automatic CPSC recall matching for new listings. When enabled, item titles/descriptions are checked against the CPSC recalls database. Set to "true" to enable or "false" to disable.',
       cpsc_match_threshold: 'Confidence threshold (0.0 to 1.0) for automatic item flagging. Items with similarity score >= this value will be flagged for review. Recommended: 0.5 (50%). Lower values increase sensitivity (more false positives).',
     };
     return descriptions[key] || '';
+  };
+
+  const isBooleanConfig = (item: AdminConfigItem): boolean => {
+    if (item.data_type === 'boolean') {
+      return true;
+    }
+
+    const value = String(editValues[item.key] ?? item.value ?? '').toLowerCase();
+    return value === 'true' || value === 'false';
+  };
+
+  const getDisplayValue = (item: AdminConfigItem): string => {
+    return editValues[item.key] ?? String(item.value ?? '');
   };
 
   if (loading) {
@@ -200,6 +227,8 @@ export default function ConfigPage() {
             <div className="divide-y divide-gray-200">
               {items.map((item) => {
                 if (!item || !item.key) return null;
+                const displayValue = getDisplayValue(item);
+                const isBoolean = isBooleanConfig(item);
                 return (
                 <div key={item.key} className="p-6">
               <div className="flex items-start justify-between">
@@ -213,18 +242,42 @@ export default function ConfigPage() {
                     {getConfigDescription(item.key) || item.description}
                   </p>
                   <div className="flex items-center space-x-3">
-                    <input
-                      type="text"
-                      value={editValues[item.key] || ''}
-                      onChange={(e) => 
-                        setEditValues({ ...editValues, [item.key]: e.target.value })
-                      }
-                      className="flex-1 max-w-xs px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      disabled={saving || canWrite === false}
-                    />
+                    {isBoolean ? (
+                      <label className="inline-flex items-center gap-3 rounded-md border border-gray-300 px-3 py-2">
+                        <input
+                          type="checkbox"
+                          checked={displayValue === 'true'}
+                          onChange={(e) =>
+                            setEditValues({
+                              ...editValues,
+                              [item.key]: e.target.checked ? 'true' : 'false',
+                            })
+                          }
+                          disabled={saving || canWrite === false}
+                          className="h-4 w-4"
+                        />
+                        <span className="text-sm font-medium text-gray-800">
+                          {displayValue === 'true' ? 'Enabled' : 'Disabled'}
+                        </span>
+                      </label>
+                    ) : (
+                      <input
+                        type="text"
+                        value={displayValue}
+                        onChange={(e) =>
+                          setEditValues({ ...editValues, [item.key]: e.target.value })
+                        }
+                        className="flex-1 max-w-xs px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        disabled={saving || canWrite === false}
+                      />
+                    )}
                     <button
                       onClick={() => handleSave(item.key)}
-                      disabled={saving || editValues[item.key] === item.value || canWrite === false}
+                      disabled={
+                        saving ||
+                        displayValue === String(item.value ?? '') ||
+                        canWrite === false
+                      }
                       className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       {saving ? 'Saving...' : (canWrite === false ? 'Read-only' : 'Save')}
@@ -252,6 +305,7 @@ export default function ConfigPage() {
           <li>• <strong>SMS Rate Limit:</strong> Recommended range is 5-15 per hour. Too low may frustrate users, too high risks abuse.</li>
           <li>• <strong>Code Expiry:</strong> Standard is 10 minutes. Shorter times increase security but may inconvenience users.</li>
           <li>• <strong>Max Attempts:</strong> 3 attempts is industry standard. Prevents brute force while allowing for typos.</li>
+          <li>• <strong>AI Image Moderation:</strong> Controls Google Vision moderation on listing image upload. Use Disabled only for controlled maintenance/testing windows.</li>
           <li>• <strong>CPSC Check Enabled:</strong> Safety feature that checks listings against recalled products. Disable only for testing or if CPSC database is unavailable.</li>
           <li>• <strong>CPSC Match Threshold:</strong> Higher values (0.7-0.9) reduce false positives but may miss some recalls. Lower values (0.3-0.5) catch more recalls but require more admin review.</li>
           <li>• All changes are logged in the audit trail for compliance and security review.</li>
