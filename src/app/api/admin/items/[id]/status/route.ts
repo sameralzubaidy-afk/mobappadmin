@@ -1,18 +1,16 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import {
+  buildItemStatusUpdatePayload,
+  validateModerationStatusInput,
+} from '@/lib/itemModerationStatus';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const ADMIN_UI_SECRET = process.env.ADMIN_UI_SECRET;
 
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  throw new Error('Missing Supabase environment variables');
-}
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
 interface StatusBody {
-  status: 'rejected' | 'available';
+  status: string;
   rejection_reason?: string;
 }
 
@@ -21,6 +19,15 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+      return NextResponse.json(
+        { error: 'Server misconfiguration: missing Supabase environment variables' },
+        { status: 500 }
+      );
+    }
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
     const adminSecret = request.headers.get('x-admin-secret');
     if (!adminSecret || adminSecret !== ADMIN_UI_SECRET) {
       return NextResponse.json(
@@ -37,16 +44,10 @@ export async function POST(
     const body = (await request.json()) as StatusBody;
     const { status, rejection_reason } = body;
 
-    if (!status || !['rejected', 'available'].includes(status)) {
+    const validation = validateModerationStatusInput(status, rejection_reason);
+    if (!validation.ok) {
       return NextResponse.json(
-        { error: 'status must be one of: rejected, available' },
-        { status: 400 }
-      );
-    }
-
-    if (status === 'rejected' && (!rejection_reason || !rejection_reason.trim())) {
-      return NextResponse.json(
-        { error: 'rejection_reason is required when status is rejected' },
+        { error: validation.error },
         { status: 400 }
       );
     }
@@ -68,28 +69,19 @@ export async function POST(
       return NextResponse.json({ error: 'Item not found' }, { status: 404 });
     }
 
-    const updatePayload =
-      status === 'rejected'
-        ? {
-            status,
-            rejection_reason: rejection_reason!.trim(),
-            rejected_at: new Date().toISOString(),
-            appeal_count: (existingItem.appeal_count || 0) + 1,
-          }
-        : {
-            status,
-            flagged_at: null,
-            rejected_at: null,
-            rejection_reason: null,
-            appealed_at: null,
-            appeal_reason: null,
-          };
+    const updatePayload = buildItemStatusUpdatePayload({
+      status: validation.status,
+      reason: validation.reason,
+      currentAppealCount: existingItem.appeal_count || 0,
+    });
 
     const { data: updatedItem, error: updateError } = await supabase
       .from('items')
       .update(updatePayload)
       .eq('id', itemId)
-      .select('id, status, rejected_at, rejection_reason, appeal_count, appealed_at, appeal_reason')
+      .select(
+        'id, status, flagged_at, rejected_at, rejection_reason, appeal_count, appealed_at, appeal_reason'
+      )
       .maybeSingle();
 
     if (updateError) {
