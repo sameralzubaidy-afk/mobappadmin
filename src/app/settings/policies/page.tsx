@@ -89,14 +89,26 @@ export default function PoliciesPage() {
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      if (!user) {
+        throw new Error('Not authenticated');
+      }
 
-      const { error } = await supabase.rpc('publish_policy', {
-        p_policy_id: policyId,
-        p_admin_id: user.id,
+      const response = await fetch(`/api/admin/policies/${policyId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-secret': process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '',
+        },
+        body: JSON.stringify({
+          action: 'publish',
+          admin_id: user.id,
+        }),
       });
 
-      if (error) throw error;
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to publish policy');
+      }
 
       alert('Policy published successfully');
       fetchPolicies();
