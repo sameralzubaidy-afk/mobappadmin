@@ -1,9 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { Button } from '@/app/components/ui/button';
-import { Card, CardContent } from '@/app/components/ui/card';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -28,34 +25,38 @@ const POLICY_TYPE_LABELS: Record<string, string> = {
 export default function ViewPolicyPage() {
   const params = useParams();
   const router = useRouter();
-  const supabase = createClientComponentClient();
   const policyId = params.id as string;
 
   const [policy, setPolicy] = useState<Policy | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchPolicy();
-  }, [policyId]);
-
-  const fetchPolicy = async () => {
+  const fetchPolicy = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from('platform_policies')
-        .select('*')
-        .eq('id', policyId)
-        .single();
+      const response = await fetch(`/api/admin/policies/${policyId}`, {
+        method: 'GET',
+        headers: {
+          'x-admin-secret': process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '',
+        },
+        cache: 'no-store',
+      });
 
-      if (error) throw error;
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to load policy');
+      }
 
-      setPolicy(data);
+      setPolicy(payload.data as Policy);
     } catch (error) {
       console.error('Error fetching policy:', error);
       alert('Failed to load policy');
     } finally {
       setLoading(false);
     }
-  };
+  }, [policyId]);
+
+  useEffect(() => {
+    fetchPolicy();
+  }, [fetchPolicy]);
 
   const handlePublish = async () => {
     if (!policy) return;
@@ -65,15 +66,21 @@ export default function ViewPolicyPage() {
     }
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      const { error } = await supabase.rpc('publish_policy', {
-        p_policy_id: policyId,
-        p_admin_id: user.id,
+      const response = await fetch(`/api/admin/policies/${policyId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-secret': process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '',
+        },
+        body: JSON.stringify({
+          action: 'publish',
+        }),
       });
 
-      if (error) throw error;
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to publish policy');
+      }
 
       alert('Policy published successfully');
       router.push('/settings/policies');
@@ -93,10 +100,13 @@ export default function ViewPolicyPage() {
 
   return (
     <div className="p-6 space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/settings/policies">
-            <Button variant="outline">← Back</Button>
+          <Link href="/settings/policies" className="inline-block">
+            <button className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+              ← Back
+            </button>
           </Link>
           <div>
             <h1 className="text-3xl font-bold">
@@ -111,50 +121,52 @@ export default function ViewPolicyPage() {
         <div className="flex gap-2">
           {policy.status === 'draft' && (
             <>
-              <Link href={`/settings/policies/${policyId}/edit`}>
-                <Button variant="outline">Edit</Button>
+              <Link href={`/settings/policies/${policyId}/edit`} className="inline-block">
+                <button className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                  Edit
+                </button>
               </Link>
-              <Button onClick={handlePublish} testID="publish-policy-button">
+              <button
+                onClick={handlePublish}
+                data-testid="publish-policy-button"
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+              >
                 Publish
-              </Button>
+              </button>
             </>
           )}
         </div>
       </div>
 
-      <Card>
-        <CardContent className="p-6 space-y-4">
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <p className="font-semibold text-gray-600">Status</p>
-              <p className="capitalize">{policy.status}</p>
-            </div>
-            <div>
-              <p className="font-semibold text-gray-600">Version</p>
-              <p>{policy.version}</p>
-            </div>
-            <div>
-              <p className="font-semibold text-gray-600">Effective Date</p>
-              <p>{policy.effective_date ? new Date(policy.effective_date).toLocaleDateString() : 'Not set'}</p>
-            </div>
-            <div>
-              <p className="font-semibold text-gray-600">Published</p>
-              <p>{policy.published_at ? new Date(policy.published_at).toLocaleDateString() : 'Not published'}</p>
-            </div>
+      {/* Policy Details Card */}
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <p className="font-semibold text-gray-600">Status</p>
+            <p className="capitalize">{policy.status}</p>
           </div>
-        </CardContent>
-      </Card>
+          <div>
+            <p className="font-semibold text-gray-600">Version</p>
+            <p>{policy.version}</p>
+          </div>
+          <div>
+            <p className="font-semibold text-gray-600">Effective Date</p>
+            <p>{policy.effective_date ? new Date(policy.effective_date).toLocaleDateString() : 'Not set'}</p>
+          </div>
+          <div>
+            <p className="font-semibold text-gray-600">Published</p>
+            <p>{policy.published_at ? new Date(policy.published_at).toLocaleDateString() : 'Not published'}</p>
+          </div>
+        </div>
+      </div>
 
-      <Card>
-        <CardContent className="p-6">
-          <h2 className="text-xl font-bold mb-4">{policy.title}</h2>
-          <div className="prose max-w-none">
-            <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">
-              {policy.content}
-            </pre>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Content Card */}
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <h2 className="text-xl font-bold mb-4">{policy.title}</h2>
+        <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed bg-gray-50 p-4 rounded border border-gray-200">
+          {policy.content}
+        </pre>
+      </div>
     </div>
   );
 }

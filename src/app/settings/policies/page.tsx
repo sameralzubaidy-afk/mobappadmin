@@ -1,10 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { Button } from '@/app/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/tabs';
+import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 
 type PolicyType = 'terms_of_service' | 'privacy_policy' | 'liability_disclaimer';
@@ -29,6 +26,11 @@ const POLICY_LABELS: Record<PolicyType, string> = {
   liability_disclaimer: 'Liability Disclaimer',
 };
 
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
 export default function PoliciesPage() {
   const [policies, setPolicies] = useState<Record<PolicyType, Policy[]>>({
     terms_of_service: [],
@@ -37,7 +39,6 @@ export default function PoliciesPage() {
   });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<PolicyType>('terms_of_service');
-  const supabase = createClientComponentClient();
 
   useEffect(() => {
     fetchPolicies();
@@ -45,12 +46,20 @@ export default function PoliciesPage() {
 
   const fetchPolicies = async () => {
     try {
-      const { data, error } = await supabase
-        .from('platform_policies')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const response = await fetch('/api/admin/policies', {
+        method: 'GET',
+        headers: {
+          'x-admin-secret': process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '',
+        },
+        cache: 'no-store',
+      });
 
-      if (error) throw error;
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to load policies');
+      }
+
+      const data = payload.data as Policy[];
 
       const grouped = (data || []).reduce((acc, policy) => {
         if (!acc[policy.policy_type as PolicyType]) {
@@ -106,32 +115,28 @@ export default function PoliciesPage() {
         <div className="flex justify-between items-center">
           <h3 className="text-lg font-semibold">{title}</h3>
           <Link href={`/settings/policies/new?type=${policyType}`}>
-            <Button testID={`create-${policyType}-button`}>
+            <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition font-medium" data-testid={`create-${policyType}-button`}>
               <span className="mr-2">+</span> Create New Version
-            </Button>
+            </button>
           </Link>
         </div>
 
         {publishedPolicy && (
-          <Card className="border-green-500 border-2">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span className="text-green-600">📄 Active: {publishedPolicy.title}</span>
-                <span className="text-sm font-normal text-gray-500">v{publishedPolicy.version}</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2 text-sm">
-                <p><strong>Published:</strong> {new Date(publishedPolicy.published_at!).toLocaleDateString()}</p>
-                <p><strong>Effective:</strong> {new Date(publishedPolicy.effective_date!).toLocaleDateString()}</p>
-                <div className="mt-4 flex gap-2">
-                  <Link href={`/settings/policies/${publishedPolicy.id}`}>
-                    <Button variant="outline" size="sm">View</Button>
-                  </Link>
-                </div>
+          <div className="border-green-500 border-2 rounded-lg bg-white p-6">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-green-600 font-semibold">📄 Active: {publishedPolicy.title}</span>
+              <span className="text-sm font-normal text-gray-500">v{publishedPolicy.version}</span>
+            </div>
+            <div className="space-y-2 text-sm">
+              <p><strong>Published:</strong> {new Date(publishedPolicy.published_at!).toLocaleDateString()}</p>
+              <p><strong>Effective:</strong> {new Date(publishedPolicy.effective_date!).toLocaleDateString()}</p>
+              <div className="mt-4 flex gap-2">
+                <Link href={`/settings/policies/${publishedPolicy.id}`}>
+                  <button className="bg-white border border-gray-300 text-gray-700 px-3 py-1 rounded hover:bg-gray-50 text-sm">View</button>
+                </Link>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
 
         <div className="space-y-2">
@@ -141,41 +146,37 @@ export default function PoliciesPage() {
           ) : (
             <div className="space-y-2">
               {policyList.map((policy) => (
-                <Card key={policy.id} className={policy.status === 'published' ? 'opacity-50' : ''}>
-                  <CardHeader>
-                    <CardTitle className="flex items-center justify-between">
-                      <span className="text-base">{policy.title}</span>
-                      <span className="text-xs px-2 py-1 rounded bg-gray-200">{policy.status}</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex justify-between items-center">
-                      <div className="text-sm text-gray-600">
-                        <p>Version: {policy.version}</p>
-                        <p>Created: {new Date(policy.created_at).toLocaleDateString()}</p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Link href={`/settings/policies/${policy.id}`}>
-                          <Button variant="outline" size="sm">View</Button>
-                        </Link>
-                        {policy.status === 'draft' && (
-                          <>
-                            <Link href={`/settings/policies/${policy.id}/edit`}>
-                              <Button variant="outline" size="sm">Edit</Button>
-                            </Link>
-                            <Button
-                              onClick={() => publishPolicy(policy.id)}
-                              size="sm"
-                              testID={`publish-${policy.id}-button`}
-                            >
-                              Publish
-                            </Button>
-                          </>
-                        )}
-                      </div>
+                <div key={policy.id} className={`border border-gray-200 rounded-lg p-4 ${policy.status === 'published' ? 'opacity-50' : 'bg-white'}`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-base font-medium">{policy.title}</span>
+                    <span className="text-xs px-2 py-1 rounded bg-gray-200">{policy.status}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <div className="text-sm text-gray-600">
+                      <p>Version: {policy.version}</p>
+                      <p>Created: {new Date(policy.created_at).toLocaleDateString()}</p>
                     </div>
-                  </CardContent>
-                </Card>
+                    <div className="flex gap-2">
+                      <Link href={`/settings/policies/${policy.id}`}>
+                        <button className="bg-white border border-gray-300 text-gray-700 px-3 py-1 rounded hover:bg-gray-50 text-sm">View</button>
+                      </Link>
+                      {policy.status === 'draft' && (
+                        <>
+                          <Link href={`/settings/policies/${policy.id}/edit`}>
+                            <button className="bg-white border border-gray-300 text-gray-700 px-3 py-1 rounded hover:bg-gray-50 text-sm">Edit</button>
+                          </Link>
+                          <button
+                            onClick={() => publishPolicy(policy.id)}
+                            className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 text-sm"
+                            data-testid={`publish-${policy.id}-button`}
+                          >
+                            Publish
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
           )}
@@ -197,31 +198,55 @@ export default function PoliciesPage() {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as PolicyType)}>
-        <TabsList>
-          <TabsTrigger value="terms_of_service" testID="tab-terms-of-service">
-            Terms of Service
-          </TabsTrigger>
-          <TabsTrigger value="privacy_policy" testID="tab-privacy-policy">
-            Privacy Policy
-          </TabsTrigger>
-          <TabsTrigger value="liability_disclaimer" testID="tab-liability-disclaimer">
-            Liability Disclaimer
-          </TabsTrigger>
-        </TabsList>
+      {/* Tabs Navigation */}
+      <div className="flex border-b border-gray-200 gap-6">
+        <button
+          onClick={() => setActiveTab('terms_of_service')}
+          className={`px-4 py-2 font-medium border-b-2 transition ${
+            activeTab === 'terms_of_service'
+              ? 'text-blue-600 border-blue-600'
+              : 'text-gray-600 border-transparent hover:text-gray-900'
+          }`}
+          data-testid="tab-terms-of-service"
+        >
+          Terms of Service
+        </button>
+        <button
+          onClick={() => setActiveTab('privacy_policy')}
+          className={`px-4 py-2 font-medium border-b-2 transition ${
+            activeTab === 'privacy_policy'
+              ? 'text-blue-600 border-blue-600'
+              : 'text-gray-600 border-transparent hover:text-gray-900'
+          }`}
+          data-testid="tab-privacy-policy"
+        >
+          Privacy Policy
+        </button>
+        <button
+          onClick={() => setActiveTab('liability_disclaimer')}
+          className={`px-4 py-2 font-medium border-b-2 transition ${
+            activeTab === 'liability_disclaimer'
+              ? 'text-blue-600 border-blue-600'
+              : 'text-gray-600 border-transparent hover:text-gray-900'
+          }`}
+          data-testid="tab-liability-disclaimer"
+        >
+          Liability Disclaimer
+        </button>
+      </div>
 
-        <TabsContent value="terms_of_service" className="mt-6">
+      {/* Tab Content */}
+      <div className="mt-6">
+        {activeTab === 'terms_of_service' && (
           <PolicyList policyType="terms_of_service" title="Terms of Service" />
-        </TabsContent>
-
-        <TabsContent value="privacy_policy" className="mt-6">
+        )}
+        {activeTab === 'privacy_policy' && (
           <PolicyList policyType="privacy_policy" title="Privacy Policy" />
-        </TabsContent>
-
-        <TabsContent value="liability_disclaimer" className="mt-6">
+        )}
+        {activeTab === 'liability_disclaimer' && (
           <PolicyList policyType="liability_disclaimer" title="Liability Disclaimer" />
-        </TabsContent>
-      </Tabs>
+        )}
+      </div>
     </div>
   );
 }
