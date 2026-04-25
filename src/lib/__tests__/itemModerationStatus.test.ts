@@ -51,20 +51,21 @@ describe("itemModerationStatus helpers", () => {
     expect(typeof payload.rejected_at).toBe("string");
   });
 
-  it("builds needs_edits payload with moderation note and no rejected_at", () => {
+  it("builds needs_edits payload with moderation note and latest flagged timestamp", () => {
     const payload = buildItemStatusUpdatePayload({
       status: "needs_edits",
       reason: "Please replace blurry image and clarify age range",
       currentAppealCount: 1,
     });
 
-    expect(payload).toEqual({
-      status: "needs_edits",
-      rejection_reason: "Please replace blurry image and clarify age range",
-      rejected_at: null,
-      edited_since_rejection: false,
-      edited_since_rejection_at: null,
-    });
+    expect(payload.status).toBe("needs_edits");
+    expect(payload.rejection_reason).toBe(
+      "Please replace blurry image and clarify age range",
+    );
+    expect(payload.rejected_at).toBeNull();
+    expect(payload.edited_since_rejection).toBe(false);
+    expect(payload.edited_since_rejection_at).toBeNull();
+    expect(typeof payload.flagged_at).toBe("string");
   });
 
   it("builds available payload that clears moderation fields", () => {

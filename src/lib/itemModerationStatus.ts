@@ -78,6 +78,7 @@ export function buildItemStatusUpdatePayload(
   if (input.status === "needs_edits") {
     return {
       status: "needs_edits",
+      flagged_at: nowIso,
       rejection_reason: input.reason,
       rejected_at: null,
       edited_since_rejection: false,
