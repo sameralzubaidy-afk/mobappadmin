@@ -12,6 +12,9 @@ import type {
 } from '../types/category';
 import { createCategory } from './categoryService';
 
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 function getAdminClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
   const isServer = typeof window === 'undefined';
@@ -29,6 +32,78 @@ function getAdminClient() {
   return createClient(supabaseUrl, anonKey);
 }
 
+async function resolveAdminUserId(
+  supabase: any,
+  adminUserId?: string
+): Promise<string | null> {
+  if (adminUserId && UUID_REGEX.test(adminUserId)) {
+    return adminUserId;
+  }
+
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    return user?.id || null;
+  } catch (error) {
+    console.warn('[categorySuggestionService] Could not resolve admin user from session:', error);
+    return null;
+  }
+}
+
+function getAdminApiHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  const adminSecret = process.env.NEXT_PUBLIC_ADMIN_UI_SECRET;
+  if (adminSecret) {
+    headers['x-admin-secret'] = adminSecret;
+  }
+
+  return headers;
+}
+
+async function postAdminActionRoute(path: string, payload: Record<string, unknown>): Promise<void> {
+  const response = await fetch(path, {
+    method: 'POST',
+    headers: getAdminApiHeaders(),
+    body: JSON.stringify(payload),
+  });
+
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(result.error || 'Admin category suggestion action failed');
+  }
+}
+
+async function syncCategoryItemCount(supabase: any, categoryId?: string | null): Promise<void> {
+  if (!categoryId) {
+    return;
+  }
+
+  const { count, error: countError } = await supabase
+    .from('items')
+    .select('*', { count: 'exact', head: true })
+    .eq('category_id', categoryId)
+    .eq('status', 'available');
+
+  if (countError) {
+    throw new Error(`Failed to count items for category ${categoryId}: ${countError.message}`);
+  }
+
+  const { error: updateError } = await supabase
+    .from('categories')
+    .update({ item_count: count || 0 })
+    .eq('id', categoryId);
+
+  if (updateError) {
+    throw new Error(
+      `Failed to sync item_count for category ${categoryId}: ${updateError.message}`
+    );
+  }
+}
+
 /**
  * Get category suggestions (with optional status filter)
  * @param status - Filter by status (default: 'pending')
@@ -40,16 +115,7 @@ export async function getCategorySuggestions(
 ): Promise<CategorySuggestion[]> {
   const supabase = getAdminClient();
 
-  let query = supabase.from('category_suggestions').select(
-    includeDetails
-      ? `
-        *,
-        seller:profiles!seller_id(id, full_name, email),
-        item:items!item_id(id, name, status),
-        merged_to_category:categories!merged_to_category_id(id, name)
-      `
-      : '*'
-  );
+  let query = supabase.from('category_suggestions').select('*');
 
   if (status) {
     query = query.eq('status', status);
@@ -63,7 +129,109 @@ export async function getCategorySuggestions(
     throw new Error(`Failed to fetch category suggestions: ${error.message}`);
   }
 
-  return (data as any) || [];
+  const suggestions = ((data as CategorySuggestion[]) || []).map((row) => ({ ...row }));
+
+  if (!includeDetails || suggestions.length === 0) {
+    return suggestions;
+  }
+
+  const sellerIds = Array.from(
+    new Set(suggestions.map((s) => s.seller_id).filter(Boolean))
+  );
+  const itemIds = Array.from(new Set(suggestions.map((s) => s.item_id).filter(Boolean)));
+  const mergedCategoryIds = Array.from(
+    new Set(suggestions.map((s) => s.merged_to_category_id).filter(Boolean))
+  ) as string[];
+
+  const [profilesResult, itemsResult, categoriesResult] = await Promise.all([
+    sellerIds.length > 0
+      ? supabase
+          .from('profiles')
+          .select('*')
+          .in('user_id', sellerIds)
+      : Promise.resolve({ data: [], error: null }),
+    itemIds.length > 0
+      ? supabase.from('items').select('*').in('id', itemIds)
+      : Promise.resolve({ data: [], error: null }),
+    mergedCategoryIds.length > 0
+      ? supabase.from('categories').select('id, name').in('id', mergedCategoryIds)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  if (profilesResult.error) {
+    throw new Error(`Failed to fetch suggestion sellers: ${profilesResult.error.message}`);
+  }
+  if (itemsResult.error) {
+    throw new Error(`Failed to fetch suggestion items: ${itemsResult.error.message}`);
+  }
+  if (categoriesResult.error) {
+    throw new Error(`Failed to fetch merged categories: ${categoriesResult.error.message}`);
+  }
+
+  const sellerByUserId = new Map(
+    (
+      (profilesResult.data as Array<{
+        user_id: string;
+        full_name?: string | null;
+        name?: string | null;
+        display_name?: string | null;
+        email?: string | null;
+      }>) || []
+    ).map((profile) => [profile.user_id, profile])
+  );
+  const itemById = new Map(
+    (
+      (itemsResult.data as Array<{
+        id: string;
+        name?: string | null;
+        title?: string | null;
+        status?: string | null;
+      }>) || []
+    ).map((item) => [item.id, item])
+  );
+  const categoryById = new Map(
+    ((categoriesResult.data as { id: string; name: string }[]) || []).map((category) => [
+      category.id,
+      category,
+    ])
+  );
+
+  return suggestions.map((suggestion) => {
+    const seller = sellerByUserId.get(suggestion.seller_id);
+    const item = itemById.get(suggestion.item_id);
+    const mergedToCategory = suggestion.merged_to_category_id
+      ? categoryById.get(suggestion.merged_to_category_id)
+      : undefined;
+
+    return {
+      ...suggestion,
+      seller: seller
+        ? {
+            id: seller.user_id,
+            full_name:
+              seller.full_name ||
+              seller.name ||
+              seller.display_name ||
+              seller.email ||
+              'Unknown',
+            email: seller.email || '',
+          }
+        : undefined,
+      item: item
+        ? {
+            id: item.id,
+            name: item.name || item.title || 'Untitled item',
+            status: item.status || 'unknown',
+          }
+        : undefined,
+      merged_to_category: mergedToCategory
+        ? {
+            id: mergedToCategory.id,
+            name: mergedToCategory.name,
+          }
+        : undefined,
+    };
+  });
 }
 
 /**
@@ -95,14 +263,24 @@ export async function getPendingSuggestionCount(): Promise<number> {
 export async function approveCategorySuggestion(
   suggestionId: string,
   input: ApproveSuggestionInput,
-  adminUserId: string
+  adminUserId?: string
 ): Promise<void> {
   const supabase = getAdminClient();
+  const resolvedAdminUserId = await resolveAdminUserId(supabase, adminUserId);
+
+  const useApiRoute = typeof window !== 'undefined' && process.env.NODE_ENV !== 'test';
+  if (useApiRoute) {
+    await postAdminActionRoute(`/api/admin/category-suggestions/${suggestionId}/approve`, {
+      ...input,
+      adminUserId: resolvedAdminUserId,
+    });
+    return;
+  }
 
   // 1. Fetch suggestion to get item_id
   const { data: suggestion, error: fetchError } = await supabase
     .from('category_suggestions')
-    .select('*, item:items!item_id(id, status)')
+    .select('id, item_id, status')
     .eq('id', suggestionId)
     .single();
 
@@ -114,6 +292,20 @@ export async function approveCategorySuggestion(
     throw new Error(`Suggestion is already ${suggestion.status}`);
   }
 
+  const { data: currentItem, error: currentItemError } = await supabase
+    .from('items')
+    .select('id, category_id, status')
+    .eq('id', suggestion.item_id)
+    .maybeSingle();
+
+  if (currentItemError || !currentItem) {
+    throw new Error(
+      `Failed to fetch suggested item before reassignment: ${
+        currentItemError?.message || 'Not found'
+      }`
+    );
+  }
+
   try {
     // 2. Create the new category
     const newCategory = await createCategory(input.categoryData);
@@ -121,38 +313,51 @@ export async function approveCategorySuggestion(
     // 3. Reassign the item to the new category (if requested)
     const shouldReassign = input.reassignItem !== false; // default true
     if (shouldReassign) {
-      const { error: itemUpdateError } = await supabase
+      const { data: updatedItem, error: itemUpdateError } = await supabase
         .from('items')
         .update({ category_id: newCategory.id })
-        .eq('id', suggestion.item_id);
+        .eq('id', suggestion.item_id)
+        .select('id, category_id')
+        .maybeSingle();
 
-      if (itemUpdateError) {
+      if (itemUpdateError || !updatedItem) {
         // Rollback: delete the category we just created
         await supabase.from('categories').delete().eq('id', newCategory.id);
-        throw new Error(`Failed to reassign item: ${itemUpdateError.message}`);
+        throw new Error(
+          `Failed to reassign item: ${itemUpdateError?.message || 'No rows were updated'}`
+        );
       }
+
+      await syncCategoryItemCount(supabase, currentItem.category_id);
+      await syncCategoryItemCount(supabase, newCategory.id);
     }
 
     // 4. Update suggestion row
-    const { error: suggestionUpdateError } = await supabase
+    const { data: updatedSuggestion, error: suggestionUpdateError } = await supabase
       .from('category_suggestions')
       .update({
         status: 'approved' as SuggestionStatus,
-        approved_by: adminUserId,
+        approved_by: resolvedAdminUserId,
         reviewed_at: new Date().toISOString(),
       })
-      .eq('id', suggestionId);
+      .eq('id', suggestionId)
+      .select('id')
+      .maybeSingle();
 
-    if (suggestionUpdateError) {
+    if (suggestionUpdateError || !updatedSuggestion) {
       // Rollback: delete category and revert item
       await supabase.from('categories').delete().eq('id', newCategory.id);
       if (shouldReassign) {
         await supabase
           .from('items')
-          .update({ category_id: suggestion.item_id })
+          .update({ category_id: currentItem.category_id })
           .eq('id', suggestion.item_id);
       }
-      throw new Error(`Failed to update suggestion: ${suggestionUpdateError.message}`);
+      throw new Error(
+        `Failed to update suggestion: ${
+          suggestionUpdateError?.message || 'No rows were updated'
+        }`
+      );
     }
   } catch (err: any) {
     console.error('[approveCategorySuggestion] Transaction failed:', err);
@@ -169,23 +374,35 @@ export async function approveCategorySuggestion(
 export async function rejectCategorySuggestion(
   suggestionId: string,
   input: RejectSuggestionInput,
-  adminUserId: string
+  adminUserId?: string
 ): Promise<void> {
   const supabase = getAdminClient();
+  const resolvedAdminUserId = await resolveAdminUserId(supabase, adminUserId);
 
-  const { error } = await supabase
+  const useApiRoute = typeof window !== 'undefined' && process.env.NODE_ENV !== 'test';
+  if (useApiRoute) {
+    await postAdminActionRoute(`/api/admin/category-suggestions/${suggestionId}/reject`, {
+      ...input,
+      adminUserId: resolvedAdminUserId,
+    });
+    return;
+  }
+
+  const { data: updatedSuggestion, error } = await supabase
     .from('category_suggestions')
     .update({
       status: 'rejected' as SuggestionStatus,
-      approved_by: adminUserId, // Track who rejected
+      approved_by: resolvedAdminUserId, // Track who rejected
       admin_note: input.admin_note || null,
       reviewed_at: new Date().toISOString(),
     })
     .eq('id', suggestionId)
-    .eq('status', 'pending'); // Only reject pending suggestions
+    .eq('status', 'pending') // Only reject pending suggestions
+    .select('id')
+    .maybeSingle();
 
-  if (error) {
-    throw new Error(`Failed to reject suggestion: ${error.message}`);
+  if (error || !updatedSuggestion) {
+    throw new Error(`Failed to reject suggestion: ${error?.message || 'No rows were updated'}`);
   }
 }
 
@@ -199,14 +416,24 @@ export async function rejectCategorySuggestion(
 export async function mergeCategorySuggestion(
   suggestionId: string,
   input: MergeSuggestionInput,
-  adminUserId: string
+  adminUserId?: string
 ): Promise<void> {
   const supabase = getAdminClient();
+  const resolvedAdminUserId = await resolveAdminUserId(supabase, adminUserId);
+
+  const useApiRoute = typeof window !== 'undefined' && process.env.NODE_ENV !== 'test';
+  if (useApiRoute) {
+    await postAdminActionRoute(`/api/admin/category-suggestions/${suggestionId}/merge`, {
+      ...input,
+      adminUserId: resolvedAdminUserId,
+    });
+    return;
+  }
 
   // 1. Fetch suggestion to get item_id
   const { data: suggestion, error: fetchError } = await supabase
     .from('category_suggestions')
-    .select('*')
+    .select('id, item_id, status')
     .eq('id', suggestionId)
     .single();
 
@@ -216,6 +443,20 @@ export async function mergeCategorySuggestion(
 
   if (suggestion.status !== 'pending') {
     throw new Error(`Suggestion is already ${suggestion.status}`);
+  }
+
+  const { data: currentItem, error: currentItemError } = await supabase
+    .from('items')
+    .select('id, category_id, status')
+    .eq('id', suggestion.item_id)
+    .maybeSingle();
+
+  if (currentItemError || !currentItem) {
+    throw new Error(
+      `Failed to fetch suggested item before merge: ${
+        currentItemError?.message || 'Not found'
+      }`
+    );
   }
 
   // 2. Verify target category exists
@@ -231,32 +472,49 @@ export async function mergeCategorySuggestion(
 
   try {
     // 3. Reassign item to target category
-    const { error: itemUpdateError } = await supabase
+    const { data: updatedItem, error: itemUpdateError } = await supabase
       .from('items')
       .update({ category_id: input.target_category_id })
-      .eq('id', suggestion.item_id);
+      .eq('id', suggestion.item_id)
+      .select('id, category_id')
+      .maybeSingle();
 
-    if (itemUpdateError) {
-      throw new Error(`Failed to reassign item: ${itemUpdateError.message}`);
+    if (itemUpdateError || !updatedItem) {
+      throw new Error(
+        `Failed to reassign item: ${itemUpdateError?.message || 'No rows were updated'}`
+      );
     }
 
+    await syncCategoryItemCount(supabase, currentItem.category_id);
+    await syncCategoryItemCount(supabase, input.target_category_id);
+
     // 4. Update suggestion row
-    const { error: suggestionUpdateError } = await supabase
+    const { data: updatedSuggestion, error: suggestionUpdateError } = await supabase
       .from('category_suggestions')
       .update({
         status: 'merged' as SuggestionStatus,
-        approved_by: adminUserId,
+        approved_by: resolvedAdminUserId,
         merged_to_category_id: input.target_category_id,
         admin_note: input.admin_note || null,
         reviewed_at: new Date().toISOString(),
       })
-      .eq('id', suggestionId);
+      .eq('id', suggestionId)
+      .select('id')
+      .maybeSingle();
 
-    if (suggestionUpdateError) {
+    if (suggestionUpdateError || !updatedSuggestion) {
       // Rollback: revert item category
-      // Note: We don't know the original category here — best effort only
+      await supabase
+        .from('items')
+        .update({ category_id: currentItem.category_id })
+        .eq('id', suggestion.item_id);
+
       console.error('[mergeCategorySuggestion] Failed to update suggestion after item reassignment');
-      throw new Error(`Failed to update suggestion: ${suggestionUpdateError.message}`);
+      throw new Error(
+        `Failed to update suggestion: ${
+          suggestionUpdateError?.message || 'No rows were updated'
+        }`
+      );
     }
   } catch (err: any) {
     console.error('[mergeCategorySuggestion] Transaction failed:', err);

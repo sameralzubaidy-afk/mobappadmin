@@ -7,6 +7,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { CategoryTable } from './components/CategoryTable';
 import { CategoryForm } from './components/CategoryForm';
+import { CategorySuggestionsList } from './components/CategorySuggestionsList';
 import type { Category, CreateCategoryInput, UpdateCategoryInput } from '../../types/category';
 import { getCategories } from '../../lib/categoryService';
 import { getPendingSuggestionCount } from '../../lib/categorySuggestionService';
@@ -269,11 +270,10 @@ export default function CategoriesPage() {
 
       {/* Suggestions Tab Content */}
       {activeTab === 'suggestions' && (
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-          <p className="text-gray-600">
-            Category Suggestions queue (ADMIN-V3-005) — Coming soon
-          </p>
-        </div>
+        <CategorySuggestionsList
+          onCountChange={setPendingSuggestionCount}
+          onActionSuccess={loadCategories}
+        />
       )}
 
       {/* Category Form Modal */}
