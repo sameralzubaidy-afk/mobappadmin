@@ -35,7 +35,9 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard',     href: '/',               icon: <LayoutDashboard size={18} /> },
   { label: 'Users',         href: '/users',          icon: <Users          size={18} /> },
   { label: 'Subscriptions', href: '/subscriptions',  icon: <CreditCard     size={18} /> },
-  { label: 'SP Wallet',     href: '/sp-wallet',      icon: <Coins          size={18} /> },
+  // SP Economy is the single hub that consolidates SP Wallet + SP Analytics.
+  // Old routes (/sp-wallet, /sp-analytics) still work for direct deep-links.
+  { label: 'SP Economy',    href: '/sp-economy',     icon: <Coins          size={18} /> },
   { label: 'Badges',        href: '/badges',         icon: <Award          size={18} /> },
   { label: 'Listings',      href: '/listings',       icon: <Package        size={18} /> },
   { label: 'Flagged Items', href: '/items/flagged',  icon: <AlertTriangle  size={18} /> },

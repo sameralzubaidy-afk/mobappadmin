@@ -3,7 +3,7 @@
  * MODULE-04 LISTING-V2-006: Admin Tools for Listing Management
  * 
  * Features:
- * - Search listings by ID, seller ID, item name, status
+ * - Search listings by item name, seller email, status, and category
  * - View seller subscription status audit (at creation vs current)
  * - Force-delete or pause listings with reason logging
  * - Display listing metrics
@@ -11,7 +11,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 const adminSecret = process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '';
@@ -49,6 +49,8 @@ interface ListingSearchResult {
 
 interface SearchFilters {
   query: string;
+  sellerEmail: string;
+  category: string;
   status:
     | 'all'
     | 'active'
@@ -95,20 +97,28 @@ const isOtherCategory = (listing: ListingSearchResult): boolean => {
 };
 
 export default function ListingSearch() {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  const supabase = useMemo(
+    () =>
+      createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      ),
+    []
   );
 
   const [filters, setFilters] = useState<SearchFilters>({
     query: '',
+    sellerEmail: '',
+    category: 'all',
     status: 'all',
     spEligibleOnly: false,
     page: 1,
   });
   const [listings, setListings] = useState<ListingSearchResult[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [selectedListingIds, setSelectedListingIds] = useState<Set<string>>(new Set());
   const [selectedListing, setSelectedListing] = useState<ListingSearchResult | null>(null);
   const [adminAction, setAdminAction] = useState<
     'force_delete' | 'pause' | 'approve' | 'request_edits' | 'reject' | null
@@ -123,6 +133,48 @@ export default function ListingSearch() {
     handleSearch(false);
   }, [filters.page]);
 
+  React.useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('categories')
+          .select('name')
+          .order('name', { ascending: true });
+
+        if (error) {
+          console.warn('[ListingSearch] Failed to load categories:', error);
+          return;
+        }
+
+        const categoryNames = (data || [])
+          .map((row) => row.name)
+          .filter((name): name is string => typeof name === 'string' && name.trim().length > 0);
+
+        setCategories(categoryNames);
+      } catch (err) {
+        console.warn('[ListingSearch] Failed to load categories:', err);
+      }
+    };
+
+    void loadCategories();
+  }, [supabase]);
+
+  const isRpcSignatureMismatch = (error: {
+    code?: string;
+    message?: string;
+    details?: string;
+  } | null): boolean => {
+    if (!error) return false;
+
+    const errorText = `${error.code || ''} ${error.message || ''} ${error.details || ''}`.toLowerCase();
+
+    return (
+      error.code === 'PGRST202' ||
+      errorText.includes('could not find the function') ||
+      errorText.includes('schema cache')
+    );
+  };
+
   const handleSearch = async (resetPage = true) => {
     try {
       setLoading(true);
@@ -132,28 +184,123 @@ export default function ListingSearch() {
         return; // handleSearch will be re-triggered by useEffect
       }
       
-      const { data, error } = await supabase.rpc('admin_search_listings_v2', {
+      let rpcData: { listings?: ListingSearchResult[]; total_count?: number } | null = null;
+      let rpcError: { code?: string; message?: string; details?: string } | null = null;
+
+      const primaryResult = await supabase.rpc('admin_search_listings_v2', {
         p_query: filters.query,
         p_status: filters.status,
         p_sp_eligible: filters.spEligibleOnly,
         p_page: targetPage,
-        p_items_per_page: ITEMS_PER_PAGE
+        p_items_per_page: ITEMS_PER_PAGE,
+        p_category: filters.category,
+        p_seller_email: filters.sellerEmail,
       });
 
-      if (error) {
-        console.error('[ListingSearch] RPC Error:', error);
+      rpcData = primaryResult.data as { listings?: ListingSearchResult[]; total_count?: number } | null;
+      rpcError = primaryResult.error;
+
+      // Backward compatibility: older deployments still expose the legacy function signature
+      // without p_category/p_seller_email, which returns 404/PGRST202.
+      if (rpcError && isRpcSignatureMismatch(rpcError)) {
+        console.warn('[ListingSearch] New RPC signature unavailable, falling back to legacy signature.');
+
+        const legacyResult = await supabase.rpc('admin_search_listings_v2', {
+          p_query: filters.query,
+          p_status: filters.status,
+          p_sp_eligible: filters.spEligibleOnly,
+          p_page: targetPage,
+          p_items_per_page: ITEMS_PER_PAGE,
+        });
+
+        rpcData = legacyResult.data as { listings?: ListingSearchResult[]; total_count?: number } | null;
+        rpcError = legacyResult.error;
+      }
+
+      if (rpcError) {
+        console.error('[ListingSearch] RPC Error:', rpcError);
         alert('Failed to search listings');
         return;
       }
 
-      setListings(data.listings || []);
-      setTotalCount(data.total_count || 0);
+      let nextListings = rpcData?.listings || [];
+      let nextTotalCount = rpcData?.total_count || 0;
+
+      // If we are on a legacy backend, emulate new filters client-side.
+      if (filters.category !== 'all') {
+        const requestedCategory = filters.category.toLowerCase();
+        nextListings = nextListings.filter((listing) => {
+          const listingCategory = (listing.category_name || '').toLowerCase();
+          if (requestedCategory === 'uncategorized') {
+            return listingCategory === '';
+          }
+          return listingCategory === requestedCategory;
+        });
+      }
+
+      if (filters.sellerEmail.trim()) {
+        const requestedEmail = filters.sellerEmail.trim().toLowerCase();
+        nextListings = nextListings.filter((listing) =>
+          (listing.seller?.email || '').toLowerCase().includes(requestedEmail)
+        );
+      }
+
+      if (filters.category !== 'all' || filters.sellerEmail.trim()) {
+        nextTotalCount = nextListings.length;
+      }
+
+      setListings(nextListings);
+      setTotalCount(nextTotalCount);
+
+      // Keep selection only for items still visible on current page.
+      const visibleIds = new Set(nextListings.map((listing: ListingSearchResult) => listing.id));
+      setSelectedListingIds((prev) => {
+        const next = new Set<string>();
+        prev.forEach((id) => {
+          if (visibleIds.has(id)) {
+            next.add(id);
+          }
+        });
+        return next;
+      });
     } catch (err) {
       console.error('[ListingSearch] Error searching listings:', err);
     } finally {
       setLoading(false);
     }
   };
+
+  const toggleListingSelection = (listingId: string) => {
+    setSelectedListingIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(listingId)) {
+        next.delete(listingId);
+      } else {
+        next.add(listingId);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAllVisible = () => {
+    setSelectedListingIds((prev) => {
+      const visibleIds = listings.map((listing) => listing.id);
+      const areAllVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => prev.has(id));
+
+      if (areAllVisibleSelected) {
+        const next = new Set(prev);
+        visibleIds.forEach((id) => next.delete(id));
+        return next;
+      }
+
+      const next = new Set(prev);
+      visibleIds.forEach((id) => next.add(id));
+      return next;
+    });
+  };
+
+  const selectedVisibleCount = listings.filter((listing) => selectedListingIds.has(listing.id)).length;
+  const areAllVisibleSelected = listings.length > 0 && selectedVisibleCount === listings.length;
 
   const handleForceDelete = async () => {
     if (!selectedListing || !actionReason.trim()) {
@@ -439,7 +586,7 @@ export default function ListingSearch() {
       <div className="bg-white rounded-lg shadow p-6 mb-6">
         <h2 className="text-xl font-semibold mb-4">Search & Filter</h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4">
           {/* Query input */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -450,6 +597,20 @@ export default function ListingSearch() {
               value={filters.query}
               onChange={(e) => setFilters({ ...filters, query: e.target.value })}
               placeholder="e.g., Blue Backpack, Bicycle..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          {/* Seller email input */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Seller Email
+            </label>
+            <input
+              type="text"
+              value={filters.sellerEmail}
+              onChange={(e) => setFilters({ ...filters, sellerEmail: e.target.value })}
+              placeholder="e.g., seller@example.com"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -473,6 +634,26 @@ export default function ListingSearch() {
               <option value="sold">Sold</option>
               <option value="draft">Draft</option>
               <option value="deleted">Deleted</option>
+            </select>
+          </div>
+
+          {/* Category filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Category
+            </label>
+            <select
+              value={filters.category}
+              onChange={(e) => setFilters({ ...filters, category: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All</option>
+              <option value="uncategorized">Uncategorized</option>
+              {categories.map((categoryName) => (
+                <option key={categoryName} value={categoryName}>
+                  {categoryName}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -516,6 +697,19 @@ export default function ListingSearch() {
                   </span>
                 )}
               </h3>
+              {selectedVisibleCount > 0 && (
+                <div className="mt-1 flex items-center gap-3">
+                  <p className="text-sm text-blue-700">
+                    Selected on this page: {selectedVisibleCount}
+                  </p>
+                  <button
+                    onClick={() => setSelectedListingIds(new Set())}
+                    className="text-xs text-blue-700 hover:text-blue-900 underline"
+                  >
+                    Clear selection
+                  </button>
+                </div>
+              )}
             </div>
 
             {listings.length === 0 ? (
@@ -528,11 +722,22 @@ export default function ListingSearch() {
                   <table className="w-full">
                     <thead className="bg-gray-50 border-b">
                       <tr>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                          <input
+                            type="checkbox"
+                            checked={areAllVisibleSelected}
+                            onChange={toggleSelectAllVisible}
+                            aria-label="Select all listings on this page"
+                            className="w-4 h-4 text-blue-600 rounded"
+                          />
+                        </th>
                         <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Item</th>
                         <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Category</th>
                         <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Price</th>
                         <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">SP</th>
-                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Status</th>                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Seller Email</th>                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Starter Pack</th>
+                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Status</th>
+                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Seller Email</th>
+                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Starter Pack</th>
                         <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Seller Items</th>
                         <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Action</th>
                       </tr>
@@ -541,9 +746,19 @@ export default function ListingSearch() {
                       {listings.map((listing) => (
                         <tr
                           key={listing.id}
-                          className="border-b hover:bg-gray-50"
+                          className={`border-b hover:bg-gray-50 ${selectedListingIds.has(listing.id) ? 'bg-blue-50/40' : ''}`}
                           onClick={() => setSelectedListing(listing)}
                         >
+                          <td className="px-4 py-4 text-sm">
+                            <input
+                              type="checkbox"
+                              checked={selectedListingIds.has(listing.id)}
+                              onChange={() => toggleListingSelection(listing.id)}
+                              onClick={(e) => e.stopPropagation()}
+                              aria-label={`Select ${listing.title}`}
+                              className="w-4 h-4 text-blue-600 rounded"
+                            />
+                          </td>
                           <td className="px-6 py-4 text-sm font-medium text-gray-900 truncate max-w-xs">
                             {listing.title}
                           </td>
@@ -577,9 +792,11 @@ export default function ListingSearch() {
                             >
                               {formatStatusLabel(listing.status)}
                             </span>
-                          </td>                          <td className="px-6 py-4 text-sm text-gray-600 truncate max-w-[200px]">
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-600 truncate max-w-[200px]">
                             {listing.seller?.email || '—'}
-                          </td>                          <td className="px-6 py-4 text-sm">
+                          </td>
+                          <td className="px-6 py-4 text-sm">
                             {listing.eligible_for_starter_pack ? (
                               <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
                                 {listing.starter_pack_claimed ? '🎁 Claimed' : '🎁 Eligible'}

@@ -25,13 +25,13 @@ export default function HomePage() {
           </p>
         </a>
         <a
-          href="/sp-wallet"
+          href="/sp-economy"
           className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
-          data-testid="card-sp-wallet"
+          data-testid="card-sp-economy"
         >
-          <h2 className="text-xl font-semibold mb-2">💎 SP Wallet Operations</h2>
+          <h2 className="text-xl font-semibold mb-2">💎 SP Economy</h2>
           <p className="text-gray-600 text-sm">
-            Inspect user wallets, manually adjust Swap Points, manage wallet status, and monitor the SP economy.
+            One hub for SP health KPIs, category flow, wallet operations, and rules &amp; impact simulation.
           </p>
         </a>
         <a
