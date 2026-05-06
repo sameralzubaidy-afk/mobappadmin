@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '../../../../../lib/supabase/server';
+import { normalizeProfileAvatarUrl } from '../../../../../lib/avatarUrl';
 
 export async function GET(
   req: NextRequest,
@@ -48,7 +49,18 @@ export async function GET(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json({
+      ...data,
+      identity: data.identity
+        ? (() => {
+            const { email_verified: _emailVerified, ...identityWithoutEmailVerified } = data.identity;
+            return {
+              ...identityWithoutEmailVerified,
+              avatar_url: normalizeProfileAvatarUrl(data.identity.avatar_url),
+            };
+          })()
+        : data.identity,
+    });
   } catch (error: any) {
     console.error('[Admin User Detail API] Unexpected error:', error);
     return NextResponse.json(

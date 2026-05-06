@@ -21,6 +21,7 @@ import {
   IdCard,
   Gift,
   AlertTriangle,
+  GraduationCap,
 } from 'lucide-react';
 
 interface NavItem {
@@ -49,6 +50,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'ID Badges',     href: '/id-badges',      icon: <IdCard         size={18} /> },
   { label: 'Nodes',         href: '/nodes',          icon: <MapPin         size={18} /> },
   { label: 'Categories',    href: '/categories',     icon: <Settings       size={18} /> },
+  { label: 'Education',     href: '/education',      icon: <GraduationCap  size={18} /> },
   { label: 'Policies',      href: '/settings/policies', icon: <FileText     size={18} /> },
   { label: 'Config',        href: '/config',         icon: <Settings       size={18} />, hasSubmenu: true },
 ];

@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '../../../../lib/supabase/server';
+import { normalizeProfileAvatarUrl } from '../../../../lib/avatarUrl';
 
 export async function GET(req: NextRequest) {
   try {
@@ -58,7 +59,17 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    return NextResponse.json(data);
+    const normalizedUsers = Array.isArray(data?.users)
+      ? data.users.map((row: any) => ({
+          ...row,
+          avatar_url: normalizeProfileAvatarUrl(row?.avatar_url),
+        }))
+      : [];
+
+    return NextResponse.json({
+      ...(data || {}),
+      users: normalizedUsers,
+    });
   } catch (error: any) {
     console.error('[Admin Users API] Unexpected error:', error);
     return NextResponse.json(

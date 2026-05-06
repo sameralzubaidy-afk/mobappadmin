@@ -48,7 +48,6 @@ interface UserDetail {
     account_status: AccountStatus;
     registered_at: string;
     last_login_at: string | null;
-    email_verified: boolean;
     phone_verified: boolean;
     suspended_at: string | null;
     suspension_reason: string | null;
@@ -109,6 +108,8 @@ export default function UsersPage() {
   const [isDetailPanelOpen, setIsDetailPanelOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [failedAvatarByUserId, setFailedAvatarByUserId] = useState<Record<string, boolean>>({});
+  const [detailAvatarFailed, setDetailAvatarFailed] = useState(false);
   
   // Pagination & Filters
   const [page, setPage] = useState(1);
@@ -172,6 +173,7 @@ export default function UsersPage() {
         setUsers(data.users || []);
         setTotal(data.total || 0);
         setTotalPages(data.total_pages || 1);
+        setFailedAvatarByUserId({});
       } else {
         const errorData = await res.json();
         alert(`Error: ${errorData.error || 'Failed to fetch users'}`);
@@ -191,6 +193,7 @@ export default function UsersPage() {
       });
       if (res.ok) {
         const data = await res.json();
+        setDetailAvatarFailed(false);
         setSelectedUser(data);
         setIsDetailPanelOpen(true);
       } else {
@@ -400,6 +403,13 @@ export default function UsersPage() {
     );
   };
 
+  const markAvatarAsFailed = (userId: string) => {
+    setFailedAvatarByUserId((prev) => {
+      if (prev[userId]) return prev;
+      return { ...prev, [userId]: true };
+    });
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-6">User Management</h1>
@@ -542,11 +552,12 @@ export default function UsersPage() {
                   >
                     <td className="px-4 py-3">
                       <div className="flex items-center space-x-3">
-                        {user.avatar_url ? (
+                        {user.avatar_url && !failedAvatarByUserId[user.user_id] ? (
                           <img
                             src={user.avatar_url}
                             alt={user.name}
                             className="w-8 h-8 rounded-full object-cover"
+                            onError={() => markAvatarAsFailed(user.user_id)}
                           />
                         ) : (
                           <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-semibold text-gray-500">
@@ -618,11 +629,12 @@ export default function UsersPage() {
                 <h3 className="text-lg font-semibold mb-3 text-gray-800">Identity</h3>
                 <div className="bg-gray-50 p-4 rounded space-y-2 text-sm">
                   <div className="flex items-center space-x-3">
-                    {selectedUser.identity.avatar_url ? (
+                    {selectedUser.identity.avatar_url && !detailAvatarFailed ? (
                       <img
                         src={selectedUser.identity.avatar_url}
                         alt={selectedUser.identity.name}
                         className="w-16 h-16 rounded-full object-cover"
+                        onError={() => setDetailAvatarFailed(true)}
                       />
                     ) : (
                       <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center text-2xl font-semibold text-gray-500">
@@ -641,7 +653,6 @@ export default function UsersPage() {
                     <div><span className="font-semibold">Status:</span> {getAccountStatusBadge(selectedUser.identity.account_status)}</div>
                     <div><span className="font-semibold">Registered:</span> {formatDate(selectedUser.identity.registered_at)}</div>
                     <div><span className="font-semibold">Last Login:</span> {formatDate(selectedUser.identity.last_login_at)}</div>
-                    <div><span className="font-semibold">Email Verified:</span> {selectedUser.identity.email_verified ? '✅ Yes' : '❌ No'}</div>
                     <div><span className="font-semibold">Phone Verified:</span> {selectedUser.identity.phone_verified ? '✅ Yes' : '❌ No'}</div>
                   </div>
                   {selectedUser.identity.suspended_at && (
