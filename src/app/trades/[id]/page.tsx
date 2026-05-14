@@ -13,12 +13,15 @@ export default async function TradeDetailPage({ params }: Props) {
     return <div className="p-6">Missing server configuration</div>;
   }
 
-  // Use profiles table instead of users table for PostgREST relationship
-  // Also join subscriptions to get current status. 
-  // Note: profiles.subscription_id links to subscriptions.id
-  const url = `${SUPABASE_URL}/rest/v1/trades?id=eq.${id}&select=*,buyer:profiles!buyer_id(email,name,phone,subscription:subscriptions!subscription_id(status)),seller:profiles!seller_id(email,name,phone)`;
-  const resp = await fetch(url, {
-    headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` },
+  const headers = {
+    apikey: SUPABASE_SERVICE_ROLE_KEY,
+    Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`
+  };
+
+  // Avoid brittle embedded joins that can fail when FK metadata is missing from PostgREST schema cache.
+  const tradeUrl = `${SUPABASE_URL}/rest/v1/trades?id=eq.${encodeURIComponent(id)}&select=*`;
+  const resp = await fetch(tradeUrl, {
+    headers,
     cache: 'no-store'
   });
 
@@ -36,13 +39,55 @@ export default async function TradeDetailPage({ params }: Props) {
   }
 
   const rows = await resp.json();
-  const trade = Array.isArray(rows) ? rows[0] : null;
-  if (!trade) return <div className="p-6">Trade {id} not found.</div>;
+  const baseTrade = Array.isArray(rows) ? rows[0] : null;
+  if (!baseTrade) return <div className="p-6">Trade {id} not found.</div>;
+
+  const [buyerProfileResp, sellerProfileResp, buyerSubscriptionResp] = await Promise.all([
+    fetch(
+      `${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${encodeURIComponent(baseTrade.buyer_id)}&select=name,email,phone&limit=1`,
+      { headers, cache: 'no-store' }
+    ),
+    fetch(
+      `${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${encodeURIComponent(baseTrade.seller_id)}&select=name,email,phone&limit=1`,
+      { headers, cache: 'no-store' }
+    ),
+    fetch(
+      `${SUPABASE_URL}/rest/v1/subscriptions?user_id=eq.${encodeURIComponent(baseTrade.buyer_id)}&select=status&limit=1`,
+      { headers, cache: 'no-store' }
+    )
+  ]);
+
+  const buyerProfileRows = buyerProfileResp.ok ? await buyerProfileResp.json() : [];
+  const sellerProfileRows = sellerProfileResp.ok ? await sellerProfileResp.json() : [];
+  const buyerSubscriptionRows = buyerSubscriptionResp.ok ? await buyerSubscriptionResp.json() : [];
+
+  const buyerProfile = Array.isArray(buyerProfileRows) ? buyerProfileRows[0] : null;
+  const sellerProfile = Array.isArray(sellerProfileRows) ? sellerProfileRows[0] : null;
+  const buyerSubscription = Array.isArray(buyerSubscriptionRows) ? buyerSubscriptionRows[0] : null;
+
+  const trade = {
+    ...baseTrade,
+    buyer: buyerProfile
+      ? {
+          name: buyerProfile.name,
+          email: buyerProfile.email,
+          phone: buyerProfile.phone,
+          subscription: buyerSubscription ? { status: buyerSubscription.status } : null
+        }
+      : null,
+    seller: sellerProfile
+      ? {
+          name: sellerProfile.name,
+          email: sellerProfile.email,
+          phone: sellerProfile.phone
+        }
+      : null
+  };
 
   // Fetch audit logs for this trade
   const auditUrl = `${SUPABASE_URL}/rest/v1/admin_audit_logs?entity_id=eq.${id}&entity_type=eq.trade&order=created_at.desc`;
   const auditResp = await fetch(auditUrl, {
-    headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` },
+    headers,
     cache: 'no-store'
   });
   const auditLogs = await auditResp.json();
