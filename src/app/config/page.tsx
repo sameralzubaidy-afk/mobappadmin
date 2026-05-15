@@ -14,6 +14,8 @@ export default function ConfigPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [canWrite, setCanWrite] = useState<boolean | null>(null);
 
+  const [activeTab, setActiveTab] = useState<string>("general");
+
   const adminSecret = process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || "";
 
   const loadConfigFromApi = async () => {
@@ -275,7 +277,7 @@ export default function ConfigPage() {
       <SMSRateLimitStats />
 
       {/* Configuration Items - Grouped by Category */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-8">
         <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
           <h2 className="text-xl font-semibold">Configuration Settings</h2>
           <p className="text-sm text-gray-600 mt-1">
@@ -283,117 +285,142 @@ export default function ConfigPage() {
           </p>
         </div>
 
-        {Object.entries(
-          config.reduce(
+        {(() => {
+          const groupedConfig = config.reduce(
             (acc, item) => {
               const category = (item as any).category || "general";
               if (!acc[category]) acc[category] = [];
               acc[category].push(item);
               return acc;
             },
-            {} as Record<string, any[]>,
-          ),
-        )
-          .sort()
-          .map(([category, items]) => (
-            <div key={category}>
-              {/* Category Header */}
-              <div className="px-6 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 border-t border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900 capitalize">
-                  {category.replace(/_/g, " ")}
-                </h3>
-                <p className="text-xs text-gray-600 mt-1">
-                  {items.length} settings
-                </p>
+            {} as Record<string, AdminConfigItem[]>,
+          );
+
+          const categories = Object.keys(groupedConfig).sort();
+          // Ensure the active tab defaults to something that exists
+          const currentTab = categories.includes(activeTab) ? activeTab : categories[0];
+
+          return (
+            <div className="flex flex-col md:flex-row min-h-[600px]">
+              {/* Sidebar Navigation */}
+              <div className="w-full md:w-56 border-b md:border-b-0 md:border-r border-gray-200 bg-gray-50/30">
+                <nav className="flex flex-row md:flex-col overflow-x-auto md:overflow-visible py-0 md:py-4 hide-scrollbar">
+                  {categories.map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => setActiveTab(cat)}
+                      className={`text-left whitespace-nowrap md:whitespace-normal px-4 py-3 font-medium text-sm transition-colors border-b-2 md:border-b-0 md:border-l-4 ${
+                        currentTab === cat
+                          ? "border-blue-600 bg-blue-50/80 text-blue-700"
+                          : "border-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                      }`}
+                    >
+                      {cat.replace(/_/g, " ").toUpperCase()}
+                    </button>
+                  ))}
+                </nav>
               </div>
 
-              {/* Category Items */}
-              <div className="divide-y divide-gray-200">
-                {items.map((item) => {
-                  if (!item || !item.key) return null;
-                  const displayValue = getDisplayValue(item);
-                  const isBoolean = isBooleanConfig(item);
-                  return (
-                    <div key={item.key} className="p-6">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 mr-4">
-                          <label className="block text-sm font-medium text-gray-900 mb-1">
-                            {item.key
-                              .split("_")
-                              .map(
-                                (word: string) =>
-                                  word.charAt(0).toUpperCase() + word.slice(1),
-                              )
-                              .join(" ")}
-                          </label>
-                          <p className="text-sm text-gray-600 mb-3">
-                            {getConfigDescription(item.key) || item.description}
-                          </p>
-                          <div className="flex items-center space-x-3">
-                            {isBoolean ? (
-                              <label className="inline-flex items-center gap-3 rounded-md border border-gray-300 px-3 py-2">
+              {/* Tab Content */}
+              {currentTab && groupedConfig[currentTab] && (
+                <div className="flex-1 divide-y divide-gray-100 bg-white">
+                  <div className="px-6 py-4 bg-gradient-to-r from-blue-50/50 to-transparent">
+                    <h3 className="text-xl font-semibold text-gray-900 capitalize">
+                      {currentTab.replace(/_/g, " ")}
+                    </h3>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {groupedConfig[currentTab].length} settings
+                    </p>
+                  </div>
+
+                  {groupedConfig[currentTab].map((item) => {
+                    if (!item || !item.key) return null;
+                    const displayValue = getDisplayValue(item);
+                    const isBoolean = isBooleanConfig(item);
+                    return (
+                      <div key={item.key} className="p-6 transition-all hover:bg-gray-50/50">
+                        <div className="flex flex-col sm:flex-row items-start justify-between">
+                          <div className="flex-1 w-full mr-4">
+                            <label className="block text-sm font-medium text-gray-900 mb-1">
+                              {item.key
+                                .split("_")
+                                .map(
+                                  (word: string) =>
+                                    word.charAt(0).toUpperCase() + word.slice(1),
+                                )
+                                .join(" ")}
+                            </label>
+                            <p className="text-sm text-gray-600 mb-3">
+                              {getConfigDescription(item.key) || item.description}
+                            </p>
+                            <div className="flex flex-wrap items-center gap-3">
+                              {isBoolean ? (
+                                <label className="inline-flex items-center gap-3 rounded-md border border-gray-300 px-3 py-2 bg-white">
+                                  <input
+                                    type="checkbox"
+                                    checked={displayValue === "true"}
+                                    onChange={(e) =>
+                                      setEditValues({
+                                        ...editValues,
+                                        [item.key]: e.target.checked
+                                          ? "true"
+                                          : "false",
+                                      })
+                                    }
+                                    disabled={saving || canWrite === false}
+                                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 rounded"
+                                  />
+                                  <span className="text-sm font-medium text-gray-800">
+                                    {displayValue === "true"
+                                      ? "Enabled"
+                                      : "Disabled"}
+                                  </span>
+                                </label>
+                              ) : (
                                 <input
-                                  type="checkbox"
-                                  checked={displayValue === "true"}
+                                  type="text"
+                                  value={displayValue}
                                   onChange={(e) =>
                                     setEditValues({
                                       ...editValues,
-                                      [item.key]: e.target.checked
-                                        ? "true"
-                                        : "false",
+                                      [item.key]: e.target.value,
                                     })
                                   }
+                                  className="flex-1 min-w-[200px] max-w-md px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                                   disabled={saving || canWrite === false}
-                                  className="h-4 w-4"
                                 />
-                                <span className="text-sm font-medium text-gray-800">
-                                  {displayValue === "true"
-                                    ? "Enabled"
-                                    : "Disabled"}
-                                </span>
-                              </label>
-                            ) : (
-                              <input
-                                type="text"
-                                value={displayValue}
-                                onChange={(e) =>
-                                  setEditValues({
-                                    ...editValues,
-                                    [item.key]: e.target.value,
-                                  })
+                              )}
+                              <button
+                                onClick={() => handleSave(item.key)}
+                                disabled={
+                                  saving ||
+                                  displayValue === String(item.value ?? "") ||
+                                  canWrite === false
                                 }
-                                className="flex-1 max-w-xs px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                disabled={saving || canWrite === false}
-                              />
-                            )}
-                            <button
-                              onClick={() => handleSave(item.key)}
-                              disabled={
-                                saving ||
-                                displayValue === String(item.value ?? "") ||
-                                canWrite === false
-                              }
-                              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                            >
-                              {saving
-                                ? "Saving..."
-                                : canWrite === false
-                                  ? "Read-only"
-                                  : "Save"}
-                            </button>
+                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium text-sm"
+                              >
+                                {saving
+                                  ? "Saving..."
+                                  : canWrite === false
+                                    ? "Read-only"
+                                    : "Save"}
+                              </button>
+                            </div>
                           </div>
                         </div>
+                        <div className="mt-4 text-xs text-gray-500 flex items-center gap-2">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                          Last updated:{" "}
+                          {new Date(item.updated_at).toLocaleString()}
+                        </div>
                       </div>
-                      <div className="mt-2 text-xs text-gray-500">
-                        Last updated:{" "}
-                        {new Date(item.updated_at).toLocaleString()}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          ))}
+          );
+        })()}
       </div>
 
       {/* Help Section */}
