@@ -145,6 +145,18 @@ export function ProtectedLayout({ children }: { children: React.ReactNode }) {
                 >
                   Audit Logs
                 </Link>
+                <Link
+                  href="/education"
+                  className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                >
+                  Education
+                </Link>
+                <Link
+                  href="/education/faq"
+                  className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                >
+                  FAQ
+                </Link>
               </div>
             </div>
             <div className="flex items-center space-x-4">

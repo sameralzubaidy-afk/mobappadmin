@@ -22,6 +22,8 @@ import {
   Gift,
   AlertTriangle,
   GraduationCap,
+  HelpCircle,
+  HeadphonesIcon,
 } from 'lucide-react';
 
 interface NavItem {
@@ -52,6 +54,8 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Waitlist',      href: '/waitlist',       icon: <FileText       size={18} /> },
   { label: 'Categories',    href: '/categories',     icon: <Settings       size={18} /> },
   { label: 'Education',     href: '/education',      icon: <GraduationCap  size={18} /> },
+  { label: 'FAQ',           href: '/education/faq',  icon: <HelpCircle     size={18} /> },
+  { label: 'Support',       href: '/support',        icon: <HeadphonesIcon size={18} /> },
   { label: 'Policies',      href: '/settings/policies', icon: <FileText     size={18} /> },
   { label: 'Config',        href: '/config',         icon: <Settings       size={18} />, hasSubmenu: true },
 ];
