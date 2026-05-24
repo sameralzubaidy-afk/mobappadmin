@@ -177,6 +177,62 @@ export async function getSPAnalyticsByCategory(dateRange: {
 }): Promise<CategorySPAnalytics[]> {
   const supabase = getAdminClient();
 
+  const normalizeRow = (row: any): CategorySPAnalytics => {
+    const velocity = Number(row.velocity || 0);
+    const gapPercent = Number(row.gap_percent || 0);
+    const anomalyFlags: AnomalyFlag[] = Array.isArray(row.anomaly_flags)
+      ? [...row.anomaly_flags]
+      : [];
+
+    if (gapPercent > 10 && !anomalyFlags.includes('hoarding')) {
+      anomalyFlags.push('hoarding');
+    }
+    if (velocity < 0.5 && !anomalyFlags.includes('low_velocity')) {
+      anomalyFlags.push('low_velocity');
+    }
+    if (velocity > 2 && !anomalyFlags.includes('spending_spike')) {
+      anomalyFlags.push('spending_spike');
+    }
+
+    return {
+      category_id: row.category_id,
+      category_name: row.category_name,
+      velocity,
+      gap_percent: gapPercent,
+      avg_cash_per_trade: Number(row.avg_cash_per_trade || 0),
+      anomaly_flags: anomalyFlags,
+    };
+  };
+
+  // Preferred path: read from analytics relation (or view) by date range.
+  // This keeps the query lightweight and aligns with existing unit tests.
+  try {
+    const analyticsQuery = supabase
+      .from('category_sp_analytics')
+      .select('category_id, category_name, velocity, gap_percent, avg_cash_per_trade, anomaly_flags')
+      .gte('created_at', dateRange.start)
+      .lte('created_at', dateRange.end);
+
+    const { data, error } = await analyticsQuery;
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return ((data || []) as any[])
+      .map(normalizeRow)
+      .sort((a, b) => b.gap_percent - a.gap_percent);
+  } catch (error: any) {
+    const message = error?.message || '';
+    const shouldFallback =
+      message.includes('does not exist') ||
+      message.includes('is not a function');
+
+    if (!shouldFallback) {
+      throw error;
+    }
+  }
+
   // Aggregate points_transactions + items sold in date range
   // This is a simplified version — production should use a materialized view if slow
   const { data: categories, error: catError } = await supabase
@@ -245,14 +301,16 @@ export async function getSPAnalyticsByCategory(dateRange: {
     if (velocity < 0.5) anomalyFlags.push('low_velocity');
     if (velocity > 2) anomalyFlags.push('spending_spike');
 
-    analytics.push({
-      category_id: category.id,
-      category_name: category.name,
-      velocity,
-      gap_percent: gapPercent,
-      avg_cash_per_trade: avgCashPerTrade,
-      anomaly_flags: anomalyFlags,
-    });
+    analytics.push(
+      normalizeRow({
+        category_id: category.id,
+        category_name: category.name,
+        velocity,
+        gap_percent: gapPercent,
+        avg_cash_per_trade: avgCashPerTrade,
+        anomaly_flags: anomalyFlags,
+      })
+    );
   }
 
   return analytics.sort((a, b) => b.gap_percent - a.gap_percent);

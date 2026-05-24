@@ -2,14 +2,14 @@
 // MODULE-18 V1 EDU-009: Unit tests for AnalyticsDashboard
 
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { vi } from 'vitest';
 import { AnalyticsDashboard } from '../../../components/education/AnalyticsDashboard';
 import { useEducationAnalytics } from '../../../hooks/useEducationAnalytics';
 
-jest.mock('../../../hooks/useEducationAnalytics');
+vi.mock('../../../hooks/useEducationAnalytics');
 
-const mockUseEducationAnalytics = useEducationAnalytics as jest.MockedFunction<typeof useEducationAnalytics>;
+const mockUseEducationAnalytics = vi.mocked(useEducationAnalytics);
 
 describe('AnalyticsDashboard', () => {
   const mockAnalytics = {
@@ -40,7 +40,7 @@ describe('AnalyticsDashboard', () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should render loading state', () => {
@@ -49,8 +49,8 @@ describe('AnalyticsDashboard', () => {
       loading: true,
       error: null,
       selectedDays: 30,
-      setSelectedDays: jest.fn(),
-      refresh: jest.fn(),
+      setSelectedDays: vi.fn(),
+      refresh: vi.fn(),
     });
 
     render(<AnalyticsDashboard />);
@@ -60,13 +60,13 @@ describe('AnalyticsDashboard', () => {
   });
 
   it('should render error state with retry button', async () => {
-    const mockRefresh = jest.fn();
+    const mockRefresh = vi.fn();
     mockUseEducationAnalytics.mockReturnValue({
       analytics: null,
       loading: false,
       error: 'Network error',
       selectedDays: 30,
-      setSelectedDays: jest.fn(),
+      setSelectedDays: vi.fn(),
       refresh: mockRefresh,
     });
 
@@ -77,7 +77,7 @@ describe('AnalyticsDashboard', () => {
     expect(screen.getByText('Network error')).toBeInTheDocument();
 
     const retryButton = screen.getByText('Retry');
-    await userEvent.click(retryButton);
+    fireEvent.click(retryButton);
 
     expect(mockRefresh).toHaveBeenCalledTimes(1);
   });
@@ -88,8 +88,8 @@ describe('AnalyticsDashboard', () => {
       loading: false,
       error: null,
       selectedDays: 30,
-      setSelectedDays: jest.fn(),
-      refresh: jest.fn(),
+      setSelectedDays: vi.fn(),
+      refresh: vi.fn(),
     });
 
     render(<AnalyticsDashboard />);
@@ -104,8 +104,8 @@ describe('AnalyticsDashboard', () => {
       loading: false,
       error: null,
       selectedDays: 30,
-      setSelectedDays: jest.fn(),
-      refresh: jest.fn(),
+      setSelectedDays: vi.fn(),
+      refresh: vi.fn(),
     });
 
     render(<AnalyticsDashboard />);
@@ -125,8 +125,8 @@ describe('AnalyticsDashboard', () => {
       loading: false,
       error: null,
       selectedDays: 30,
-      setSelectedDays: jest.fn(),
-      refresh: jest.fn(),
+      setSelectedDays: vi.fn(),
+      refresh: vi.fn(),
     });
 
     render(<AnalyticsDashboard />);
@@ -136,20 +136,20 @@ describe('AnalyticsDashboard', () => {
   });
 
   it('should call setSelectedDays when date range changes', async () => {
-    const mockSetSelectedDays = jest.fn();
+    const mockSetSelectedDays = vi.fn();
     mockUseEducationAnalytics.mockReturnValue({
       analytics: mockAnalytics,
       loading: false,
       error: null,
       selectedDays: 30,
       setSelectedDays: mockSetSelectedDays,
-      refresh: jest.fn(),
+      refresh: vi.fn(),
     });
 
     render(<AnalyticsDashboard />);
 
     const sevenDayButton = screen.getByTestId('education-analytics-7');
-    await userEvent.click(sevenDayButton);
+    fireEvent.click(sevenDayButton);
 
     expect(mockSetSelectedDays).toHaveBeenCalledWith(7);
   });
@@ -160,8 +160,8 @@ describe('AnalyticsDashboard', () => {
       loading: false,
       error: null,
       selectedDays: 30,
-      setSelectedDays: jest.fn(),
-      refresh: jest.fn(),
+      setSelectedDays: vi.fn(),
+      refresh: vi.fn(),
     });
 
     render(<AnalyticsDashboard />);
@@ -176,8 +176,8 @@ describe('AnalyticsDashboard', () => {
       loading: false,
       error: null,
       selectedDays: 30,
-      setSelectedDays: jest.fn(),
-      refresh: jest.fn(),
+      setSelectedDays: vi.fn(),
+      refresh: vi.fn(),
     });
 
     render(<AnalyticsDashboard />);

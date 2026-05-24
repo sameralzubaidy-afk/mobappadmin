@@ -42,7 +42,7 @@ describe('Sidebar', () => {
     expect(screen.getByText('Dashboard')).toBeInTheDocument();
     expect(screen.getByText('Users')).toBeInTheDocument();
     expect(screen.getByText('Subscriptions')).toBeInTheDocument();
-    expect(screen.getByText('SP Wallet')).toBeInTheDocument();
+    expect(screen.getByText('SP Economy')).toBeInTheDocument();
     expect(screen.getByText('Badges')).toBeInTheDocument();
     expect(screen.getByText('Config')).toBeInTheDocument();
   });

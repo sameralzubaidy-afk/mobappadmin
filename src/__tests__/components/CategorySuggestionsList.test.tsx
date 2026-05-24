@@ -4,11 +4,12 @@
 
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { vi } from 'vitest';
 import { CategorySuggestionsList } from '../../app/categories/components/CategorySuggestionsList';
 import * as categorySuggestionService from '../../lib/categorySuggestionService';
 
 // Mock the service
-jest.mock('../../lib/categorySuggestionService');
+vi.mock('../../lib/categorySuggestionService');
 
 const mockSuggestions = [
   {
@@ -59,12 +60,12 @@ const mockSuggestions = [
 
 describe('CategorySuggestionsList', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('Loading State', () => {
     test('renders loading state initially', () => {
-      (categorySuggestionService.getCategorySuggestions as jest.Mock).mockImplementation(
+      (categorySuggestionService.getCategorySuggestions as any).mockImplementation(
         () => new Promise(() => {}) // Never resolves
       );
 
@@ -76,7 +77,7 @@ describe('CategorySuggestionsList', () => {
 
   describe('Empty State', () => {
     test('renders empty state when no suggestions', async () => {
-      (categorySuggestionService.getCategorySuggestions as jest.Mock).mockResolvedValue([]);
+      (categorySuggestionService.getCategorySuggestions as any).mockResolvedValue([]);
 
       render(<CategorySuggestionsList />);
 
@@ -89,7 +90,7 @@ describe('CategorySuggestionsList', () => {
 
   describe('Error State', () => {
     test('renders error message when fetch fails', async () => {
-      (categorySuggestionService.getCategorySuggestions as jest.Mock).mockRejectedValue(
+      (categorySuggestionService.getCategorySuggestions as any).mockRejectedValue(
         new Error('Network error')
       );
 
@@ -104,7 +105,7 @@ describe('CategorySuggestionsList', () => {
 
   describe('Suggestions List', () => {
     beforeEach(() => {
-      (categorySuggestionService.getCategorySuggestions as jest.Mock).mockResolvedValue(
+      (categorySuggestionService.getCategorySuggestions as any).mockResolvedValue(
         mockSuggestions
       );
     });
@@ -161,7 +162,7 @@ describe('CategorySuggestionsList', () => {
     });
 
     test('calls onCountChange with correct count', async () => {
-      const mockOnCountChange = jest.fn();
+      const mockOnCountChange = vi.fn();
       render(<CategorySuggestionsList onCountChange={mockOnCountChange} />);
 
       await waitFor(() => {
@@ -172,7 +173,7 @@ describe('CategorySuggestionsList', () => {
 
   describe('Modal Interactions', () => {
     beforeEach(() => {
-      (categorySuggestionService.getCategorySuggestions as jest.Mock).mockResolvedValue(
+      (categorySuggestionService.getCategorySuggestions as any).mockResolvedValue(
         mockSuggestions
       );
     });
@@ -219,11 +220,11 @@ describe('CategorySuggestionsList', () => {
 
   describe('Refresh After Action', () => {
     test('refreshes list and shows success message after action', async () => {
-      (categorySuggestionService.getCategorySuggestions as jest.Mock)
+      (categorySuggestionService.getCategorySuggestions as any)
         .mockResolvedValueOnce(mockSuggestions)
         .mockResolvedValueOnce([mockSuggestions[1]]); // One less suggestion
 
-      const mockOnCountChange = jest.fn();
+      const mockOnCountChange = vi.fn();
       render(<CategorySuggestionsList onCountChange={mockOnCountChange} />);
 
       await waitFor(() => {

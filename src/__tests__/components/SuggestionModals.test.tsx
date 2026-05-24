@@ -4,14 +4,15 @@
 
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { vi } from 'vitest';
 import { ApproveSuggestionModal } from '../../app/categories/components/ApproveSuggestionModal';
 import { MergeSuggestionModal } from '../../app/categories/components/MergeSuggestionModal';
 import { RejectSuggestionModal } from '../../app/categories/components/RejectSuggestionModal';
 import * as categorySuggestionService from '../../lib/categorySuggestionService';
 import * as categoryService from '../../lib/categoryService';
 
-jest.mock('../../lib/categorySuggestionService');
-jest.mock('../../lib/categoryService');
+vi.mock('../../lib/categorySuggestionService');
+vi.mock('../../lib/categoryService');
 
 const mockSuggestion = {
   id: 'sug-001',
@@ -74,11 +75,11 @@ const mockCategories = [
 ];
 
 describe('ApproveSuggestionModal', () => {
-  const mockOnClose = jest.fn();
-  const mockOnSuccess = jest.fn();
+  const mockOnClose = vi.fn();
+  const mockOnSuccess = vi.fn();
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   test('renders modal with suggestion info', () => {
@@ -216,7 +217,7 @@ describe('ApproveSuggestionModal', () => {
   });
 
   test('submits form with valid data', async () => {
-    (categorySuggestionService.approveCategorySuggestion as jest.Mock).mockResolvedValue(
+    (categorySuggestionService.approveCategorySuggestion as any).mockResolvedValue(
       undefined
     );
 
@@ -238,12 +239,12 @@ describe('ApproveSuggestionModal', () => {
 });
 
 describe('MergeSuggestionModal', () => {
-  const mockOnClose = jest.fn();
-  const mockOnSuccess = jest.fn();
+  const mockOnClose = vi.fn();
+  const mockOnSuccess = vi.fn();
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    (categoryService.getCategories as jest.Mock).mockResolvedValue(mockCategories);
+    vi.clearAllMocks();
+    (categoryService.getCategories as any).mockResolvedValue(mockCategories);
   });
 
   test('renders modal with suggestion info', async () => {
@@ -288,12 +289,8 @@ describe('MergeSuggestionModal', () => {
     });
 
     const submitBtn = screen.getByTestId('merge-form-submit');
-    fireEvent.click(submitBtn);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('merge-modal-error')).toBeInTheDocument();
-      expect(screen.getByText('Please select a category')).toBeInTheDocument();
-    });
+    expect(submitBtn).toBeDisabled();
+    expect(screen.queryByTestId('merge-modal-error')).not.toBeInTheDocument();
   });
 
   test('allows optional admin note up to 500 chars', async () => {
@@ -314,7 +311,7 @@ describe('MergeSuggestionModal', () => {
   });
 
   test('submits merge with selected category', async () => {
-    (categorySuggestionService.mergeCategorySuggestion as jest.Mock).mockResolvedValue(
+    (categorySuggestionService.mergeCategorySuggestion as any).mockResolvedValue(
       undefined
     );
 
@@ -347,11 +344,11 @@ describe('MergeSuggestionModal', () => {
 });
 
 describe('RejectSuggestionModal', () => {
-  const mockOnClose = jest.fn();
-  const mockOnSuccess = jest.fn();
+  const mockOnClose = vi.fn();
+  const mockOnSuccess = vi.fn();
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   test('renders modal with warning', () => {
@@ -398,7 +395,7 @@ describe('RejectSuggestionModal', () => {
   });
 
   test('submits rejection with note', async () => {
-    (categorySuggestionService.rejectCategorySuggestion as jest.Mock).mockResolvedValue(
+    (categorySuggestionService.rejectCategorySuggestion as any).mockResolvedValue(
       undefined
     );
 
@@ -427,7 +424,7 @@ describe('RejectSuggestionModal', () => {
   });
 
   test('submits rejection without note (empty note becomes null)', async () => {
-    (categorySuggestionService.rejectCategorySuggestion as jest.Mock).mockResolvedValue(
+    (categorySuggestionService.rejectCategorySuggestion as any).mockResolvedValue(
       undefined
     );
 

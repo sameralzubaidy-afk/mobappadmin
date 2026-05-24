@@ -11,6 +11,7 @@ import { toggleCategoryActive, deleteCategory } from '../../../lib/categoryServi
 
 interface BulkActionsDropdownProps {
   selectedCategories: Category[];
+  selectedCount?: number;
   onActionComplete: () => void;
 }
 

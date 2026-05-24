@@ -148,6 +148,7 @@ export function CategoryTable({ categories, onEdit, onUpdate }: CategoryTablePro
           </span>
           <BulkActionsDropdown
             selectedCategories={localCategories.filter((c) => selectedIds.has(c.id))}
+            selectedCount={selectedIds.size}
             onActionComplete={handleBulkActionComplete}
           />
         </div>

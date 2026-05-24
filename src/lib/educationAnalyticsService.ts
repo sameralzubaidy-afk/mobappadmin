@@ -3,9 +3,23 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+let cachedSupabaseClient: any = null;
+
+function getSupabaseClient() {
+  if (cachedSupabaseClient) {
+    return cachedSupabaseClient;
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('Supabase environment variables are required for education analytics');
+  }
+
+  cachedSupabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+  return cachedSupabaseClient;
+}
 
 /**
  * Analytics aggregations for admin dashboard
@@ -40,6 +54,7 @@ export async function getEducationAnalytics(dateRange: {
   endDate: string; // ISO date string
 }): Promise<EducationAnalytics> {
   try {
+    const supabase = getSupabaseClient();
     const { startDate, endDate } = dateRange;
 
     // Onboarding metrics
@@ -52,9 +67,9 @@ export async function getEducationAnalytics(dateRange: {
 
     if (onboardingError) throw onboardingError;
 
-    const started = onboardingData?.filter((e) => e.event_type === 'onboarding_start').length || 0;
-    const completed = onboardingData?.filter((e) => e.event_type === 'onboarding_complete').length || 0;
-    const skipped = onboardingData?.filter((e) => e.event_type === 'onboarding_skip').length || 0;
+    const started = onboardingData?.filter((e: any) => e.event_type === 'onboarding_start').length || 0;
+    const completed = onboardingData?.filter((e: any) => e.event_type === 'onboarding_complete').length || 0;
+    const skipped = onboardingData?.filter((e: any) => e.event_type === 'onboarding_skip').length || 0;
     const completionRate = completed + skipped > 0 ? completed / (completed + skipped) : 0;
 
     // Help views
@@ -78,7 +93,7 @@ export async function getEducationAnalytics(dateRange: {
     if (sectionError) throw sectionError;
 
     const expansionsByType: Record<string, number> = {};
-    sectionExpansions?.forEach((e) => {
+    sectionExpansions?.forEach((e: any) => {
       const sectionType = (e.event_data as any)?.section_type;
       if (sectionType) {
         expansionsByType[sectionType] = (expansionsByType[sectionType] || 0) + 1;
@@ -96,7 +111,7 @@ export async function getEducationAnalytics(dateRange: {
     if (calculatorError) throw calculatorError;
 
     const calculatorUses = calculatorData?.length || 0;
-    const uniqueUsers = new Set(calculatorData?.map((e) => e.user_id).filter(Boolean)).size;
+    const uniqueUsers = new Set(calculatorData?.map((e: any) => e.user_id).filter(Boolean)).size;
 
     // Price bucket histogram
     const priceBucketHistogram: Record<string, number> = {
@@ -106,7 +121,7 @@ export async function getEducationAnalytics(dateRange: {
       '>100': 0,
     };
 
-    calculatorData?.forEach((e) => {
+    calculatorData?.forEach((e: any) => {
       const bucket = (e.event_data as any)?.item_price_bucket;
       if (bucket && priceBucketHistogram.hasOwnProperty(bucket)) {
         priceBucketHistogram[bucket]++;

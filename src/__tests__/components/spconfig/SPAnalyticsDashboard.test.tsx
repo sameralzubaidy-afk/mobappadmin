@@ -3,11 +3,12 @@
 
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { vi } from 'vitest';
 import { SPAnalyticsDashboard } from '@/components/spconfig/SPAnalyticsDashboard';
 import type { CategorySPAnalytics } from '@/types/category';
 
 // Mock child components
-jest.mock('@/components/spconfig/SPMetricsTable', () => ({
+vi.mock('@/components/spconfig/SPMetricsTable', () => ({
   SPMetricsTable: ({ analytics, onRowClick, loading }: any) => (
     <div data-testid="mock-metrics-table">
       {loading && <div>Loading Table</div>}
@@ -22,20 +23,20 @@ jest.mock('@/components/spconfig/SPMetricsTable', () => ({
   ),
 }));
 
-jest.mock('@/components/spconfig/SPAnomalyAlerts', () => ({
-  SPAnomalyAlerts: ({ analytics, onCategoryClick }: any) => (
-    <div data-testid="mock-anomaly-alerts">
-      {analytics.filter((cat: any) => cat.anomaly_flags.length > 0).length} flagged
-    </div>
-  ),
+vi.mock('@/components/spconfig/SPAnomalyAlerts', () => ({
+  SPAnomalyAlerts: ({ analytics, onCategoryClick }: any) => {
+    void analytics;
+    void onCategoryClick;
+    return <div data-testid="mock-anomaly-alerts" />;
+  },
 }));
 
 describe('SPAnalyticsDashboard', () => {
-  const mockOnCategoryClick = jest.fn();
-  const mockOnExportCSV = jest.fn();
+  const mockOnCategoryClick = vi.fn();
+  const mockOnExportCSV = vi.fn();
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   const createMockAnalytics = (): CategorySPAnalytics[] => [

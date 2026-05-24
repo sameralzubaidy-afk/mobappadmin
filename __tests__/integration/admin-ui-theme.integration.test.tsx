@@ -115,7 +115,7 @@ describe('Admin UI Theme Integration', () => {
     // All nav links should be rendered
     expect(screen.getByTestId('nav-users')).toBeInTheDocument();
     expect(screen.getByTestId('nav-subscriptions')).toBeInTheDocument();
-    expect(screen.getByTestId('nav-sp-wallet')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-sp-economy')).toBeInTheDocument();
     expect(screen.getByTestId('nav-badges')).toBeInTheDocument();
   });
 

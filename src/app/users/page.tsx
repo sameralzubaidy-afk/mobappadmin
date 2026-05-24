@@ -18,6 +18,8 @@ const supabase = createClient(
 type AccountStatus = 'active' | 'suspended' | 'banned' | 'deleted';
 type SubscriptionStatus = 'trial' | 'active' | 'grace_period' | 'cancelled' | 'expired' | 'none';
 
+type DeletionType = 'self' | 'admin' | null;
+
 interface User {
   id: string;
   user_id: string;
@@ -26,6 +28,7 @@ interface User {
   phone: string;
   avatar_url: string | null;
   account_status: AccountStatus;
+  deletion_type: DeletionType;
   subscription_status: SubscriptionStatus;
   subscription_tier: string;
   node_id: string | null;
@@ -569,7 +572,16 @@ export default function UsersPage() {
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600">{user.email}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{user.phone || 'N/A'}</td>
-                    <td className="px-4 py-3">{getAccountStatusBadge(user.account_status)}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-1 items-center">
+                        {getAccountStatusBadge(user.account_status)}
+                        {user.account_status === 'deleted' && user.deletion_type === 'self' && (
+                          <span className="px-2 py-1 rounded text-xs font-semibold bg-purple-100 text-purple-800">
+                            Self-Deleted
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-3">{getSubscriptionBadge(user.subscription_status)}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{formatDate(user.registered_at)}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{formatDate(user.last_login_at)}</td>

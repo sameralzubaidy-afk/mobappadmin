@@ -47,6 +47,27 @@ interface ListingSearchResult {
   seller_items_count?: number;
 }
 
+const getSellerEmail = (listing: ListingSearchResult): string => {
+  if (typeof listing.seller?.email === 'string') {
+    return listing.seller.email;
+  }
+
+  const listingWithLegacyEmail = listing as ListingSearchResult & {
+    seller_email?: string;
+    email?: string;
+  };
+
+  if (typeof listingWithLegacyEmail.seller_email === 'string') {
+    return listingWithLegacyEmail.seller_email;
+  }
+
+  if (typeof listingWithLegacyEmail.email === 'string') {
+    return listingWithLegacyEmail.email;
+  }
+
+  return '';
+};
+
 interface SearchFilters {
   query: string;
   sellerEmail: string;
@@ -179,6 +200,10 @@ export default function ListingSearch() {
     try {
       setLoading(true);
       const targetPage = resetPage ? 1 : filters.page;
+      const normalizedQuery = filters.query.trim();
+      const normalizedSellerEmail = filters.sellerEmail.trim();
+      const normalizedCategory = filters.category.trim();
+
       if (resetPage && filters.page !== 1) {
         setFilters({ ...filters, page: 1 });
         return; // handleSearch will be re-triggered by useEffect
@@ -186,15 +211,16 @@ export default function ListingSearch() {
       
       let rpcData: { listings?: ListingSearchResult[]; total_count?: number } | null = null;
       let rpcError: { code?: string; message?: string; details?: string } | null = null;
+      let usedLegacySignature = false;
 
       const primaryResult = await supabase.rpc('admin_search_listings_v2', {
-        p_query: filters.query,
+        p_query: normalizedQuery,
         p_status: filters.status,
         p_sp_eligible: filters.spEligibleOnly,
         p_page: targetPage,
         p_items_per_page: ITEMS_PER_PAGE,
-        p_category: filters.category,
-        p_seller_email: filters.sellerEmail,
+        p_category: normalizedCategory,
+        p_seller_email: normalizedSellerEmail,
       });
 
       rpcData = primaryResult.data as { listings?: ListingSearchResult[]; total_count?: number } | null;
@@ -206,7 +232,7 @@ export default function ListingSearch() {
         console.warn('[ListingSearch] New RPC signature unavailable, falling back to legacy signature.');
 
         const legacyResult = await supabase.rpc('admin_search_listings_v2', {
-          p_query: filters.query,
+          p_query: normalizedQuery,
           p_status: filters.status,
           p_sp_eligible: filters.spEligibleOnly,
           p_page: targetPage,
@@ -215,6 +241,7 @@ export default function ListingSearch() {
 
         rpcData = legacyResult.data as { listings?: ListingSearchResult[]; total_count?: number } | null;
         rpcError = legacyResult.error;
+        usedLegacySignature = true;
       }
 
       if (rpcError) {
@@ -227,26 +254,28 @@ export default function ListingSearch() {
       let nextTotalCount = rpcData?.total_count || 0;
 
       // If we are on a legacy backend, emulate new filters client-side.
-      if (filters.category !== 'all') {
-        const requestedCategory = filters.category.toLowerCase();
-        nextListings = nextListings.filter((listing) => {
-          const listingCategory = (listing.category_name || '').toLowerCase();
-          if (requestedCategory === 'uncategorized') {
-            return listingCategory === '';
-          }
-          return listingCategory === requestedCategory;
-        });
-      }
+      if (usedLegacySignature) {
+        if (normalizedCategory !== 'all') {
+          const requestedCategory = normalizedCategory.toLowerCase();
+          nextListings = nextListings.filter((listing) => {
+            const listingCategory = (listing.category_name || '').trim().toLowerCase();
+            if (requestedCategory === 'uncategorized') {
+              return listingCategory === '';
+            }
+            return listingCategory === requestedCategory;
+          });
+        }
 
-      if (filters.sellerEmail.trim()) {
-        const requestedEmail = filters.sellerEmail.trim().toLowerCase();
-        nextListings = nextListings.filter((listing) =>
-          (listing.seller?.email || '').toLowerCase().includes(requestedEmail)
-        );
-      }
+        if (normalizedSellerEmail) {
+          const requestedEmail = normalizedSellerEmail.toLowerCase();
+          nextListings = nextListings.filter((listing) =>
+            getSellerEmail(listing).toLowerCase().includes(requestedEmail)
+          );
+        }
 
-      if (filters.category !== 'all' || filters.sellerEmail.trim()) {
-        nextTotalCount = nextListings.length;
+        if (normalizedCategory !== 'all' || normalizedSellerEmail) {
+          nextTotalCount = nextListings.length;
+        }
       }
 
       setListings(nextListings);

@@ -2,16 +2,17 @@
 // MODULE-18 V1 EDU-009: Unit tests for useEducationAnalytics hook
 
 import { renderHook, waitFor } from '@testing-library/react';
+import { vi } from 'vitest';
 import { useEducationAnalytics } from '../../hooks/useEducationAnalytics';
 import { getEducationAnalytics } from '../../lib/educationAnalyticsService';
 
-jest.mock('../../lib/educationAnalyticsService');
+vi.mock('../../lib/educationAnalyticsService');
 
-const mockGetEducationAnalytics = getEducationAnalytics as jest.MockedFunction<typeof getEducationAnalytics>;
+const mockGetEducationAnalytics = vi.mocked(getEducationAnalytics);
 
 describe('useEducationAnalytics', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should initialize with default state (30 days)', () => {
@@ -76,11 +77,10 @@ describe('useEducationAnalytics', () => {
     result.current.setSelectedDays(7);
 
     await waitFor(() => {
-      expect(result.current.loading).toBe(false);
+      expect(mockGetEducationAnalytics).toHaveBeenCalledTimes(2);
     });
 
     expect(result.current.analytics).toEqual(mockAnalytics7);
-    expect(mockGetEducationAnalytics).toHaveBeenCalledTimes(2);
   });
 
   it('should handle errors gracefully', async () => {

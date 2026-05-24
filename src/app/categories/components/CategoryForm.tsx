@@ -47,7 +47,7 @@ export function CategoryForm({ category, onClose, onSuccess }: CategoryFormProps
   const [iconFile, setIconFile] = useState<File | null>(null);
   const [bonusBadgeFile, setBonusBadgeFile] = useState<File | null>(null);
 
-  // Debounced uniqueness check (500ms)
+  // Debounced uniqueness check
   useEffect(() => {
     if (!formData.name || formData.name === category?.name) {
       setErrors((prev) => ({ ...prev, name: '' }));
@@ -70,7 +70,7 @@ export function CategoryForm({ category, onClose, onSuccess }: CategoryFormProps
         setErrors((prev) => ({ ...prev, name: '' }));
       }
       setNameCheckPending(false);
-    }, 500);
+    }, 200);
 
     return () => clearTimeout(timer);
   }, [formData.name, category?.id, category?.name]);
@@ -121,6 +121,22 @@ export function CategoryForm({ category, onClose, onSuccess }: CategoryFormProps
 
     if (!validateForm()) {
       setActiveTab('basic'); // Show errors on first tab
+      return;
+    }
+
+    // Final guard before save: run the same name validation server check synchronously.
+    // This keeps submit reliable even if the debounce timer is still running.
+    const validation = validateCategoryName(formData.name);
+    if (!validation.valid) {
+      setErrors((prev) => ({ ...prev, name: validation.error || 'Invalid category name' }));
+      setActiveTab('basic');
+      return;
+    }
+
+    const { exists } = await checkCategoryUniqueness(formData.name, category?.id);
+    if (exists) {
+      setErrors((prev) => ({ ...prev, name: 'A category with this name already exists' }));
+      setActiveTab('basic');
       return;
     }
 
@@ -279,7 +295,7 @@ export function CategoryForm({ category, onClose, onSuccess }: CategoryFormProps
               <>
                 <div>
                   <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                    Name <span className="text-red-500">*</span>
+                    Category Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     id="name"
@@ -523,7 +539,7 @@ export function CategoryForm({ category, onClose, onSuccess }: CategoryFormProps
             </button>
             <button
               type="submit"
-              disabled={submitting || nameCheckPending || !!errors.name}
+              disabled={submitting || !!errors.name}
               data-testid="submit-btn"
               className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
