@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const ADMIN_SECRET = process.env.ADMIN_UI_SECRET;
 
 interface RouteParams {
   params: { id: string };
@@ -20,10 +20,6 @@ interface PublishBody {
   admin_id?: string | null;
 }
 
-function unauthorized() {
-  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-}
-
 function missingConfig(message: string) {
   return NextResponse.json({ error: message }, { status: 500 });
 }
@@ -32,19 +28,18 @@ function getClient() {
   return createClient(SUPABASE_URL || '', SERVICE_KEY || '');
 }
 
-function validateSecret(req: Request) {
-  const headerSecret = req.headers.get('x-admin-secret');
-  if (ADMIN_SECRET && headerSecret !== ADMIN_SECRET) {
-    return false;
+// PROD-010: centralized admin auth; returns NextResponse on failure, null on success.
+async function requireAdmin(req: Request) {
+  const auth = await verifyAdminAuth(req);
+  if (!auth.authorized) {
+    return NextResponse.json({ error: auth.error ?? 'Unauthorized' }, { status: 401 });
   }
-
-  return true;
+  return null;
 }
 
 export async function GET(req: Request, { params }: RouteParams) {
-  if (!validateSecret(req)) {
-    return unauthorized();
-  }
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
 
   if (!SERVICE_KEY || !SUPABASE_URL) {
     return missingConfig('Admin reads are disabled: missing Supabase service role configuration');
@@ -69,9 +64,8 @@ export async function GET(req: Request, { params }: RouteParams) {
 }
 
 export async function PATCH(req: Request, { params }: RouteParams) {
-  if (!validateSecret(req)) {
-    return unauthorized();
-  }
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
 
   if (!SERVICE_KEY || !SUPABASE_URL) {
     return missingConfig('Admin writes are disabled: missing Supabase service role configuration');
@@ -137,9 +131,8 @@ export async function PATCH(req: Request, { params }: RouteParams) {
 }
 
 export async function POST(req: Request, { params }: RouteParams) {
-  if (!validateSecret(req)) {
-    return unauthorized();
-  }
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
 
   if (!SERVICE_KEY || !SUPABASE_URL) {
     return missingConfig('Admin writes are disabled: missing Supabase service role configuration');

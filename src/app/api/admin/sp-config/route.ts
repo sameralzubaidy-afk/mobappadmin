@@ -4,10 +4,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
 const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const ADMIN_UI_SECRET = process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '';
 
 const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE);
 
@@ -92,11 +92,11 @@ export async function GET(req: NextRequest) {
  */
 export async function PATCH(req: NextRequest) {
   try {
-    // Verify admin secret
-    const adminSecret = req.headers.get('x-admin-secret');
-    if (!adminSecret || adminSecret !== ADMIN_UI_SECRET) {
+    // PROD-010: centralized admin auth
+    const auth = await verifyAdminAuth(req);
+    if (!auth.authorized) {
       return jsonNoStore(
-        { error: 'Unauthorized: Invalid admin secret' },
+        { error: `Unauthorized: ${auth.error}` },
         { status: 401 }
       );
     }

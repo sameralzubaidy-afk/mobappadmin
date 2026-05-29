@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { verifyAdminAuth } from "@/lib/adminAuth";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const ADMIN_UI_SECRET =
-  process.env.ADMIN_UI_SECRET || process.env.NEXT_PUBLIC_ADMIN_UI_SECRET;
 
 const normalize = (value: string | null | undefined): string | null => {
   if (!value) return null;
@@ -27,10 +26,11 @@ export async function GET(
       );
     }
 
-    const adminSecret = request.headers.get("x-admin-secret");
-    if (!ADMIN_UI_SECRET || !adminSecret || adminSecret !== ADMIN_UI_SECRET) {
+    // PROD-010: centralized admin auth
+    const auth = await verifyAdminAuth(request);
+    if (!auth.authorized) {
       return NextResponse.json(
-        { error: "Unauthorized: Invalid or missing admin secret" },
+        { error: `Unauthorized: ${auth.error}` },
         { status: 401 },
       );
     }

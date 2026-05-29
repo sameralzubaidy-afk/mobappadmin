@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const ADMIN_SECRET = process.env.ADMIN_UI_SECRET;
 
 type PolicyType = 'terms_of_service' | 'privacy_policy' | 'liability_disclaimer';
 
@@ -25,9 +25,10 @@ function isPolicyType(value: string): value is PolicyType {
 }
 
 export async function GET(req: Request) {
-  const headerSecret = req.headers.get('x-admin-secret');
-  if (ADMIN_SECRET && headerSecret !== ADMIN_SECRET) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  // PROD-010: centralized admin auth
+  const auth = await verifyAdminAuth(req);
+  if (!auth.authorized) {
+    return NextResponse.json({ error: auth.error }, { status: 401 });
   }
 
   if (!SERVICE_KEY || !SUPABASE_URL) {
@@ -51,9 +52,10 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const headerSecret = req.headers.get('x-admin-secret');
-  if (ADMIN_SECRET && headerSecret !== ADMIN_SECRET) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  // PROD-010: centralized admin auth
+  const auth = await verifyAdminAuth(req);
+  if (!auth.authorized) {
+    return NextResponse.json({ error: auth.error }, { status: 401 });
   }
 
   if (!SERVICE_KEY || !SUPABASE_URL) {
