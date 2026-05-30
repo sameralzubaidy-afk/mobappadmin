@@ -24,6 +24,9 @@ import {
   GraduationCap,
   HelpCircle,
   HeadphonesIcon,
+  Clock,
+  Receipt,
+  Percent,
 } from 'lucide-react';
 
 interface NavItem {
@@ -45,6 +48,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Listings',      href: '/listings',       icon: <Package        size={18} /> },
   { label: 'Flagged Items', href: '/items/flagged',  icon: <AlertTriangle  size={18} /> },
   { label: 'Trades',        href: '/trades',         icon: <TrendingUp     size={18} /> },
+  { label: 'Disputes',     href: '/trades/disputes',icon: <AlertTriangle  size={18} /> },
   { label: 'Reviews',       href: '/reviews',        icon: <MessageSquare  size={18} /> },
   { label: 'Analytics',     href: '/analytics',      icon: <BarChart2      size={18} /> },
   { label: 'Payouts',       href: '/payouts',        icon: <FileText       size={18} /> },
@@ -57,6 +61,13 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'FAQ',           href: '/education/faq',  icon: <HelpCircle     size={18} /> },
   { label: 'Support',       href: '/support',        icon: <HeadphonesIcon size={18} /> },
   { label: 'Policies',      href: '/settings/policies', icon: <FileText     size={18} /> },
+  { label: 'Trade Timing',  href: '/settings/trade-timing', icon: <Clock    size={18} /> },
+  // CART-017: Cart configuration
+  { label: 'Cart Settings', href: '/settings/cart',         icon: <Settings size={18} /> },
+  // MODULE-15.3-PART3 TAX-007/008/009: sales tax admin
+  { label: 'Tax Nodes',     href: '/tax/nodes',      icon: <MapPin         size={18} /> },
+  { label: 'Tax Reports',   href: '/tax/reports',    icon: <Receipt        size={18} /> },
+  { label: 'Tax Settings',  href: '/tax/settings',   icon: <Percent        size={18} /> },
   { label: 'Config',        href: '/config',         icon: <Settings       size={18} />, hasSubmenu: true },
 ];
 

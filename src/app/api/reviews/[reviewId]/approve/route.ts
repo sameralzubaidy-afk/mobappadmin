@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -6,10 +7,16 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { reviewId: string } }
-) {
+export async function POST(request: NextRequest,
+  { params }: { params: { reviewId: string } }) {
+  const auth = await verifyAdminAuth(request);
+  if (!auth.authorized) {
+    return new Response(JSON.stringify({ error: auth.error || 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
     const { reviewId } = params;
 

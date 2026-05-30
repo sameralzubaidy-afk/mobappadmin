@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
@@ -34,6 +35,14 @@ function parseBoolean(value: string | null, fallbackValue: boolean) {
 }
 
 export async function GET(req: Request) {
+  const auth = await verifyAdminAuth(req);
+  if (!auth.authorized) {
+    return new Response(JSON.stringify({ error: auth.error || 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
     const url = new URL(req.url);
     const includeInactive = parseBoolean(url.searchParams.get('includeInactive'), true);

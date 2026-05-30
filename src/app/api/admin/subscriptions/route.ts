@@ -1,6 +1,7 @@
 // filepath: p2p-kids-admin/src/app/api/admin/subscriptions/route.ts
 
 import { NextResponse } from 'next/server';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -127,6 +128,14 @@ const escapeForLike = (value: string) => value.replace(/([%_])/g, '\\$1');
  * Returns subscription list with metrics
  */
 export async function GET(request: Request) {
+  const auth = await verifyAdminAuth(request);
+  if (!auth.authorized) {
+    return new Response(JSON.stringify({ error: auth.error || 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const statusFilter = searchParams.get('status');

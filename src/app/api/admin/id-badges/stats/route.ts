@@ -2,6 +2,7 @@
 // TASK BADGE-010: Admin ID Badge Stats API
 
 import { NextResponse } from 'next/server';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
@@ -12,7 +13,15 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function GET() {
+export async function GET(req: Request) {
+  const auth = await verifyAdminAuth(req);
+  if (!auth.authorized) {
+    return new Response(JSON.stringify({ error: auth.error || 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
     // Get counts by status
     const { data: requests } = await supabase

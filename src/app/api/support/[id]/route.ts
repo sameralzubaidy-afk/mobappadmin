@@ -2,6 +2,7 @@
 // Admin API — fetch a single support message with profile details.
 
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -11,10 +12,16 @@ const supabase = createClient(
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(_request: NextRequest,
+  { params }: { params: { id: string } }) {
+  const auth = await verifyAdminAuth(_request);
+  if (!auth.authorized) {
+    return new Response(JSON.stringify({ error: auth.error || 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   const { id } = params;
 
   if (!id) {

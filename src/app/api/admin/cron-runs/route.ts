@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
@@ -36,6 +37,14 @@ function parseInteger(value: string | null, fallbackValue: number, minValue = 1,
 }
 
 export async function GET(req: Request) {
+  const auth = await verifyAdminAuth(req);
+  if (!auth.authorized) {
+    return new Response(JSON.stringify({ error: auth.error || 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
     const url = new URL(req.url);
     const lookbackHours = parseInteger(url.searchParams.get('lookbackHours'), 48, 1, 24 * 30);

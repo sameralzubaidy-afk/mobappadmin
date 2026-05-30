@@ -3,6 +3,7 @@
 // Module: MODULE-10-ID-BADGE-VERIFICATION-V2.md
 
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
@@ -14,6 +15,14 @@ const supabase = createClient(
 );
 
 export async function GET(request: NextRequest) {
+  const auth = await verifyAdminAuth(request);
+  if (!auth.authorized) {
+    return new Response(JSON.stringify({ error: auth.error || 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');

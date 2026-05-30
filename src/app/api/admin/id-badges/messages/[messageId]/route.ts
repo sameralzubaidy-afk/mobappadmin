@@ -1,15 +1,22 @@
 // File: p2p-kids-admin/src/app/api/admin/id-badges/messages/[messageId]/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { messageId: string } }
-) {
+export async function PUT(request: NextRequest,
+  { params }: { params: { messageId: string } }) {
+  const auth = await verifyAdminAuth(request);
+  if (!auth.authorized) {
+    return new Response(JSON.stringify({ error: auth.error || 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
     const { messageId } = params;
     const body = await request.json();

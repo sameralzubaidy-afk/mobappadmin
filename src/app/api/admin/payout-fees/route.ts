@@ -3,6 +3,7 @@
 // Description: API route for managing payout fee configuration
 
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -25,7 +26,15 @@ const PAYOUT_KEYS = [
   'payout_fee_bank_ach_cents',
 ];
 
-export async function GET() {
+export async function GET(req: Request) {
+  const auth = await verifyAdminAuth(req);
+  if (!auth.authorized) {
+    return new Response(JSON.stringify({ error: auth.error || 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
     // Fetch all payout config from admin_config
     const { data, error } = await supabase
@@ -58,6 +67,14 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await verifyAdminAuth(req);
+  if (!auth.authorized) {
+    return new Response(JSON.stringify({ error: auth.error || 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
     const body = await req.json();
     const { key, value } = body;

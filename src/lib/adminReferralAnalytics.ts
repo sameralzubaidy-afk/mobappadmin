@@ -4,7 +4,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
-const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || '';
+const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 // Initialize client lazily to avoid "supabaseKey is required" error during import in client-side bundles
 let cachedAdminClient: any = null;

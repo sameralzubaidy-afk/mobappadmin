@@ -3,6 +3,7 @@
 // Uses service role key so RLS is bypassed (admin-only endpoint).
 
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -13,6 +14,14 @@ const supabase = createClient(
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
+  const auth = await verifyAdminAuth(request);
+  if (!auth.authorized) {
+    return new Response(JSON.stringify({ error: auth.error || 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status'); // 'unread' | 'read' | null (all)

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 import { createClient } from '@supabase/supabase-js';
 
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -6,7 +7,15 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
 const supabase = createClient(SUPABASE_URL || '', SERVICE_KEY || '');
 
-export async function GET() {
+export async function GET(req: Request) {
+  const auth = await verifyAdminAuth(req);
+  if (!auth.authorized) {
+    return new Response(JSON.stringify({ error: auth.error || 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
