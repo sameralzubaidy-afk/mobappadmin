@@ -26,8 +26,8 @@ export interface TradeTimingConfig {
   auto_complete_hours: number;
   auto_complete_notif_hours_before: number;
   pending_sp_release_days: number;
-  transaction_fee_member_cents: number;
-  transaction_fee_non_member_cents: number;
+  transaction_fee_subscriber_cents: number;
+  transaction_fee_non_subscriber_cents: number;
 }
 
 export interface AuditLog {

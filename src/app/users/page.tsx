@@ -3,7 +3,7 @@
 // Task: ADMIN-V2-006 - User Management Dashboard
 // Full-featured user management with search, filters, pagination, and admin actions
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -54,6 +54,8 @@ interface UserDetail {
     phone_verified: boolean;
     suspended_at: string | null;
     suspension_reason: string | null;
+    node_id: string | null;
+    node_name: string | null;
   };
   subscription: {
     status: SubscriptionStatus;
@@ -75,6 +77,15 @@ interface UserDetail {
     as_buyer: number;
     last_trade_at: string | null;
   };
+  approved_items: Array<{
+    id: string;
+    title: string;
+    price: number;
+    status: string;
+    approved_at: string | null;
+    node_id: string | null;
+    created_at: string;
+  }> | null;
   badges: Array<{
     name: string;
     icon: string;
@@ -119,18 +130,35 @@ export default function UsersPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [accountStatusFilter, setAccountStatusFilter] = useState<string>('');
   const [subscriptionStatusFilter, setSubscriptionStatusFilter] = useState<string>('');
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Debounce search input (250ms) to avoid excessive API calls
+  useEffect(() => {
+    if (searchTimerRef.current) {
+      clearTimeout(searchTimerRef.current);
+    }
+    searchTimerRef.current = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 250);
+    return () => {
+      if (searchTimerRef.current) {
+        clearTimeout(searchTimerRef.current);
+      }
+    };
+  }, [search]);
 
   // Fetch analytics
   useEffect(() => {
     fetchAnalytics();
   }, []);
 
-  // Fetch users
+  // Fetch users (triggered by debouncedSearch, not raw search)
   useEffect(() => {
     fetchUsers();
-  }, [page, search, accountStatusFilter, subscriptionStatusFilter]);
+  }, [page, debouncedSearch, accountStatusFilter, subscriptionStatusFilter]);
 
   const getAuthHeaders = async (): Promise<HeadersInit> => {
     const {
@@ -164,7 +192,7 @@ export default function UsersPage() {
         page_size: '20',
       });
 
-      if (search) params.set('search', search);
+      if (debouncedSearch) params.set('search', debouncedSearch);
       if (accountStatusFilter) params.set('account_status', accountStatusFilter);
       if (subscriptionStatusFilter) params.set('subscription_status', subscriptionStatusFilter);
 
@@ -464,11 +492,11 @@ export default function UsersPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Search (name, email, phone)
+              Search (name, email, phone, user ID)
             </label>
             <input
               type="text"
-              placeholder="Search users..."
+              placeholder="Search by name, email, phone, or user ID..."
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -666,6 +694,7 @@ export default function UsersPage() {
                     <div><span className="font-semibold">Registered:</span> {formatDate(selectedUser.identity.registered_at)}</div>
                     <div><span className="font-semibold">Last Login:</span> {formatDate(selectedUser.identity.last_login_at)}</div>
                     <div><span className="font-semibold">Phone Verified:</span> {selectedUser.identity.phone_verified ? '✅ Yes' : '❌ No'}</div>
+                    <div><span className="font-semibold">Node:</span> {selectedUser.identity.node_name || <span className="text-gray-400">N/A</span>}</div>
                   </div>
                   {selectedUser.identity.suspended_at && (
                     <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded">
@@ -730,6 +759,50 @@ export default function UsersPage() {
                     <div><span className="font-semibold">Last Trade:</span> {formatDate(selectedUser.trade_activity.last_trade_at)}</div>
                   </div>
                 </div>
+              </section>
+
+              {/* Approved Items */}
+              <section>
+                <h3 className="text-lg font-semibold mb-3 text-gray-800">Approved Items ({selectedUser.approved_items?.length || 0})</h3>
+                {selectedUser.approved_items && selectedUser.approved_items.length > 0 ? (
+                  <div className="bg-gray-50 p-4 rounded">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-gray-200">
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Item ID</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
+                            <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Price</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Approved</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {selectedUser.approved_items.map((item) => (
+                            <tr key={item.id} className="hover:bg-gray-100">
+                              <td className="px-3 py-2 font-mono text-xs text-gray-600">{item.id}</td>
+                              <td className="px-3 py-2 font-medium">{item.title}</td>
+                              <td className="px-3 py-2 text-right">${Number(item.price).toFixed(2)}</td>
+                              <td className="px-3 py-2">
+                                <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                                  item.status === 'available' ? 'bg-green-100 text-green-800' :
+                                  item.status === 'sold' ? 'bg-blue-100 text-blue-800' :
+                                  item.status === 'paused' ? 'bg-yellow-100 text-yellow-800' :
+                                  'bg-gray-100 text-gray-600'
+                                }`}>
+                                  {item.status}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2 text-xs text-gray-600">{formatDate(item.approved_at)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-gray-50 p-4 rounded text-sm text-gray-600">No approved items found</div>
+                )}
               </section>
 
               {/* Badges */}

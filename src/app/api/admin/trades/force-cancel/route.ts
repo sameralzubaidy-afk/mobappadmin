@@ -14,6 +14,11 @@ export async function POST(req: NextRequest) {
     // PROD-010: centralized admin auth
     const auth = await verifyAdminAuth(req);
     if (!auth.authorized) {
+      console.error('[api/admin/trades/force-cancel] auth failed:', {
+        error: auth.error,
+        hasXAdminSecret: !!req.headers.get('x-admin-secret'),
+        adminSecretFromEnv: !!process.env.ADMIN_UI_SECRET,
+      });
       return NextResponse.json({ error: auth.error }, { status: 401 });
     }
 
@@ -43,6 +48,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Call the Edge Function server-side — service role key stays on the server
+    const adminSecret = process.env.ADMIN_UI_SECRET || '';
+    console.log('[api/admin/trades/force-cancel] Calling Edge Function:', {
+      supabaseUrl,
+      serviceRoleKeyLength: serviceRoleKey.length,
+      adminSecretLength: adminSecret.length,
+    });
+
     const edgeResponse = await fetch(
       `${supabaseUrl}/functions/v1/admin-trade-action`,
       {
@@ -51,6 +63,7 @@ export async function POST(req: NextRequest) {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${serviceRoleKey}`,
           apikey: serviceRoleKey,
+          'x-admin-ui-secret': adminSecret,
         },
         body: JSON.stringify({
           action: 'force-cancel',
@@ -62,13 +75,26 @@ export async function POST(req: NextRequest) {
       },
     );
 
-    const data = await edgeResponse.json();
+    const responseText = await edgeResponse.text();
+    console.log('[api/admin/trades/force-cancel] Edge Function response:', {
+      status: edgeResponse.status,
+      body: responseText.substring(0, 500),
+    });
+
+    let data: any;
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      data = { error: responseText };
+    }
 
     if (!edgeResponse.ok) {
       console.error('[api/admin/trades/force-cancel]', {
         tradeId,
         status: edgeResponse.status,
         error: data?.error,
+        details: data?.details,
+        debug: data?.debug,
       });
       return NextResponse.json(
         { error: data?.error || `Edge function error ${edgeResponse.status}` },

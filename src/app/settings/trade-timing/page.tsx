@@ -15,8 +15,8 @@ const DEFAULT_CONFIG: TradeTimingConfig = {
   auto_complete_hours: 72,
   auto_complete_notif_hours_before: 24,
   pending_sp_release_days: 3,
-  transaction_fee_member_cents: 150,
-  transaction_fee_non_member_cents: 250,
+  transaction_fee_subscriber_cents: 150,
+  transaction_fee_non_subscriber_cents: 250,
 };
 
 export default function TradeTimingSettingsPage() {
@@ -83,11 +83,11 @@ export default function TradeTimingSettingsPage() {
     if (settings.pending_sp_release_days < 1) {
       e.pending_sp_release_days = 'Must be at least 1 day';
     }
-    if (settings.transaction_fee_member_cents < 0) {
-      e.transaction_fee_member_cents = 'Cannot be negative';
+    if (settings.transaction_fee_subscriber_cents < 0) {
+      e.transaction_fee_subscriber_cents = 'Cannot be negative';
     }
-    if (settings.transaction_fee_non_member_cents < 0) {
-      e.transaction_fee_non_member_cents = 'Cannot be negative';
+    if (settings.transaction_fee_non_subscriber_cents < 0) {
+      e.transaction_fee_non_subscriber_cents = 'Cannot be negative';
     }
 
     setErrors(e);
@@ -261,14 +261,14 @@ export default function TradeTimingSettingsPage() {
             Transaction Fees
           </h2>
           {numField(
-            'transaction_fee_member_cents',
+            'transaction_fee_subscriber_cents',
             'Kids Club+ Member Fee',
             'Platform fee for Kids Club+ subscribers in cents (e.g. 150 = $1.50).',
             'cents',
             0
           )}
           {numField(
-            'transaction_fee_non_member_cents',
+            'transaction_fee_non_subscriber_cents',
             'Free-Tier User Fee',
             'Platform fee for free-tier users in cents (e.g. 250 = $2.50).',
             'cents',

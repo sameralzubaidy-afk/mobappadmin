@@ -14,8 +14,8 @@ interface TradeTimingConfig {
   auto_complete_hours: number;
   auto_complete_notif_hours_before: number;
   pending_sp_release_days: number;
-  transaction_fee_member_cents: number;
-  transaction_fee_non_member_cents: number;
+  transaction_fee_subscriber_cents: number;
+  transaction_fee_non_subscriber_cents: number;
 }
 
 /**
@@ -46,11 +46,11 @@ function validateTradeTimingSettings(s: TradeTimingConfig): Record<string, strin
   if (s.pending_sp_release_days < 1) {
     e.pending_sp_release_days = 'Must be at least 1 day';
   }
-  if (s.transaction_fee_member_cents < 0) {
-    e.transaction_fee_member_cents = 'Cannot be negative';
+  if (s.transaction_fee_subscriber_cents < 0) {
+    e.transaction_fee_subscriber_cents = 'Cannot be negative';
   }
-  if (s.transaction_fee_non_member_cents < 0) {
-    e.transaction_fee_non_member_cents = 'Cannot be negative';
+  if (s.transaction_fee_non_subscriber_cents < 0) {
+    e.transaction_fee_non_subscriber_cents = 'Cannot be negative';
   }
 
   return e;
@@ -63,8 +63,8 @@ const DEFAULT_VALID: TradeTimingConfig = {
   auto_complete_hours: 72,
   auto_complete_notif_hours_before: 24,
   pending_sp_release_days: 3,
-  transaction_fee_member_cents: 150,
-  transaction_fee_non_member_cents: 250,
+  transaction_fee_subscriber_cents: 150,
+  transaction_fee_non_subscriber_cents: 250,
 };
 
 describe('validateTradeTimingSettings', () => {
@@ -77,11 +77,11 @@ describe('validateTradeTimingSettings', () => {
     it('should accept zero transaction fees', () => {
       const errors = validateTradeTimingSettings({
         ...DEFAULT_VALID,
-        transaction_fee_member_cents: 0,
-        transaction_fee_non_member_cents: 0,
+        transaction_fee_subscriber_cents: 0,
+        transaction_fee_non_subscriber_cents: 0,
       });
-      expect(errors.transaction_fee_member_cents).toBeUndefined();
-      expect(errors.transaction_fee_non_member_cents).toBeUndefined();
+      expect(errors.transaction_fee_subscriber_cents).toBeUndefined();
+      expect(errors.transaction_fee_non_subscriber_cents).toBeUndefined();
     });
   });
 
@@ -147,20 +147,20 @@ describe('validateTradeTimingSettings', () => {
   });
 
   describe('Fee constraints', () => {
-    it('should error when transaction_fee_member_cents is negative', () => {
+    it('should error when transaction_fee_subscriber_cents is negative', () => {
       const errors = validateTradeTimingSettings({
         ...DEFAULT_VALID,
-        transaction_fee_member_cents: -1,
+        transaction_fee_subscriber_cents: -1,
       });
-      expect(errors.transaction_fee_member_cents).toBeDefined();
+      expect(errors.transaction_fee_subscriber_cents).toBeDefined();
     });
 
-    it('should error when transaction_fee_non_member_cents is negative', () => {
+    it('should error when transaction_fee_non_subscriber_cents is negative', () => {
       const errors = validateTradeTimingSettings({
         ...DEFAULT_VALID,
-        transaction_fee_non_member_cents: -100,
+        transaction_fee_non_subscriber_cents: -100,
       });
-      expect(errors.transaction_fee_non_member_cents).toBeDefined();
+      expect(errors.transaction_fee_non_subscriber_cents).toBeDefined();
     });
   });
 
@@ -173,8 +173,8 @@ describe('validateTradeTimingSettings', () => {
         auto_complete_hours: 0,
         auto_complete_notif_hours_before: 72,
         pending_sp_release_days: 0,
-        transaction_fee_member_cents: -50,
-        transaction_fee_non_member_cents: -100,
+        transaction_fee_subscriber_cents: -50,
+        transaction_fee_non_subscriber_cents: -100,
       };
       const errors = validateTradeTimingSettings(invalid);
       expect(Object.keys(errors).length).toBeGreaterThan(3);
