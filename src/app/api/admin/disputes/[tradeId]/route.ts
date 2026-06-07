@@ -33,7 +33,7 @@ export async function GET(
     const { data: trade, error } = await supabase
       .from('trades')
       .select(
-        'id, status, dispute_status, dispute_reason, dispute_notes, dispute_reported_at, dispute_resolution, buyer_id, seller_id, cash_amount_cents, sp_amount, buyer_transaction_fee_cents, listing:items(title, price)'
+        'id, status, dispute_status, dispute_reason, dispute_notes, dispute_opened_at, dispute_resolution, buyer_id, seller_id, cash_amount_cents, sp_amount, buyer_transaction_fee_cents, listing:items(title, price)'
       )
       .eq('id', tradeId)
       .single();

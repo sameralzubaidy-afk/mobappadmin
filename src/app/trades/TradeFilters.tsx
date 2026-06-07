@@ -48,7 +48,7 @@ export default function TradeFilters({
         >
           <option value="all">All Statuses</option>
           <option value="pending">Pending</option>
-          <option value="payment_processing">Payment Processing</option>
+          <option value="in_progress">In Progress</option>
           <option value="in_progress">In Progress</option>
           <option value="completed">Completed</option>
           <option value="cancelled">Cancelled</option>

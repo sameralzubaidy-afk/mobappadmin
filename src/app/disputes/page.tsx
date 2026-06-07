@@ -1,6 +1,8 @@
 // File: p2p-kids-admin/src/app/disputes/page.tsx
 // TFV2-017: Admin Disputes Queue — shows all trades in dispute_status IN ('reported', 'under_review')
 
+export const dynamic = 'force-dynamic';
+
 import Link from 'next/link';
 import { Suspense } from 'react';
 import DisputeFilters from './DisputeFilters';
@@ -15,7 +17,7 @@ type DisputeTrade = {
   id: string;
   dispute_status: string;
   dispute_reason: string | null;
-  dispute_reported_at: string | null;
+  dispute_opened_at: string | null;
   status: string;
   buyer_id: string;
   seller_id: string;
@@ -37,7 +39,7 @@ export default async function DisputesPage({ searchParams }: Props) {
     return <div className="p-6 text-red-600">Missing server configuration</div>;
   }
 
-  let url = `${SUPABASE_URL}/rest/v1/trades?select=id,dispute_status,dispute_reason,dispute_reported_at,status,buyer_id,seller_id,listing:items(title,price)&order=dispute_reported_at.asc`;
+  let url = `${SUPABASE_URL}/rest/v1/trades?select=id,dispute_status,dispute_reason,dispute_opened_at,status,buyer_id,seller_id,listing:items(title,price)&order=dispute_opened_at.asc`;
 
   if (statusFilter === 'all') {
     // reported OR under_review
@@ -96,7 +98,7 @@ export default async function DisputesPage({ searchParams }: Props) {
             </thead>
             <tbody className="divide-y divide-gray-200">
               {disputes.map((d) => {
-                const slaHours = getSLAHours(d.dispute_reported_at);
+                const slaHours = getSLAHours(d.dispute_opened_at);
                 const slaBreached = slaHours > 24;
                 return (
                   <tr key={d.id} className="hover:bg-gray-50">

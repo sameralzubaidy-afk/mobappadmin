@@ -13,7 +13,7 @@ type DisputeTrade = {
   dispute_status: string;
   dispute_reason: string | null;
   dispute_notes: string | null;
-  dispute_reported_at: string | null;
+  dispute_opened_at: string | null;
   dispute_resolution: string | null;
   buyer_id: string;
   seller_id: string;
@@ -168,9 +168,9 @@ export default function DisputeDetailPage() {
             <span className="text-amber-900">{trade.dispute_notes}</span>
           </div>
         )}
-        {trade.dispute_reported_at && (
+        {trade.dispute_opened_at && (
           <div className="text-sm text-amber-600">
-            Reported: {new Date(trade.dispute_reported_at).toLocaleString()}
+            Reported: {new Date(trade.dispute_opened_at).toLocaleString()}
           </div>
         )}
       </div>

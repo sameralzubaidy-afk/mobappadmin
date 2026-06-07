@@ -17,7 +17,7 @@ interface DisputeDetail {
   status: string;
   dispute_status: 'reported' | 'under_review' | 'resolved' | null;
   dispute_reason: string | null;
-  dispute_reported_at: string | null;
+  dispute_opened_at: string | null;
   dispute_resolution: string | null;
   cash_amount_cents: number;
   buyer_transaction_fee_cents: number;
@@ -46,7 +46,7 @@ export default function DisputeDetailPage() {
     const { data, error } = await supabase
       .from('trades')
       .select(`
-        id, status, dispute_status, dispute_reason, dispute_reported_at,
+        id, status, dispute_status, dispute_reason, dispute_opened_at,
         dispute_resolution, cash_amount_cents, buyer_transaction_fee_cents, created_at,
         listing:items(title, price),
         buyer_profile:profiles!trades_buyer_id_fkey(name),
@@ -182,8 +182,8 @@ export default function DisputeDetailPage() {
 
           <dt className="text-gray-500">Reported At</dt>
           <dd className="text-gray-900">
-            {trade.dispute_reported_at
-              ? new Date(trade.dispute_reported_at).toLocaleString()
+            {trade.dispute_opened_at
+              ? new Date(trade.dispute_opened_at).toLocaleString()
               : '—'}
           </dd>
 

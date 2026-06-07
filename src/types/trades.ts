@@ -2,7 +2,6 @@
 
 export type TradeStatus =
   | 'pending'
-  | 'payment_processing'
   | 'payment_failed'
   | 'in_progress'
   | 'completed'

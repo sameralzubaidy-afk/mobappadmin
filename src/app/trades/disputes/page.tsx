@@ -3,6 +3,8 @@
 // Lists trades where dispute_status IN ('reported', 'under_review')
 // Shows SLA age (24h target), allows admin to mark under_review or resolve.
 
+export const dynamic = 'force-dynamic';
+
 import { createClient } from '@supabase/supabase-js';
 import DisputeActions from './DisputeActions';
 
