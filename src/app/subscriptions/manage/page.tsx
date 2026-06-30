@@ -99,6 +99,9 @@ export default function SubscriptionManagementPage() {
 
       const res = await fetch(`${subscriptionsEndpoint}?${params.toString()}`, {
         cache: 'no-store',
+        headers: {
+          'x-admin-secret': adminSecret,
+        },
       });
       const json = await res.json();
       
