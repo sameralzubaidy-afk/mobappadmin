@@ -66,7 +66,8 @@ interface UserDetail {
     cancelled_at: string | null;
   } | null;
   sp_wallet: {
-    balance: number;
+    available_balance: number;
+    pending_balance: number;
     status: string;
     lifetime_earned: number;
     lifetime_spent: number;
@@ -133,6 +134,8 @@ export default function UsersPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [accountStatusFilter, setAccountStatusFilter] = useState<string>('');
   const [subscriptionStatusFilter, setSubscriptionStatusFilter] = useState<string>('');
+  const [sortBy, setSortBy] = useState<string>('registered_at');
+  const [sortOrder, setSortOrder] = useState<string>('DESC');
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Debounce search input (250ms) to avoid excessive API calls
@@ -158,7 +161,7 @@ export default function UsersPage() {
   // Fetch users (triggered by debouncedSearch, not raw search)
   useEffect(() => {
     fetchUsers();
-  }, [page, debouncedSearch, accountStatusFilter, subscriptionStatusFilter]);
+  }, [page, debouncedSearch, accountStatusFilter, subscriptionStatusFilter, sortBy, sortOrder]);
 
   const getAuthHeaders = async (): Promise<HeadersInit> => {
     const {
@@ -195,6 +198,8 @@ export default function UsersPage() {
       if (debouncedSearch) params.set('search', debouncedSearch);
       if (accountStatusFilter) params.set('account_status', accountStatusFilter);
       if (subscriptionStatusFilter) params.set('subscription_status', subscriptionStatusFilter);
+      params.set('sort_by', sortBy);
+      params.set('sort_order', sortOrder);
 
       const res = await fetch(`/api/admin/users?${params.toString()}`, {
         headers: await getAuthHeaders(),
@@ -544,6 +549,38 @@ export default function UsersPage() {
               <option value="none">Free</option>
             </select>
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Sort By
+            </label>
+            <div className="flex gap-2">
+              <select
+                value={sortBy}
+                onChange={(e) => {
+                  setSortBy(e.target.value);
+                  setPage(1);
+                }}
+                className="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="registered_at">Registered Date</option>
+                <option value="sp_balance">SP Balance</option>
+                <option value="trade_count">Trade Count</option>
+                <option value="name">Name</option>
+                <option value="email">Email</option>
+              </select>
+              <select
+                value={sortOrder}
+                onChange={(e) => {
+                  setSortOrder(e.target.value);
+                  setPage(1);
+                }}
+                className="w-28 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="DESC">Desc</option>
+                <option value="ASC">Asc</option>
+              </select>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -735,7 +772,8 @@ export default function UsersPage() {
                 {selectedUser.sp_wallet ? (
                   <div className="bg-gray-50 p-4 rounded space-y-2 text-sm">
                     <div className="grid grid-cols-2 gap-2">
-                      <div><span className="font-semibold">Balance:</span> {selectedUser.sp_wallet.balance} SP</div>
+                      <div><span className="font-semibold">Available SP:</span> {selectedUser.sp_wallet.available_balance} SP</div>
+                      <div><span className="font-semibold">Pending SP:</span> {selectedUser.sp_wallet.pending_balance} SP</div>
                       <div><span className="font-semibold">Status:</span> <span className="capitalize">{selectedUser.sp_wallet.status}</span></div>
                       <div><span className="font-semibold">Lifetime Earned:</span> {selectedUser.sp_wallet.lifetime_earned} SP</div>
                       <div><span className="font-semibold">Lifetime Spent:</span> {selectedUser.sp_wallet.lifetime_spent} SP</div>

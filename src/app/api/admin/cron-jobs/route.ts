@@ -71,7 +71,43 @@ export async function GET(req: Request) {
       );
     }
 
-    return jsonNoStore({ data });
+    // Merge in manual run results from cron_manual_runs (created by Run Now button).
+    // If a manual run is more recent than the last scheduled run, use its status.
+    const jobs = (data || []) as any[];
+    if (jobs.length > 0) {
+      const { data: manualRuns, error: mrError } = await client
+        .from('cron_manual_runs')
+        .select('*')
+        .order('started_at', { ascending: false })
+        .limit(50);
+
+      if (!mrError && manualRuns && manualRuns.length > 0) {
+        // Group manual runs by jobid, take the most recent per job
+        const latestManual = new Map<number, any>();
+        for (const run of manualRuns) {
+          if (!latestManual.has(run.jobid)) {
+            latestManual.set(run.jobid, run);
+          }
+        }
+
+        for (const job of jobs) {
+          const manual = latestManual.get(job.jobid);
+          if (
+            manual &&
+            (!job.last_start_time_utc ||
+              new Date(manual.started_at) > new Date(job.last_start_time_utc))
+          ) {
+            job.last_status = manual.status;
+            job.last_return_message = manual.return_message;
+            job.last_start_time_utc = manual.started_at;
+            job.last_start_time_local = manual.started_at;
+            job.has_recent_run = true;
+          }
+        }
+      }
+    }
+
+    return jsonNoStore({ data: jobs });
   } catch (error: any) {
     return jsonNoStore(
       { error: error?.message || 'Failed to fetch cron jobs status' },

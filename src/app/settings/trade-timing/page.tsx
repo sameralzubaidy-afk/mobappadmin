@@ -17,6 +17,7 @@ const DEFAULT_CONFIG: TradeTimingConfig = {
   pending_sp_release_days: 3,
   transaction_fee_subscriber_cents: 150,
   transaction_fee_non_subscriber_cents: 250,
+  max_pending_offers_per_seller: 3,
 };
 
 export default function TradeTimingSettingsPage() {
@@ -37,17 +38,17 @@ export default function TradeTimingSettingsPage() {
   const loadSettings = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('admin_config')
-        .select('key, value')
-        .in('key', Object.keys(DEFAULT_CONFIG));
+      // Use SECURITY DEFINER RPC to bypass RLS on admin_config
+      const { data, error } = await supabase.rpc('fn_get_admin_config_values', {
+        p_keys: Object.keys(DEFAULT_CONFIG),
+      });
 
       if (error) throw error;
 
       const parsed: Partial<TradeTimingConfig> = {};
-      data?.forEach((row: { key: string; value: string }) => {
-        if (row.key in DEFAULT_CONFIG && !isNaN(Number(row.value))) {
-          (parsed as any)[row.key] = Number(row.value);
+      data?.forEach((row: { out_key: string; out_value: string }) => {
+        if (row.out_key in DEFAULT_CONFIG && !isNaN(Number(row.out_value))) {
+          (parsed as any)[row.out_key] = Number(row.out_value);
         }
       });
 
@@ -89,6 +90,12 @@ export default function TradeTimingSettingsPage() {
     if (settings.transaction_fee_non_subscriber_cents < 0) {
       e.transaction_fee_non_subscriber_cents = 'Cannot be negative';
     }
+    if (settings.max_pending_offers_per_seller < 1) {
+      e.max_pending_offers_per_seller = 'Must be at least 1';
+    }
+    if (settings.max_pending_offers_per_seller > 10) {
+      e.max_pending_offers_per_seller = 'Maximum is 10 offers per seller';
+    }
 
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -105,7 +112,7 @@ export default function TradeTimingSettingsPage() {
         const { error } = await supabase.rpc('upsert_admin_config_setting', {
           p_key: key,
           p_value: String(value),
-          p_category: 'trade_timing',
+          p_category: 'feature_flags',
           p_data_type: 'number',
           p_is_secret: false,
           p_is_active: true,
@@ -220,6 +227,19 @@ export default function TradeTimingSettingsPage() {
             'Second Expiry Reminder',
             'Send second reminder before offer expires (must be < first reminder).',
             'hours before expiry'
+          )}
+        </section>
+
+        {/* Offer Limits */}
+        <section className="bg-white rounded-lg border border-gray-200 p-6 space-y-5">
+          <h2 className="text-base font-semibold text-gray-800 border-b border-gray-100 pb-3">
+            Offer Limits
+          </h2>
+          {numField(
+            'max_pending_offers_per_seller',
+            'Max Offers Per Seller',
+            'Maximum number of open (pending) offers a buyer can have with a single seller. Bundle offers count as 1. Applies immediately — no app restart needed.',
+            'offers'
           )}
         </section>
 

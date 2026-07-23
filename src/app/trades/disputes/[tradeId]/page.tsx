@@ -5,26 +5,23 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+type ResolveAction = 'mark_under_review' | 'resolve_complete' | 'resolve_refund';
 
 interface DisputeDetail {
   id: string;
   status: string;
   dispute_status: 'reported' | 'under_review' | 'resolved' | null;
   dispute_reason: string | null;
+  dispute_notes: string | null;
   dispute_opened_at: string | null;
   dispute_resolution: string | null;
   cash_amount_cents: number;
+  sp_amount: number;
   buyer_transaction_fee_cents: number;
-  created_at: string;
+  buyer_id: string;
+  seller_id: string;
   listing: { title: string; price: number } | null;
-  buyer_profile: { name: string } | null;
-  seller_profile: { name: string } | null;
 }
 
 export default function DisputeDetailPage() {
@@ -34,62 +31,59 @@ export default function DisputeDetailPage() {
 
   const [trade, setTrade] = useState<DisputeDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [acting, setActing] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<ResolveAction | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    loadTrade();
+    if (!tradeId) return;
+    fetchDispute();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tradeId]);
 
-  const loadTrade = async () => {
+  const fetchDispute = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('trades')
-      .select(`
-        id, status, dispute_status, dispute_reason, dispute_opened_at,
-        dispute_resolution, cash_amount_cents, buyer_transaction_fee_cents, created_at,
-        listing:items(title, price),
-        buyer_profile:profiles!trades_buyer_id_fkey(name),
-        seller_profile:profiles!trades_seller_id_fkey(name)
-      `)
-      .eq('id', tradeId)
-      .single();
-
-    if (error || !data) {
-      setMessage({ type: 'error', text: 'Trade not found.' });
-    } else {
-      setTrade(data as any);
+    setError(null);
+    try {
+      const adminSecret = process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '';
+      const res = await fetch(`/api/admin/disputes/${tradeId}`, {
+        headers: { 'x-admin-secret': adminSecret },
+      });
+      const json = await res.json();
+      if (!res.ok || json.error) throw new Error(json.error || 'Failed to load dispute');
+      setTrade(json.trade);
+    } catch (e: any) {
+      setError(e.message || 'Failed to load dispute');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
-  const callAction = async (action: 'mark_under_review' | 'resolve_complete' | 'resolve_refund') => {
+  const handleResolve = async (action: ResolveAction) => {
     if (!confirm(`Are you sure you want to: ${action.replace(/_/g, ' ')}?`)) return;
-    setActing(true);
-    setMessage(null);
+    setSubmitting(true);
+    setError(null);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/resolve-dispute`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session?.access_token}`,
-          },
-          body: JSON.stringify({ trade_id: tradeId, action }),
-        }
-      );
-      const result = await res.json();
-      if (!res.ok || !result.success) {
-        throw new Error(result.error?.message ?? 'Action failed');
+      const adminSecret = process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '';
+      const res = await fetch('/api/admin/trades/dispute-action', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-secret': adminSecret,
+        },
+        body: JSON.stringify({ tradeId, action }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.error) throw new Error(json.error || 'Action failed');
+      setConfirming(null);
+      await fetchDispute();
+      if (action !== 'mark_under_review') {
+        router.push('/trades/disputes');
       }
-      setMessage({ type: 'success', text: `Action "${action}" completed successfully.` });
-      await loadTrade();
-    } catch (err: any) {
-      setMessage({ type: 'error', text: err.message ?? 'Something went wrong.' });
+    } catch (e: any) {
+      setError(e.message || 'Action failed');
     } finally {
-      setActing(false);
+      setSubmitting(false);
     }
   };
 
@@ -97,8 +91,15 @@ export default function DisputeDetailPage() {
     return <div className="p-8 text-gray-500">Loading dispute…</div>;
   }
 
-  if (!trade) {
-    return <div className="p-8 text-red-500">Trade not found.</div>;
+  if (error || !trade) {
+    return (
+      <div className="p-8">
+        <div className="text-red-500 mb-4">{error || 'Trade not found.'}</div>
+        <button onClick={() => router.push('/trades/disputes')} className="text-sm text-blue-600 hover:underline">
+          ← Back to disputes
+        </button>
+      </div>
+    );
   }
 
   const totalCash = ((trade.cash_amount_cents ?? 0) + (trade.buyer_transaction_fee_cents ?? 0)) / 100;
@@ -106,7 +107,7 @@ export default function DisputeDetailPage() {
   return (
     <div className="p-8 max-w-3xl">
       <button
-        onClick={() => router.back()}
+        onClick={() => router.push('/trades/disputes')}
         className="mb-6 text-sm text-blue-600 hover:underline"
       >
         ← Back to disputes
@@ -114,13 +115,9 @@ export default function DisputeDetailPage() {
 
       <h1 className="text-2xl font-bold mb-6">Dispute Detail</h1>
 
-      {message && (
-        <div
-          className={`mb-4 p-3 rounded text-sm ${
-            message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
-          }`}
-        >
-          {message.text}
+      {error && (
+        <div className="mb-4 p-3 rounded text-sm bg-red-50 text-red-800 border border-red-200">
+          {error}
         </div>
       )}
 
@@ -140,11 +137,11 @@ export default function DisputeDetailPage() {
           <dt className="text-gray-500">Cash Total</dt>
           <dd className="text-gray-900">${totalCash.toFixed(2)}</dd>
 
-          <dt className="text-gray-500">Buyer</dt>
-          <dd className="text-gray-900">{(trade.buyer_profile as any)?.name ?? '—'}</dd>
+          <dt className="text-gray-500">Buyer ID</dt>
+          <dd className="font-mono text-gray-900 text-xs break-all">{trade.buyer_id}</dd>
 
-          <dt className="text-gray-500">Seller</dt>
-          <dd className="text-gray-900">{(trade.seller_profile as any)?.name ?? '—'}</dd>
+          <dt className="text-gray-500">Seller ID</dt>
+          <dd className="font-mono text-gray-900 text-xs break-all">{trade.seller_id}</dd>
 
           <dt className="text-gray-500">Trade Status</dt>
           <dd>
@@ -153,8 +150,8 @@ export default function DisputeDetailPage() {
             </span>
           </dd>
 
-          <dt className="text-gray-500">Trade Created</dt>
-          <dd className="text-gray-900">{new Date(trade.created_at).toLocaleString()}</dd>
+          <dt className="text-gray-500">SP Amount</dt>
+          <dd className="text-gray-900">{trade.sp_amount} SP</dd>
         </dl>
       </div>
 
@@ -197,37 +194,77 @@ export default function DisputeDetailPage() {
         <div className="flex flex-wrap gap-3">
           {trade.dispute_status === 'reported' && (
             <button
-              onClick={() => callAction('mark_under_review')}
-              disabled={acting}
-              className="px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-medium hover:bg-orange-600 disabled:opacity-50"
+              onClick={() => setConfirming('mark_under_review')}
+              disabled={submitting}
+              className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white font-medium rounded-lg disabled:opacity-50"
             >
               Mark Under Review
             </button>
           )}
 
           <button
-            onClick={() => callAction('resolve_complete')}
-            disabled={acting}
-            className="px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+            onClick={() => setConfirming('resolve_complete')}
+            disabled={submitting}
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg disabled:opacity-50"
           >
             Resolve → Complete
           </button>
 
           <button
-            onClick={() => callAction('resolve_refund')}
-            disabled={acting}
-            className="px-4 py-2 rounded-lg bg-red-500 text-white text-sm font-medium hover:bg-red-600 disabled:opacity-50"
+            onClick={() => setConfirming('resolve_refund')}
+            disabled={submitting}
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg disabled:opacity-50"
           >
-            Resolve → Refund
+            Resolve → Refund Buyer
           </button>
-
-          {acting && <span className="text-sm text-gray-500 self-center">Processing…</span>}
         </div>
       )}
 
       {trade.dispute_status === 'resolved' && (
         <div className="p-3 bg-green-50 border border-green-200 rounded text-green-800 text-sm">
           This dispute has been resolved.
+        </div>
+      )}
+
+      {/* Confirmation modal */}
+      {confirming && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-xl">
+            <h3 className="text-lg font-bold text-gray-900 mb-3">
+              {confirming === 'mark_under_review'
+                ? 'Mark Under Review?'
+                : confirming === 'resolve_complete'
+                ? 'Resolve as Complete?'
+                : 'Resolve with Refund?'}
+            </h3>
+            <p className="text-sm text-gray-600 mb-6">
+              {confirming === 'mark_under_review'
+                ? 'The dispute status will be updated to Under Review.'
+                : confirming === 'resolve_complete'
+                ? 'The trade will be marked complete. Seller payout will proceed normally.'
+                : 'The buyer will receive a full refund. Seller payout will be cancelled. This action cannot be undone.'}
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirming(null)}
+                disabled={submitting}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleResolve(confirming)}
+                disabled={submitting}
+                className={`flex-1 px-4 py-2 text-white font-semibold rounded-lg disabled:opacity-50 ${
+                  confirming === 'resolve_refund'
+                    ? 'bg-red-600 hover:bg-red-700'
+                    : 'bg-green-600 hover:bg-green-700'
+                }`}
+              >
+                {submitting ? 'Processing…' : 'Confirm'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

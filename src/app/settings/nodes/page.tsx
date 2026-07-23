@@ -39,32 +39,31 @@ export default function NodeSettingsPage() {
   const loadSettings = async () => {
     try {
       setLoading(true);
-      // Load settings from admin_config table
-      const { data, error } = await supabase
-        .from('admin_config')
-        .select('key, value')
-        .in('key', [
+      // Use SECURITY DEFINER RPC to bypass RLS on admin_config
+      const { data, error } = await supabase.rpc('fn_get_admin_config_values', {
+        p_keys: [
           'default_radius_miles',
           'max_assignment_distance_miles',
           'allow_user_radius_adjustment',
           'min_user_radius_miles',
           'max_user_radius_miles',
           'distance_warning_threshold_miles',
-        ]);
+        ],
+      });
 
       if (error) throw error;
 
       // Convert array to object
       const settingsObj: any = {};
-      data?.forEach((item) => {
-        const value = item.value;
+      data?.forEach((item: { out_key: string; out_value: string }) => {
+        const value = item.out_value;
         // Parse boolean and number values
         if (value === 'true' || value === 'false') {
-          settingsObj[item.key] = value === 'true';
+          settingsObj[item.out_key] = value === 'true';
         } else if (!isNaN(Number(value))) {
-          settingsObj[item.key] = Number(value);
+          settingsObj[item.out_key] = Number(value);
         } else {
-          settingsObj[item.key] = value;
+          settingsObj[item.out_key] = value;
         }
       });
 

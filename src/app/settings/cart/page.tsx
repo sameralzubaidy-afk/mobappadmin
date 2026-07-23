@@ -39,17 +39,17 @@ export default function CartSettingsPage() {
   const loadSettings = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('admin_config')
-        .select('key, value')
-        .in('key', Object.keys(DEFAULT_CONFIG));
+      // Use SECURITY DEFINER RPC to bypass RLS on admin_config
+      const { data, error } = await supabase.rpc('fn_get_admin_config_values', {
+        p_keys: Object.keys(DEFAULT_CONFIG),
+      });
 
       if (error) throw error;
 
       const parsed: Partial<CartConfig> = {};
-      (data ?? []).forEach((row: { key: string; value: string }) => {
-        if (row.key in DEFAULT_CONFIG && !isNaN(Number(row.value))) {
-          (parsed as Record<string, number>)[row.key] = Number(row.value);
+      (data ?? []).forEach((row: { out_key: string; out_value: string }) => {
+        if (row.out_key in DEFAULT_CONFIG && !isNaN(Number(row.out_value))) {
+          (parsed as Record<string, number>)[row.out_key] = Number(row.out_value);
         }
       });
 
@@ -93,7 +93,10 @@ export default function CartSettingsPage() {
         const { error } = await supabase.rpc('upsert_admin_config_setting', {
           p_key: key,
           p_value: String(value),
-          p_description: null,
+          p_category: 'feature_flags',
+          p_data_type: 'number',
+          p_is_secret: false,
+          p_is_active: true,
         });
         if (error) throw new Error(`Failed to save ${key}: ${error.message}`);
       }

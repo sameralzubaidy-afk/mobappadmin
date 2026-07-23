@@ -5,7 +5,7 @@
 
 import { useState } from 'react';
 
-type DisputeStatus = 'reported' | 'under_review' | 'resolved';
+type DisputeStatus = 'reported' | 'under_review' | 'resolved' | 'none';
 
 type Props = {
   tradeId: string;

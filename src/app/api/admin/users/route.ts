@@ -35,6 +35,14 @@ export async function GET(req: NextRequest) {
     const nodeId = rawNodeId && rawNodeId !== 'all' ? rawNodeId : null;
     const page = parseInt(searchParams.get('page') || '1', 10);
     const pageSize = parseInt(searchParams.get('page_size') || '20', 10);
+    const sortBy = searchParams.get('sort_by') || 'registered_at';
+    const sortOrder = searchParams.get('sort_order') || 'DESC';
+
+    // Validate sort params to prevent SQL injection through RPC (whitelist)
+    const allowedSortBy = ['registered_at', 'sp_balance', 'trade_count', 'name', 'email'];
+    const allowedSortOrder = ['ASC', 'DESC'];
+    const validatedSortBy = allowedSortBy.includes(sortBy) ? sortBy : 'registered_at';
+    const validatedSortOrder = allowedSortOrder.includes(sortOrder.toUpperCase()) ? sortOrder.toUpperCase() : 'DESC';
 
     if (nodeId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(nodeId)) {
       return NextResponse.json({ error: 'Invalid node_id format' }, { status: 400 });
@@ -49,6 +57,8 @@ export async function GET(req: NextRequest) {
       p_node_id: nodeId,
       p_page: page,
       p_page_size: pageSize,
+      p_sort_by: validatedSortBy,
+      p_sort_order: validatedSortOrder,
     });
 
     if (error) {

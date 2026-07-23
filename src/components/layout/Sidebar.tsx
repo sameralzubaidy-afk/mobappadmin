@@ -49,6 +49,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Flagged Items', href: '/items/flagged',  icon: <AlertTriangle  size={18} /> },
   { label: 'Trades',        href: '/trades',         icon: <TrendingUp     size={18} /> },
   { label: 'Disputes',     href: '/trades/disputes',icon: <AlertTriangle  size={18} /> },
+  { label: 'Cancel Insights', href: '/cancellation-insights', icon: <BarChart2 size={18} /> },
   { label: 'Reviews',       href: '/reviews',        icon: <MessageSquare  size={18} /> },
   { label: 'Analytics',     href: '/analytics',      icon: <BarChart2      size={18} /> },
   { label: 'Payouts',       href: '/payouts',        icon: <FileText       size={18} /> },
@@ -65,6 +66,8 @@ const NAV_ITEMS: NavItem[] = [
   // CART-017: Cart configuration
   { label: 'Cart Settings', href: '/settings/cart',         icon: <Settings size={18} /> },
   // MODULE-15.3-PART3 TAX-007/008/009: sales tax admin
+  // tax-category-rules: per-category tax rule management
+  { label: 'Tax Rules',     href: '/tax/rules',      icon: <FileText       size={18} /> },
   { label: 'Tax Nodes',     href: '/tax/nodes',      icon: <MapPin         size={18} /> },
   { label: 'Tax Reports',   href: '/tax/reports',    icon: <Receipt        size={18} /> },
   { label: 'Tax Settings',  href: '/tax/settings',   icon: <Percent        size={18} /> },

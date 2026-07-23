@@ -132,7 +132,7 @@ export default function DisputeDetailPage() {
           <span className="text-gray-900">${((trade.listing?.price ?? 0)).toFixed(2)}</span>
         </div>
         <div className="flex justify-between text-sm">
-          <span className="text-gray-500 font-medium">Cash Paid</span>
+          <span className="text-gray-500 font-medium">Cash Authorized</span>
           <span className="text-gray-900">${(trade.cash_amount_cents / 100).toFixed(2)}</span>
         </div>
         <div className="flex justify-between text-sm">

@@ -27,6 +27,8 @@ interface PayoutFeeConfigResponse {
   error?: string;
 }
 
+const adminSecret = process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '';
+
 export default function PayoutFeesPage() {
   const [config, setConfig] = useState<AdminConfigItem[]>([]);
   const [rpcConfig, setRpcConfig] = useState<PayoutFeeConfig | null>(null);
@@ -46,7 +48,9 @@ export default function PayoutFeesPage() {
     setError(null);
     
     try {
-      const res = await fetch('/api/admin/payout-fees');
+      const res = await fetch('/api/admin/payout-fees', {
+        headers: { 'x-admin-secret': adminSecret },
+      });
       const json: PayoutFeeConfigResponse = await res.json();
       
       if (json.error) throw new Error(json.error);
@@ -72,7 +76,7 @@ export default function PayoutFeesPage() {
     try {
       const res = await fetch('/api/admin/payout-fees', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-admin-secret': adminSecret },
         body: JSON.stringify({ key, value: editValues[key] }),
       });
       

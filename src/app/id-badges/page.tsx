@@ -34,6 +34,7 @@ interface Stats {
 }
 
 export default function IDBadgeQueuePage() {
+  const adminSecret = process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '';
   const [requests, setRequests] = useState<IDVerificationRequest[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -54,7 +55,10 @@ export default function IDBadgeQueuePage() {
       if (searchQuery) params.append('search', searchQuery);
 
       const response = await fetch(`/api/admin/id-badges?${params}`, {
-        cache: 'no-store'
+        cache: 'no-store',
+        headers: {
+          'x-admin-secret': adminSecret,
+        },
       });
       const data = await response.json();
       setRequests(data.requests || []);
@@ -68,8 +72,15 @@ export default function IDBadgeQueuePage() {
   const loadStats = async () => {
     try {
       const response = await fetch('/api/admin/id-badges/stats', {
-        cache: 'no-store'
+        cache: 'no-store',
+        headers: {
+          'x-admin-secret': adminSecret,
+        },
       });
+      if (!response.ok) {
+        console.error('Stats API error:', response.status);
+        return;
+      }
       const data = await response.json();
       setStats(data);
     } catch (error) {

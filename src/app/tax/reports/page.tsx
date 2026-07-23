@@ -29,11 +29,27 @@ interface TaxSummary {
   start_date: string;
   end_date: string;
   node_id: string | null;
+  status_filter: string;
   transaction_count: number;
-  taxable_total_cents: number;
+
+  // TAX-REFUND-INTEGRITY (2026-07-24): New status-filtered summary fields
+  taxable_sales_cents: number;
   tax_collected_cents: number;
   tax_refunded_cents: number;
   tax_net_cents: number;
+
+  // Operational/audit fields — never included in Net Tax Payable
+  pending_tax_count: number;
+  pending_tax_cents: number;
+  voided_tax_count: number;
+  voided_tax_cents: number;
+  capture_failed_count: number;
+  capture_failed_cents: number;
+  pending_refund_count: number;
+  pending_refund_cents: number;
+  reconciliation_count: number;
+  reconciliation_cents: number;
+
   by_jurisdiction: TaxSummaryRow[];
 }
 
@@ -98,7 +114,8 @@ export default function TaxReportsPage() {
 
   /**
    * TAX-008: Export full per-transaction CSV via get_tax_export_data RPC.
-   * Falls back to summary jurisdiction data if RPC returns forbidden (non-admin).
+   * TAX-REFUND-INTEGRITY (2026-07-24): Uses the new richer export with 25+ columns
+   * including trade/listing/jurisdiction/refund/reconciliation data.
    */
   const exportCsv = async () => {
     setExporting(true);
@@ -107,6 +124,7 @@ export default function TaxReportsPage() {
       const { data: exportData, error: exportError } = await supabase.rpc('get_tax_export_data', {
         p_start_date: new Date(startDate).toISOString(),
         p_end_date: new Date(endDate + 'T23:59:59').toISOString(),
+        p_status_filter: null,
       });
       if (exportError) {
         setError(`CSV export failed: ${exportError.message}`);
@@ -115,14 +133,37 @@ export default function TaxReportsPage() {
       // get_tax_export_data returns TABLE rows directly (array)
       const rows = Array.isArray(exportData) ? exportData : [];
       const headers = [
-        'transaction_date',
+        'trade_id',
+        'buyer_id',
+        'seller_id',
+        'listing_ids',
+        'tax_categories',
+        'jurisdiction',
+        'tax_rule_version',
+        'item_subtotal_cents',
+        'taxable_item_subtotal',
+        'platform_fee_cents',
+        'fee_in_tax_base',
+        'sp_tender_cents',
+        'card_authorization_cents',
+        'captured_amount_cents',
+        'refunded_amount_cents',
+        'tax_amount_cents',
+        'tax_refunded_cents',
+        'net_tax_cents',
+        'tax_status',
+        'trade_status',
+        'stripe_payment_intent',
+        'stripe_capture_id',
+        'stripe_refund_ids',
+        'offer_created_at',
+        'capture_timestamp',
+        'refund_timestamp',
+        'reconciliation_status',
+        'reconciliation_reason',
         'buyer_email',
         'node_name',
-        'taxable_amount_usd',
         'tax_rate',
-        'tax_amount_usd',
-        'refunded_tax_usd',
-        'net_tax_usd',
       ];
       const lines = [headers.join(',')];
       (rows as Record<string, unknown>[]).forEach((r) => {
@@ -130,8 +171,11 @@ export default function TaxReportsPage() {
           headers
             .map((h) => {
               const val = r[h] ?? '';
-              // Wrap in quotes if contains comma
-              return String(val).includes(',') ? `"${val}"` : String(val);
+              const s = String(val);
+              // Wrap in quotes if contains comma or special chars
+              return s.includes(',') || s.includes('"') || s.includes('\n')
+                ? `"${s.replace(/"/g, '""')}"`
+                : s;
             })
             .join(',')
         );
@@ -152,12 +196,12 @@ export default function TaxReportsPage() {
     <div className="p-6" data-testid="tax-reports-page">
       <h1 className="text-2xl font-semibold mb-2">Sales Tax — Reports</h1>
       <p className="text-sm text-gray-600 mb-4">
-        Aggregated tax collected (and refunded) for a date range.
+        Tax Collected reflects successful card captures. Pending Tax is shown for operations only and is not included in Net Tax Payable.
       </p>
 
-      {/* TAX-008: Report type tabs */}
+      {/* TAX-008: Report type tabs — added reconciliation_required */}
       <div className="flex gap-2 mb-4 flex-wrap">
-        {['summary', 'jurisdictions', 'transactions', 'refunds', 'by_period', 'tax_exempt', 'audit_trail'].map((t) => (
+        {['summary', 'jurisdictions', 'transactions', 'refunds', 'by_period', 'tax_exempt', 'audit_trail', 'reconciliation_required'].map((t) => (
           <button
             key={t}
             onClick={() => setReportType(t)}
@@ -232,12 +276,32 @@ export default function TaxReportsPage() {
 
       {summary && (
         <div data-testid="tax-report-results">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <Stat label="Transactions" value={String(summary.transaction_count)} />
-            <Stat label="Taxable Total" value={fmtCents(summary.taxable_total_cents)} />
+          {/* TAX-REFUND-INTEGRITY (2026-07-24): Summary cards now show 9 metrics.
+              Tax Collected = captured only. Tax Refunded = verified Stripe refunds only.
+              Pending/Voided/CaptureFailed/Reconciliation are operational only. */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+            <Stat label="Taxable Sales" value={fmtCents(summary.taxable_sales_cents)} />
             <Stat label="Tax Collected" value={fmtCents(summary.tax_collected_cents)} />
-            <Stat label="Tax Net" value={fmtCents(summary.tax_net_cents)} />
+            <Stat label="Tax Refunded" value={fmtCents(summary.tax_refunded_cents)} />
+            <Stat label="Net Tax Payable" value={fmtCents(summary.tax_net_cents)} className={summary.tax_net_cents > 0 ? 'text-green-700' : ''} />
+            <Stat label="Transactions" value={String(summary.transaction_count)} />
           </div>
+
+          {/* TAX-REFUND-INTEGRITY: Operational-only cards — never included in Net Tax Payable */}
+          <details className="mb-4 text-sm text-gray-500">
+            <summary className="cursor-pointer hover:text-gray-700 font-medium">
+              Operational Tax Details (not included in Net Tax Payable)
+            </summary>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
+              <Stat label="Pending/Authorized" value={`${summary.pending_tax_count} txns · ${fmtCents(summary.pending_tax_cents)}`} />
+              <Stat label="Voided/Expired" value={`${summary.voided_tax_count} txns · ${fmtCents(summary.voided_tax_cents)}`} />
+              <Stat label="Capture Failed" value={`${summary.capture_failed_count} txns · ${fmtCents(summary.capture_failed_cents)}`} />
+              <Stat label="Pending Refund" value={`${summary.pending_refund_count} txns · ${fmtCents(summary.pending_refund_cents)}`} />
+              {summary.reconciliation_count > 0 && (
+                <Stat label="⚠ Reconciliation Required" value={`${summary.reconciliation_count} txns · ${fmtCents(summary.reconciliation_cents)}`} className="text-red-600 font-semibold" />
+              )}
+            </div>
+          </details>
 
           <h2 className="text-lg font-semibold mb-2">By Jurisdiction</h2>
           <table className="min-w-full text-sm border" data-testid="tax-report-table">
@@ -277,11 +341,11 @@ export default function TaxReportsPage() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, className }: { label: string; value: string; className?: string }) {
   return (
     <div className="border rounded p-3">
       <div className="text-xs text-gray-500">{label}</div>
-      <div className="text-xl font-semibold">{value}</div>
+      <div className={`text-xl font-semibold ${className ?? ''}`}>{value}</div>
     </div>
   );
 }

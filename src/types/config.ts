@@ -28,6 +28,7 @@ export interface TradeTimingConfig {
   pending_sp_release_days: number;
   transaction_fee_subscriber_cents: number;
   transaction_fee_non_subscriber_cents: number;
+  max_pending_offers_per_seller: number;
 }
 
 export interface AuditLog {

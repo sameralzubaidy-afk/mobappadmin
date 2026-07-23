@@ -31,6 +31,8 @@ type ReasonFilter = 'all' | 'spam' | 'offensive' | 'false_info' | 'other';
 
 const ITEMS_PER_PAGE = 10;
 
+const adminSecret = process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '';
+
 export default function ReviewModerationPage() {
   const [reports, setReports] = useState<ReviewReport[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,7 +51,8 @@ export default function ReviewModerationPage() {
       const response = await fetch('/api/reviews/reported', {
         cache: 'no-store', // Extra insurance against browser caching
         headers: {
-          'Cache-Control': 'no-cache'
+          'Cache-Control': 'no-cache',
+          'x-admin-secret': adminSecret,
         }
       });
       
@@ -74,6 +77,9 @@ export default function ReviewModerationPage() {
     try {
       const response = await fetch(`/api/reviews/${reviewId}/hide`, {
         method: 'POST',
+        headers: {
+          'x-admin-secret': adminSecret,
+        },
       });
       
       if (!response.ok) {
@@ -97,6 +103,9 @@ export default function ReviewModerationPage() {
     try {
       const response = await fetch(`/api/reviews/${reviewId}/approve`, {
         method: 'POST',
+        headers: {
+          'x-admin-secret': adminSecret,
+        },
       });
       
       if (!response.ok) {

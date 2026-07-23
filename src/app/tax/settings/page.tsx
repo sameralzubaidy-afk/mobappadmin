@@ -10,6 +10,7 @@
  *   default_sales_tax_rate     number (DECIMAL fraction, e.g. 0.0635 = 6.35%)
  *   subscription_fee_taxable   boolean
  *   tax_remittance_jurisdiction string
+ *   include_fee_in_tax_base    boolean — tax-category-rules
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
@@ -19,6 +20,7 @@ interface State {
   ratePercent: string;
   subscriptionTaxable: boolean;
   jurisdiction: string;
+  includeFeeInTaxBase: boolean;
 }
 
 const KEYS = {
@@ -26,6 +28,7 @@ const KEYS = {
   RATE: 'default_sales_tax_rate',
   SUB_TAX: 'subscription_fee_taxable',
   JUR: 'tax_remittance_jurisdiction',
+  FEE_IN_BASE: 'include_fee_in_tax_base',
 } as const;
 
 export default function TaxSettingsPage() {
@@ -42,6 +45,7 @@ export default function TaxSettingsPage() {
     ratePercent: '0.00',
     subscriptionTaxable: false,
     jurisdiction: 'CT',
+    includeFeeInTaxBase: false,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -50,23 +54,24 @@ export default function TaxSettingsPage() {
 
   const load = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('admin_config')
-      .select('key, value')
-      .in('key', Object.values(KEYS));
+    // Use SECURITY DEFINER RPC to bypass RLS on admin_config
+    const { data, error } = await supabase.rpc('fn_get_admin_config_values', {
+      p_keys: Object.values(KEYS),
+    });
     setLoading(false);
     if (error) {
       setErr(error.message);
       return;
     }
     const map = new Map<string, string>();
-    (data ?? []).forEach((r: any) => map.set(r.key, r.value));
+    (data ?? []).forEach((r: any) => map.set(r.out_key, r.out_value));
     const rateFraction = parseFloat(map.get(KEYS.RATE) ?? '0') || 0;
     setState({
       enabled: (map.get(KEYS.ENABLED) ?? 'false') === 'true',
       ratePercent: (rateFraction * 100).toFixed(2),
       subscriptionTaxable: (map.get(KEYS.SUB_TAX) ?? 'false') === 'true',
       jurisdiction: map.get(KEYS.JUR) ?? 'CT',
+      includeFeeInTaxBase: (map.get(KEYS.FEE_IN_BASE) ?? 'false') === 'true',
     });
   };
 
@@ -89,6 +94,7 @@ export default function TaxSettingsPage() {
         { key: KEYS.RATE, value: (pct / 100).toFixed(4), data_type: 'number' },
         { key: KEYS.SUB_TAX, value: String(state.subscriptionTaxable), data_type: 'boolean' },
         { key: KEYS.JUR, value: state.jurisdiction || '', data_type: 'string' },
+        { key: KEYS.FEE_IN_BASE, value: String(state.includeFeeInTaxBase), data_type: 'boolean' },
       ];
       for (const w of writes) {
         const { error } = await supabase.rpc('upsert_admin_config_setting', {
@@ -198,6 +204,30 @@ export default function TaxSettingsPage() {
             data-testid="tax-jurisdiction"
           />
         </label>
+
+        {/* tax-category-rules: include_fee_in_tax_base toggle */}
+        <div className="border-t pt-4 mt-2">
+          <h2 className="text-sm font-semibold text-gray-800 mb-2">
+            Marketplace Fee Tax Base
+          </h2>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={state.includeFeeInTaxBase}
+              onChange={(e) =>
+                setState({ ...state, includeFeeInTaxBase: e.target.checked })
+              }
+              data-testid="tax-fee-in-base-toggle"
+            />
+            <span>Include marketplace transaction fee in sales-tax base</span>
+          </label>
+          <p className="text-xs text-gray-500 mt-1 ml-6">
+            When enabled, the mandatory buyer platform fee ($0.99 / $2.99) is
+            included in the taxable amount. This is a prospective-only setting —
+            historical trades retain their original tax snapshot. Review CPA guidance
+            before enabling.
+          </p>
+        </div>
 
         <button
           onClick={save}
