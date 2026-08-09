@@ -30,6 +30,8 @@ import {
   Percent,
   Wallet,
   ListChecks,
+  Kanban,
+  ScrollText,
 } from 'lucide-react';
 import { useActionCenterCount } from '@/hooks/useActionCenterCount';
 
@@ -72,6 +74,7 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'Trade Operations',
     items: [
       { label: 'Trades',            href: '/trades',               icon: <TrendingUp    size={18} /> },
+      { label: 'Trade Pipeline',    href: '/trades/pipeline',      icon: <Kanban       size={18} /> },
       { label: 'Disputes',          href: '/trades/disputes',      icon: <AlertTriangle size={18} /> },
       { label: 'Flagged Items',     href: '/items/flagged',        icon: <AlertTriangle size={18} /> },
       { label: 'Cancel Insights',   href: '/cancellation-insights', icon: <BarChart2   size={18} /> },
@@ -99,6 +102,8 @@ const NAV_SECTIONS: NavSection[] = [
       // Old routes (/sp-wallet, /sp-analytics) still work for direct deep-links.
       { label: 'SP Economy',    href: '/sp-economy',    icon: <Coins      size={18} /> },
       { label: 'Referrals',     href: '/referrals',     icon: <Gift       size={18} /> },
+      // N2 (2026-08-09): unified financial/SP/fee/tax audit journal.
+      { label: 'Financial Audit', href: '/audit', icon: <ScrollText size={18} /> },
     ],
   },
   {

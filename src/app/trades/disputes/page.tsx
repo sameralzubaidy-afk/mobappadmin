@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic';
 
 import { createClient } from '@supabase/supabase-js';
 import DisputeViewer from './DisputeViewer';
+import DisputeCostLedger from './DisputeCostLedger';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -94,12 +95,16 @@ export default async function DisputeQueuePage(props: {
   ].sort();
 
   return (
-    <DisputeViewer
-      disputes={allDisputes}
-      uniqueReasons={uniqueReasons}
-      initialStatusFilter={statusFilter}
-      initialSearchFilter={searchFilter}
-      initialReasonFilter={reasonFilter}
-    />
+    <>
+      <DisputeViewer
+        disputes={allDisputes}
+        uniqueReasons={uniqueReasons}
+        initialStatusFilter={statusFilter}
+        initialSearchFilter={searchFilter}
+        initialReasonFilter={reasonFilter}
+      />
+      {/* R4 (2026-08-09): finance surface — dispute cost ledger (fee + AOV x (1 - recovery_rate)) */}
+      <DisputeCostLedger />
+    </>
   );
 }

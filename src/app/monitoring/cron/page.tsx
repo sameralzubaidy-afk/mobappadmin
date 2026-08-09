@@ -13,9 +13,6 @@ const CRON_JOB_INFO: Record<string, { description: string }> = {
   'trial-conversion-daily': {
     description: 'Checks for expired trials and converts/downgrades subscriptions accordingly.',
   },
-  'check-offer-timeouts': {
-    description: 'Expires stale pending trade offers that have exceeded the 24h offer window.',
-  },
   'trade-notifications': {
     description: 'Checks for notification-eligible trades and sends push/email notifications.',
   },
@@ -24,6 +21,9 @@ const CRON_JOB_INFO: Record<string, { description: string }> = {
   },
   'process-expired-offers': {
     description: 'Auto-declines competing offers when one offer is accepted, and cleans up expired offers.',
+  },
+  'send-pickup-reminders': {
+    description: 'Sends pickup-window reminders to buyers before the auto-complete deadline (R2).',
   },
   'auto-complete': {
     description: 'Auto-completes eligible in-progress trades after the configured window.',

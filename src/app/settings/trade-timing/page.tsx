@@ -20,13 +20,18 @@ const DEFAULT_CONFIG: TradeTimingConfig = {
   offer_notif_1_hours_before: 24,
   offer_notif_2_hours_before: 6,
   auto_complete_hours: 72,
-  auto_complete_notif_hours_before: 24,
+  auto_complete_notif_1_hours_before: 24,
+  auto_complete_notif_2_hours_before: 2,
   pending_sp_release_days: 3,
   transaction_fee_subscriber_cents: 150,
   transaction_fee_non_subscriber_cents: 250,
   max_pending_offers_per_seller: 3,
   // N1 Configurability (new keys; defaults match 20260809000004_n1_configurability.sql):
   pickup_window_hours: 72,
+  // R2 (2026-08-10): pickup-window reminder thresholds (buyer-only). Defaults match
+  // the seed in 20260810000001_r2_auth_capture_countdown.sql (24h / 2h).
+  pickup_notif_1_hours_before: 24,
+  pickup_notif_2_hours_before: 2,
   payout_buffer_days: 2,
   // Fee params consolidated from /config → FEES (buyer fee + bundle toggle).
   // Defaults match the admin_config seeds in 20250113_create_admin_config.sql
@@ -110,8 +115,17 @@ export default function TradeTimingSettingsPage() {
     if (settings.auto_complete_hours < 1) {
       e.auto_complete_hours = 'Must be at least 1 hour';
     }
-    if (settings.auto_complete_notif_hours_before >= settings.auto_complete_hours) {
-      e.auto_complete_notif_hours_before = `Must be less than auto-complete window (${settings.auto_complete_hours}h)`;
+    if (settings.auto_complete_notif_1_hours_before < 1) {
+      e.auto_complete_notif_1_hours_before = 'Must be at least 1 hour';
+    }
+    if (settings.auto_complete_notif_1_hours_before >= settings.auto_complete_hours) {
+      e.auto_complete_notif_1_hours_before = `Must be less than auto-complete window (${settings.auto_complete_hours}h)`;
+    }
+    if (settings.auto_complete_notif_2_hours_before < 1) {
+      e.auto_complete_notif_2_hours_before = 'Must be at least 1 hour';
+    }
+    if (settings.auto_complete_notif_2_hours_before >= settings.auto_complete_notif_1_hours_before) {
+      e.auto_complete_notif_2_hours_before = `Must be less than first auto-complete reminder (${settings.auto_complete_notif_1_hours_before}h)`;
     }
     if (settings.pending_sp_release_days < 1) {
       e.pending_sp_release_days = 'Must be at least 1 day';
@@ -147,6 +161,28 @@ export default function TradeTimingSettingsPage() {
     if (settings.pickup_window_hours > 168) {
       e.pickup_window_hours = 'Maximum is 168 hours (7 days)';
     }
+    // R2 pickup reminders — must be ordered and inside the pickup window.
+    if (settings.pickup_notif_1_hours_before < 1) {
+      e.pickup_notif_1_hours_before = 'Must be at least 1 hour';
+    }
+    if (settings.pickup_notif_1_hours_before >= settings.pickup_window_hours) {
+      e.pickup_notif_1_hours_before = `Must be less than pickup window (${settings.pickup_window_hours}h)`;
+    }
+    if (settings.pickup_notif_2_hours_before < 1) {
+      e.pickup_notif_2_hours_before = 'Must be at least 1 hour';
+    }
+    if (settings.pickup_notif_2_hours_before >= settings.pickup_notif_1_hours_before) {
+      e.pickup_notif_2_hours_before = `Must be less than first pickup reminder (${settings.pickup_notif_1_hours_before}h)`;
+    }
+    // R2 (2026-08-10): 7-day Stripe authorization guardrail — HARD BLOCK.
+    // Offer + pickup windows must total under 168h so capture always precedes the
+    // 7-day authorization expiry. Mirrors fn_validate_trade_timing_config.
+    if (settings.offer_timeout_hours + settings.pickup_window_hours > 167) {
+      const total = settings.offer_timeout_hours + settings.pickup_window_hours;
+      const msg = `Offer + pickup (${total}h) must stay under 168h (Stripe's 7-day authorization limit). Lower one window.`;
+      e.offer_timeout_hours = msg;
+      e.pickup_window_hours = msg;
+    }
     if (settings.payout_buffer_days < 0) {
       e.payout_buffer_days = 'Cannot be negative';
     }
@@ -174,6 +210,8 @@ export default function TradeTimingSettingsPage() {
   // shift between /config tabs (behavior-preserving).
   const CONFIG_CATEGORIES: Record<string, string> = {
     pickup_window_hours: 'trade',
+    pickup_notif_1_hours_before: 'trade',
+    pickup_notif_2_hours_before: 'trade',
     payout_buffer_days: 'fees',
     // Fee params consolidated from /config → FEES.
     platform_fee_buyer_fixed_cents: 'fees',
@@ -384,14 +422,20 @@ export default function TradeTimingSettingsPage() {
           </h2>
           {numField(
             'auto_complete_hours',
-            'Auto-Complete Window',
-            'Hours after trade enters in_progress before it auto-completes.',
+            'Auto-Complete Window (legacy)',
+            'Legacy fallback for the post-acceptance deadline. New trades use the Pickup Window above (pickup_window_hours). Kept for in-flight trades and backward compatibility.',
             'hours'
           )}
           {numField(
-            'auto_complete_notif_hours_before',
-            'Auto-Complete Reminder',
-            'Send reminder this many hours before auto-complete fires (must be < window).',
+            'auto_complete_notif_1_hours_before',
+            'First Auto-Complete Reminder',
+            'Send the first reminder to the buyer this many hours before auto-complete (must be < window).',
+            'hours before auto-complete'
+          )}
+          {numField(
+            'auto_complete_notif_2_hours_before',
+            'Final Auto-Complete Reminder',
+            'Send the final reminder before auto-complete (must be < first reminder).',
             'hours before auto-complete'
           )}
         </section>
@@ -404,8 +448,20 @@ export default function TradeTimingSettingsPage() {
           {numField(
             'pickup_window_hours',
             'Pickup Window',
-            'Hours a buyer has to confirm pickup/meetup once a trade is ready (1–168). Tunable now; enforcement lands with the pickup-deadline requirement.',
+            'Hours a buyer has to confirm pickup/meetup once a trade is ready (1–168). Drives the post-acceptance auto-complete deadline (R2). Combined with the offer window it must stay under 168h (7-day Stripe limit).',
             'hours'
+          )}
+          {numField(
+            'pickup_notif_1_hours_before',
+            'First Pickup Reminder',
+            'Send the first reminder to the buyer this many hours before the pickup window ends (must be < pickup window).',
+            'hours before deadline'
+          )}
+          {numField(
+            'pickup_notif_2_hours_before',
+            'Final Pickup Reminder',
+            'Send the final reminder to the buyer before the pickup window ends (must be < first reminder).',
+            'hours before deadline'
           )}
           {numField(
             'payout_buffer_days',
