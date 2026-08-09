@@ -25,6 +25,15 @@ const DEFAULT_CONFIG: TradeTimingConfig = {
   transaction_fee_subscriber_cents: 150,
   transaction_fee_non_subscriber_cents: 250,
   max_pending_offers_per_seller: 3,
+  // N1 Configurability (new keys; defaults match 20260809000004_n1_configurability.sql):
+  pickup_window_hours: 72,
+  payout_buffer_days: 2,
+  // Fee params consolidated from /config → FEES (buyer fee + bundle toggle).
+  // Defaults match the admin_config seeds in 20250113_create_admin_config.sql
+  // (buyer fixed 25¢, buyer % 2.5) and 316_charge_one_fee_per_bundle_config.sql (OFF).
+  platform_fee_buyer_fixed_cents: 25,
+  platform_fee_buyer_percentage: 2.5,
+  charge_one_fee_per_bundle: false,
   // B2: Seller fee per tier. Defaults match the admin_config seeds in
   // 20250113_create_admin_config.sql (free=5, subscriber=0). Both are editable here.
   platform_fee_seller_percentage: 5,
@@ -60,7 +69,10 @@ export default function TradeTimingSettingsPage() {
 
       const parsed: Partial<TradeTimingConfig> = {};
       data?.forEach((row: { out_key: string; out_value: string }) => {
-        if (row.out_key in DEFAULT_CONFIG && !isNaN(Number(row.out_value))) {
+        // Boolean keys store 'true'/'false' strings — parse them separately.
+        if (row.out_key === 'charge_one_fee_per_bundle') {
+          (parsed as any)[row.out_key] = row.out_value === 'true';
+        } else if (row.out_key in DEFAULT_CONFIG && !isNaN(Number(row.out_value))) {
           (parsed as any)[row.out_key] = Number(row.out_value);
         }
       });
@@ -128,9 +140,50 @@ export default function TradeTimingSettingsPage() {
     if (settings.max_pending_offers_per_seller > 10) {
       e.max_pending_offers_per_seller = 'Maximum is 10 offers per seller';
     }
+    // N1 Configurability — pickup countdown + payout buffer ranges.
+    if (settings.pickup_window_hours < 1) {
+      e.pickup_window_hours = 'Must be at least 1 hour';
+    }
+    if (settings.pickup_window_hours > 168) {
+      e.pickup_window_hours = 'Maximum is 168 hours (7 days)';
+    }
+    if (settings.payout_buffer_days < 0) {
+      e.payout_buffer_days = 'Cannot be negative';
+    }
+    if (settings.payout_buffer_days > 30) {
+      e.payout_buffer_days = 'Maximum is 30 days';
+    }
+    // Buyer fee params (consolidated from /config → FEES).
+    if (settings.platform_fee_buyer_fixed_cents < 0) {
+      e.platform_fee_buyer_fixed_cents = 'Cannot be negative';
+    }
+    if (
+      settings.platform_fee_buyer_percentage < 0 ||
+      settings.platform_fee_buyer_percentage > 100
+    ) {
+      e.platform_fee_buyer_percentage = 'Must be between 0 and 100';
+    }
 
     setErrors(e);
     return Object.keys(e).length === 0;
+  };
+
+  // N1 single-source: the /config hub groups keys by category, so the NEW keys
+  // save under their canonical category (trade / fees) matching their admin_config
+  // seeds. Existing keys keep the legacy 'feature_flags' bucket so they don't
+  // shift between /config tabs (behavior-preserving).
+  const CONFIG_CATEGORIES: Record<string, string> = {
+    pickup_window_hours: 'trade',
+    payout_buffer_days: 'fees',
+    // Fee params consolidated from /config → FEES.
+    platform_fee_buyer_fixed_cents: 'fees',
+    platform_fee_buyer_percentage: 'fees',
+    charge_one_fee_per_bundle: 'fees',
+  };
+
+  // Boolean keys must save with data_type 'boolean' (admin_config data_type CHECK).
+  const CONFIG_TYPES: Record<string, string> = {
+    charge_one_fee_per_bundle: 'boolean',
   };
 
   const handleSave = async () => {
@@ -151,8 +204,8 @@ export default function TradeTimingSettingsPage() {
         const { error } = await supabase.rpc('upsert_admin_config_setting', {
           p_key: key,
           p_value: String(value),
-          p_category: 'feature_flags',
-          p_data_type: 'number',
+          p_category: CONFIG_CATEGORIES[key] ?? 'feature_flags',
+          p_data_type: CONFIG_TYPES[key] ?? 'number',
           p_is_secret: false,
           p_is_active: true,
           p_admin_id: adminId,
@@ -194,7 +247,7 @@ export default function TradeTimingSettingsPage() {
       <div className="flex items-center gap-3">
         <input
           type="number"
-          value={settings[key]}
+          value={settings[key] as number}
           onChange={(e) =>
             setSettings((prev) => ({ ...prev, [key]: Number(e.target.value) || 0 }))
           }
@@ -218,6 +271,34 @@ export default function TradeTimingSettingsPage() {
     </div>
   );
 
+  // Boolean toggle field for admin_config boolean keys (e.g. charge_one_fee_per_bundle).
+  const boolField = (
+    key: keyof TradeTimingConfig,
+    label: string,
+    description: string
+  ) => (
+    <div key={key} className="space-y-1">
+      <label className="block text-sm font-medium text-gray-700">{label}</label>
+      <label className="inline-flex items-center gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={settings[key] as boolean}
+          onChange={(e) =>
+            setSettings((prev) => ({ ...prev, [key]: e.target.checked }))
+          }
+          disabled={saving}
+          data-testid={`input-${key}`}
+        />
+        <span className="text-sm text-gray-500">Enabled</span>
+      </label>
+      <p className="text-xs text-gray-500">{description}</p>
+      <LastUpdatedLabel
+        {...formatUpdatedMeta(meta[key as string])}
+        testId={`last-updated-${key}`}
+      />
+    </div>
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -234,7 +315,7 @@ export default function TradeTimingSettingsPage() {
       <div className="mb-8">
         <h1 className="text-[32px] font-bold leading-10 text-gray-900" style={{ letterSpacing: '-0.5px' }}>Trade Timing Settings</h1>
         <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
-          Configure offer expiry windows, auto-complete timing, SP release schedules, and transaction fees.
+          Configure offer and pickup countdown windows, auto-complete timing, payout buffering, SP release schedules, and transaction fees.
         </p>
       </div>
 
@@ -315,6 +396,26 @@ export default function TradeTimingSettingsPage() {
           )}
         </section>
 
+        {/* Pickup & Payout — N1 Configurability */}
+        <section className="bg-white rounded-lg border border-gray-200 p-6 space-y-5">
+          <h2 className="text-base font-semibold text-gray-800 border-b border-gray-100 pb-3">
+            Pickup &amp; Payout
+          </h2>
+          {numField(
+            'pickup_window_hours',
+            'Pickup Window',
+            'Hours a buyer has to confirm pickup/meetup once a trade is ready (1–168). Tunable now; enforcement lands with the pickup-deadline requirement.',
+            'hours'
+          )}
+          {numField(
+            'payout_buffer_days',
+            'Payout Buffer',
+            'Days a completed trade payout sits as a buffer before release to the seller (0 = immediate, max 30). Tunable now; enforcement lands with the payout requirement.',
+            'days',
+            0
+          )}
+        </section>
+
         {/* Swap Points */}
         <section className="bg-white rounded-lg border border-gray-200 p-6 space-y-5">
           <h2 className="text-base font-semibold text-gray-800 border-b border-gray-100 pb-3">
@@ -360,6 +461,25 @@ export default function TradeTimingSettingsPage() {
             'Seller platform fee for Kids Club+ (subscriber) sellers, as an ABSOLUTE % of the cash portion (item price − SP). This is the rate itself, not a discount. Seeded default 0; set to 5 for a uniform 5% seller fee across tiers.',
             '%',
             0
+          )}
+          {numField(
+            'platform_fee_buyer_fixed_cents',
+            'Buyer Platform Fee — Fixed',
+            'Fixed buyer platform fee in cents (e.g. 25 = $0.25). Applies to each trade; shown in the buyer fee preview.',
+            'cents',
+            0
+          )}
+          {numField(
+            'platform_fee_buyer_percentage',
+            'Buyer Platform Fee %',
+            'Buyer platform fee as a % of item price (e.g. 2.5 = 2.5%). Shown in the buyer fee preview.',
+            '%',
+            0
+          )}
+          {boolField(
+            'charge_one_fee_per_bundle',
+            'Charge One Fee Per Bundle',
+            'When enabled, a bundle charges the platform fee once instead of once per item. Single-item trades are unaffected. Applies to both free-tier and subscriber fixed fees.'
           )}
           <div className="bg-amber-50 border border-amber-200 rounded-md p-3">
             <p className="text-xs text-amber-800">

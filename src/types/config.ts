@@ -29,6 +29,18 @@ export interface TradeTimingConfig {
   transaction_fee_subscriber_cents: number;
   transaction_fee_non_subscriber_cents: number;
   max_pending_offers_per_seller: number;
+  // N1 Configurability: pickup countdown window (hours) — tunable via
+  // admin_config.pickup_window_hours. Shared dependency for pickup-deadline requirements.
+  pickup_window_hours: number;
+  // N1 Configurability: payout buffer (days) — tunable via
+  // admin_config.payout_buffer_days. Shared dependency for payout-release requirements.
+  payout_buffer_days: number;
+  // Fee params consolidated from /config → FEES so Trade Timing is the single
+  // fee-management surface. Buyer platform fee (fixed cents) + (% of item price).
+  platform_fee_buyer_fixed_cents: number;
+  platform_fee_buyer_percentage: number;
+  // Bundle fee behavior toggle (boolean; read by create-trade-offer).
+  charge_one_fee_per_bundle: boolean;
   // B2: Seller fee per subscription tier — ABSOLUTE % of the cash portion (item price − SP).
   //   platform_fee_seller_percentage                          = % for FREE (non-subscriber) sellers
   //   platform_fee_seller_discount_percentage_kids_club_plus  = % for Kids Club+ (subscriber) sellers

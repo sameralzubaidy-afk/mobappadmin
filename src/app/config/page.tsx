@@ -121,6 +121,31 @@ const KEY_PAGE_LINKS: Record<
     message:
       "Trade timing settings are also managed on the Trade Timing page.",
   },
+  pickup_window_hours: {
+    href: "/settings/trade-timing",
+    label: "Open Trade Timing Settings",
+    message: "Pickup countdown is also managed on the Trade Timing page.",
+  },
+  payout_buffer_days: {
+    href: "/settings/trade-timing",
+    label: "Open Trade Timing Settings",
+    message: "Payout buffering is also managed on the Trade Timing page.",
+  },
+  platform_fee_buyer_fixed_cents: {
+    href: "/settings/trade-timing",
+    label: "Open Trade Timing Settings",
+    message: "Buyer fee parameters are also managed on the Trade Timing page.",
+  },
+  platform_fee_buyer_percentage: {
+    href: "/settings/trade-timing",
+    label: "Open Trade Timing Settings",
+    message: "Buyer fee parameters are also managed on the Trade Timing page.",
+  },
+  charge_one_fee_per_bundle: {
+    href: "/settings/trade-timing",
+    label: "Open Trade Timing Settings",
+    message: "The bundle fee toggle is also managed on the Trade Timing page.",
+  },
   // Node settings (Config → Feature Flags ↔ /settings/nodes)
   default_radius_miles: {
     href: "/settings/nodes",
@@ -350,7 +375,15 @@ export default function ConfigPage() {
       cpsc_match_threshold:
         "Confidence threshold (0.0 to 1.0) for automatic item flagging. Items with similarity score >= this value will be flagged for review. Recommended: 0.5 (50%). Lower values increase sensitivity (more false positives).",
       charge_one_fee_per_bundle:
-        "When enabled, bundles charge the platform fee once instead of per item. Single-item trades are unaffected. Applies to both free-tier and subscriber fixed fees.",
+        "When enabled, bundles charge the platform fee once instead of per item. Single-item trades are unaffected. Applies to both free-tier and subscriber fixed fees. Also managed on Trade Timing → Transaction Fees.",
+      pickup_window_hours:
+        "Pickup countdown window (hours): how long a buyer has to confirm pickup/meetup once a trade is ready. Shared dependency for pickup-deadline requirements.",
+      payout_buffer_days:
+        "Payout buffer (days): how long a completed trade payout sits as a buffer before release to the seller (0 = immediate). Shared dependency for payout requirements.",
+      platform_fee_buyer_fixed_cents:
+        "Fixed buyer platform fee in cents (e.g. 25 = $0.25). Also managed on Trade Timing → Transaction Fees.",
+      platform_fee_buyer_percentage:
+        "Buyer platform fee as a % of item price (e.g. 2.5 = 2.5%). Also managed on Trade Timing → Transaction Fees.",
     };
     return descriptions[key] || "";
   };

@@ -18,6 +18,11 @@ interface TradeTimingConfig {
   transaction_fee_non_subscriber_cents: number;
   platform_fee_seller_percentage: number;
   platform_fee_seller_discount_percentage_kids_club_plus: number;
+  pickup_window_hours: number;
+  payout_buffer_days: number;
+  platform_fee_buyer_fixed_cents: number;
+  platform_fee_buyer_percentage: number;
+  charge_one_fee_per_bundle: boolean;
 }
 
 /**
@@ -63,6 +68,25 @@ function validateTradeTimingSettings(s: TradeTimingConfig): Record<string, strin
   ) {
     e.platform_fee_seller_discount_percentage_kids_club_plus = 'Must be between 0 and 100';
   }
+  // N1 Configurability — pickup countdown + payout buffer ranges.
+  if (s.pickup_window_hours < 1) {
+    e.pickup_window_hours = 'Must be at least 1 hour';
+  }
+  if (s.pickup_window_hours > 168) {
+    e.pickup_window_hours = 'Maximum is 168 hours (7 days)';
+  }
+  if (s.payout_buffer_days < 0) {
+    e.payout_buffer_days = 'Cannot be negative';
+  }
+  if (s.payout_buffer_days > 30) {
+    e.payout_buffer_days = 'Maximum is 30 days';
+  }
+  if (s.platform_fee_buyer_fixed_cents < 0) {
+    e.platform_fee_buyer_fixed_cents = 'Cannot be negative';
+  }
+  if (s.platform_fee_buyer_percentage < 0 || s.platform_fee_buyer_percentage > 100) {
+    e.platform_fee_buyer_percentage = 'Must be between 0 and 100';
+  }
 
   return e;
 }
@@ -78,6 +102,11 @@ const DEFAULT_VALID: TradeTimingConfig = {
   transaction_fee_non_subscriber_cents: 250,
   platform_fee_seller_percentage: 5,
   platform_fee_seller_discount_percentage_kids_club_plus: 0,
+  pickup_window_hours: 72,
+  payout_buffer_days: 2,
+  platform_fee_buyer_fixed_cents: 25,
+  platform_fee_buyer_percentage: 2.5,
+  charge_one_fee_per_bundle: false,
 };
 
 describe('validateTradeTimingSettings', () => {
@@ -211,6 +240,66 @@ describe('validateTradeTimingSettings', () => {
     });
   });
 
+  describe('N1 configurability constraints', () => {
+    it('should error when pickup_window_hours < 1', () => {
+      const errors = validateTradeTimingSettings({ ...DEFAULT_VALID, pickup_window_hours: 0 });
+      expect(errors.pickup_window_hours).toBeDefined();
+    });
+
+    it('should error when pickup_window_hours > 168', () => {
+      const errors = validateTradeTimingSettings({ ...DEFAULT_VALID, pickup_window_hours: 169 });
+      expect(errors.pickup_window_hours).toBeDefined();
+    });
+
+    it('should accept pickup_window_hours at the 168 max', () => {
+      const errors = validateTradeTimingSettings({ ...DEFAULT_VALID, pickup_window_hours: 168 });
+      expect(errors.pickup_window_hours).toBeUndefined();
+    });
+
+    it('should error when payout_buffer_days is negative', () => {
+      const errors = validateTradeTimingSettings({ ...DEFAULT_VALID, payout_buffer_days: -1 });
+      expect(errors.payout_buffer_days).toBeDefined();
+    });
+
+    it('should error when payout_buffer_days > 30', () => {
+      const errors = validateTradeTimingSettings({ ...DEFAULT_VALID, payout_buffer_days: 31 });
+      expect(errors.payout_buffer_days).toBeDefined();
+    });
+
+    it('should accept payout_buffer_days = 0 (immediate release)', () => {
+      const errors = validateTradeTimingSettings({ ...DEFAULT_VALID, payout_buffer_days: 0 });
+      expect(errors.payout_buffer_days).toBeUndefined();
+    });
+  });
+
+  describe('Buyer fee constraints (consolidated from /config → FEES)', () => {
+    it('should error when platform_fee_buyer_fixed_cents is negative', () => {
+      const errors = validateTradeTimingSettings({
+        ...DEFAULT_VALID,
+        platform_fee_buyer_fixed_cents: -1,
+      });
+      expect(errors.platform_fee_buyer_fixed_cents).toBeDefined();
+    });
+
+    it('should error when platform_fee_buyer_percentage > 100', () => {
+      const errors = validateTradeTimingSettings({
+        ...DEFAULT_VALID,
+        platform_fee_buyer_percentage: 101,
+      });
+      expect(errors.platform_fee_buyer_percentage).toBeDefined();
+    });
+
+    it('should accept valid buyer fees', () => {
+      const errors = validateTradeTimingSettings({
+        ...DEFAULT_VALID,
+        platform_fee_buyer_fixed_cents: 25,
+        platform_fee_buyer_percentage: 2.5,
+      });
+      expect(errors.platform_fee_buyer_fixed_cents).toBeUndefined();
+      expect(errors.platform_fee_buyer_percentage).toBeUndefined();
+    });
+  });
+
   describe('Multiple violations', () => {
     it('should return multiple errors for completely invalid config', () => {
       const invalid: TradeTimingConfig = {
@@ -224,6 +313,11 @@ describe('validateTradeTimingSettings', () => {
         transaction_fee_non_subscriber_cents: -100,
         platform_fee_seller_percentage: -1,
         platform_fee_seller_discount_percentage_kids_club_plus: 101,
+        pickup_window_hours: 0,
+        payout_buffer_days: -1,
+        platform_fee_buyer_fixed_cents: -25,
+        platform_fee_buyer_percentage: 101,
+        charge_one_fee_per_bundle: false,
       };
       const errors = validateTradeTimingSettings(invalid);
       expect(Object.keys(errors).length).toBeGreaterThan(3);

@@ -2,27 +2,80 @@
 
 // filepath: p2p-kids-admin/src/app/nodes/page.tsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import NodeFormModal from './NodeFormModal';
 import type { GeographicNode } from '@/types/nodes';
 
+// N6 — per-node marketplace KPIs (shape of admin_node_kpis RPC).
+interface NodeKpi {
+  node_id: string;
+  node_name: string;
+  users: number;
+  listings: number;
+  trades: number;
+  completed_trades: number;
+  gmv_cents: number;
+  platform_fee_cents: number;
+  paid_payouts_cents: number;
+  sp_earned: number;
+  sp_spent: number;
+}
+
+// BP-49: browser fetches to /api/admin/* must send the x-admin-secret header.
+const adminSecret = process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '';
+
+function formatMoney(cents: number | null | undefined): string {
+  if (cents === null || cents === undefined) return '—';
+  return `$${(cents / 100).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+}
+
+function formatInt(value: number | null | undefined): string {
+  if (value === null || value === undefined) return '—';
+  return value.toLocaleString();
+}
+
 export default function NodesPage() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-  const supabase = createClient(supabaseUrl, supabaseAnonKey);
+  const supabase = useMemo(
+    () => createClient(supabaseUrl, supabaseAnonKey),
+    [supabaseUrl, supabaseAnonKey]
+  );
 
   const [nodes, setNodes] = useState<GeographicNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingNode, setEditingNode] = useState<GeographicNode | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [kpis, setKpis] = useState<NodeKpi[]>([]);
+  const [kpisLoading, setKpisLoading] = useState(true);
+  const [kpisError, setKpisError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadNodes();
+  // N6 — load per-node KPIs from the server route (RPC is service-role only).
+  const loadKpis = useCallback(async () => {
+    try {
+      setKpisLoading(true);
+      setKpisError(null);
+      const res = await fetch('/api/admin/nodes/kpis', {
+        headers: { 'x-admin-secret': adminSecret },
+        cache: 'no-store',
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error || `Failed to load KPIs (${res.status})`);
+      }
+      const json = await res.json();
+      setKpis(Array.isArray(json?.data) ? json.data : []);
+    } catch (err) {
+      console.error('[nodes] loadKpis error:', err);
+      setKpisError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setKpisLoading(false);
+    }
   }, []);
 
-  const loadNodes = async () => {
+  const loadNodes = useCallback(async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -38,7 +91,12 @@ export default function NodesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [supabase]);
+
+  useEffect(() => {
+    loadNodes();
+    loadKpis();
+  }, [loadNodes, loadKpis]);
 
   const handleEdit = (node: GeographicNode) => {
     setEditingNode(node);
@@ -165,6 +223,71 @@ export default function NodesPage() {
           <div className="text-gray-600 text-sm font-medium">Total Members</div>
           <div className="text-4xl font-bold text-blue-600 mt-2">{totalMembers}</div>
         </div>
+      </div>
+
+      {/* N6 — Per-Node Marketplace KPIs (GTM §13 / §15.6 expansion-gate metrics) */}
+      <div className="bg-white rounded-lg shadow overflow-hidden mb-8">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Per-Node Marketplace KPIs</h2>
+            <p className="text-xs text-gray-500 mt-0.5">
+              GTM §13 / §15.6 expansion-gate metrics — users, listings, trades, GMV, fees, payouts, and Swap Points per node.
+            </p>
+          </div>
+          <button
+            onClick={() => loadKpis()}
+            className="text-xs text-blue-600 hover:text-blue-900 hover:underline"
+            disabled={kpisLoading}
+          >
+            {kpisLoading ? 'Loading...' : 'Refresh'}
+          </button>
+        </div>
+        {kpisError ? (
+          <div className="px-6 py-8 text-center text-sm text-red-600">
+            We couldn't load per-node KPIs. {kpisError}
+          </div>
+        ) : kpisLoading ? (
+          <div className="px-6 py-8 text-center text-sm text-gray-500">Loading per-node KPIs...</div>
+        ) : kpis.length === 0 ? (
+          <div className="px-6 py-8 text-center text-sm text-gray-500">
+            No per-node KPI data yet.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  {['Node', 'Users', 'Listings', 'Trades', 'Completed', 'GMV', 'Platform Fees', 'Paid Payouts', 'SP Earned', 'SP Spent'].map((h) => (
+                    <th
+                      key={h}
+                      className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide"
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {kpis.map((kpi) => (
+                  <tr key={kpi.node_id} className="hover:bg-gray-50 transition">
+                    <td className="px-6 py-3 text-sm font-semibold text-gray-900">
+                      {kpi.node_name}
+                    </td>
+                    <td className="px-6 py-3 text-sm text-gray-700">{formatInt(kpi.users)}</td>
+                    <td className="px-6 py-3 text-sm text-gray-700">{formatInt(kpi.listings)}</td>
+                    <td className="px-6 py-3 text-sm text-gray-700">{formatInt(kpi.trades)}</td>
+                    <td className="px-6 py-3 text-sm text-gray-700">{formatInt(kpi.completed_trades)}</td>
+                    <td className="px-6 py-3 text-sm text-gray-900 font-medium">{formatMoney(kpi.gmv_cents)}</td>
+                    <td className="px-6 py-3 text-sm text-gray-700">{formatMoney(kpi.platform_fee_cents)}</td>
+                    <td className="px-6 py-3 text-sm text-gray-700">{formatMoney(kpi.paid_payouts_cents)}</td>
+                    <td className="px-6 py-3 text-sm text-gray-700">{formatInt(kpi.sp_earned)}</td>
+                    <td className="px-6 py-3 text-sm text-gray-700">{formatInt(kpi.sp_spent)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Nodes Table */}
