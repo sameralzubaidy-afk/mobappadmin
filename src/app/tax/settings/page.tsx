@@ -14,6 +14,14 @@
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import {
+  getAdminConfigMeta,
+  getCurrentAdminId,
+  formatUpdatedMeta,
+  type AdminConfigMetaRow,
+} from '@/lib/settingsAudit';
+import SettingsLinkBanner from '@/components/settings/SettingsLinkBanner';
+import LastUpdatedLabel from '@/components/settings/LastUpdatedLabel';
 
 interface State {
   enabled: boolean;
@@ -51,6 +59,8 @@ export default function TaxSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  // Last-updated metadata per key (admin_config.updated_at + updated_by).
+  const [meta, setMeta] = useState<Record<string, AdminConfigMetaRow>>({});
 
   const load = async () => {
     setLoading(true);
@@ -73,6 +83,9 @@ export default function TaxSettingsPage() {
       jurisdiction: map.get(KEYS.JUR) ?? 'CT',
       includeFeeInTaxBase: (map.get(KEYS.FEE_IN_BASE) ?? 'false') === 'true',
     });
+    // Same "Last updated" metadata the /config hub shows for these keys.
+    const metaRows = await getAdminConfigMeta(supabase, Object.values(KEYS));
+    setMeta(metaRows);
   };
 
   useEffect(() => {
@@ -89,6 +102,9 @@ export default function TaxSettingsPage() {
     }
     setSaving(true);
     try {
+      // Record the acting admin so admin_config.updated_by is set — the same
+      // audit source the /config hub uses.
+      const adminId = await getCurrentAdminId(supabase);
       const writes: Array<{ key: string; value: string; data_type: string }> = [
         { key: KEYS.ENABLED, value: String(state.enabled), data_type: 'boolean' },
         { key: KEYS.RATE, value: (pct / 100).toFixed(4), data_type: 'number' },
@@ -104,6 +120,7 @@ export default function TaxSettingsPage() {
           p_data_type: w.data_type,
           p_is_secret: false,
           p_is_active: true,
+          p_admin_id: adminId ?? null,
         });
         if (error) throw error;
       }
@@ -137,6 +154,16 @@ export default function TaxSettingsPage() {
         Master switches that apply across all nodes. Per-node rates override the default.
       </p>
 
+      {/* Cross-link: these settings share the same admin_config rows as /config → Tax */}
+      <div className="mb-4">
+        <SettingsLinkBanner
+          message="Related settings also live in Config → Tax."
+          href="/config?tab=tax"
+          linkLabel="Open Config → Tax"
+          testId="tax-settings-config-link"
+        />
+      </div>
+
       {/* TAX-009: Warning banner when global tax is disabled */}
       {!state.enabled && (
         <div
@@ -164,6 +191,10 @@ export default function TaxSettingsPage() {
           />
           <span>Enable sales tax globally</span>
         </label>
+        <LastUpdatedLabel
+          {...formatUpdatedMeta(meta[KEYS.ENABLED])}
+          testId="last-updated-sales_tax_enabled"
+        />
 
         <label className="flex flex-col text-sm">
           Default tax rate (%)
@@ -180,6 +211,10 @@ export default function TaxSettingsPage() {
           <span className="text-xs text-gray-500 mt-1">
             Stored as fraction. e.g. 6.35 % → 0.0635
           </span>
+          <LastUpdatedLabel
+            {...formatUpdatedMeta(meta[KEYS.RATE])}
+            testId="last-updated-default_sales_tax_rate"
+          />
         </label>
 
         <label className="flex items-center gap-2">
@@ -193,6 +228,10 @@ export default function TaxSettingsPage() {
           />
           <span>Tax Kids Club+ subscription fees</span>
         </label>
+        <LastUpdatedLabel
+          {...formatUpdatedMeta(meta[KEYS.SUB_TAX])}
+          testId="last-updated-subscription_fee_taxable"
+        />
 
         <label className="flex flex-col text-sm">
           Remittance jurisdiction
@@ -202,6 +241,10 @@ export default function TaxSettingsPage() {
             onChange={(e) => setState({ ...state, jurisdiction: e.target.value })}
             className="border rounded px-2 py-1 w-32"
             data-testid="tax-jurisdiction"
+          />
+          <LastUpdatedLabel
+            {...formatUpdatedMeta(meta[KEYS.JUR])}
+            testId="last-updated-tax_remittance_jurisdiction"
           />
         </label>
 
@@ -227,6 +270,12 @@ export default function TaxSettingsPage() {
             historical trades retain their original tax snapshot. Review CPA guidance
             before enabling.
           </p>
+          <div className="mt-2">
+            <LastUpdatedLabel
+              {...formatUpdatedMeta(meta[KEYS.FEE_IN_BASE])}
+              testId="last-updated-include_fee_in_tax_base"
+            />
+          </div>
         </div>
 
         <button

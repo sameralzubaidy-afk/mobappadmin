@@ -205,8 +205,8 @@ export default function PoliciesPage() {
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Platform Policies</h1>
-          <p className="text-gray-600 mt-1">Manage Terms of Service, Privacy Policy, and Legal Disclaimers</p>
+          <h1 className="text-[32px] font-bold leading-10" style={{ letterSpacing: '-0.5px' }}>Platform Policies</h1>
+          <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>Manage Terms of Service, Privacy Policy, and Legal Disclaimers</p>
         </div>
       </div>
 

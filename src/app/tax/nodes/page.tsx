@@ -10,6 +10,8 @@
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import { resolveAdminEmails } from '@/lib/settingsAudit';
+import SettingsLinkBanner from '@/components/settings/SettingsLinkBanner';
 
 interface NodeRow {
   id: string;
@@ -23,6 +25,11 @@ interface EditState {
   ratePercent: string;
   jurisdiction: string;
   enabled: boolean;
+}
+
+interface NodeAuditMeta {
+  updatedAt: string | null;
+  editor: string | null;
 }
 
 export default function TaxNodesPage() {
@@ -39,6 +46,9 @@ export default function TaxNodesPage() {
   const [edits, setEdits] = useState<Record<string, EditState>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
+  // Last-edited metadata per node, sourced from admin_audit_log
+  // (action='update_node_tax_config') — the same audit trail used elsewhere.
+  const [nodeMeta, setNodeMeta] = useState<Record<string, NodeAuditMeta>>({});
 
   const load = async () => {
     setLoading(true);
@@ -62,7 +72,46 @@ export default function TaxNodesPage() {
       };
     });
     setEdits(initial);
+
+    // Load the latest update_node_tax_config audit row per node so each row
+    // can show "Last updated · <ts> · by <editor>".
+    await loadNodeMeta();
     setLoading(false);
+  };
+
+  const loadNodeMeta = async () => {
+    try {
+      const { data: auditRows } = await supabase
+        .from('admin_audit_log')
+        .select('admin_id, entity_id, created_at')
+        .eq('action', 'update_node_tax_config')
+        .order('created_at', { ascending: false });
+      const latest: Record<string, { updatedAt: string; adminId: string }> = {};
+      (auditRows ?? []).forEach(
+        (r: { admin_id: string; entity_id: string; created_at: string }) => {
+          if (r.entity_id && !latest[r.entity_id]) {
+            latest[r.entity_id] = {
+              updatedAt: r.created_at,
+              adminId: r.admin_id,
+            };
+          }
+        }
+      );
+      const emails = await resolveAdminEmails(
+        supabase,
+        Object.values(latest).map((m) => m.adminId)
+      );
+      const meta: Record<string, NodeAuditMeta> = {};
+      Object.entries(latest).forEach(([nodeId, m]) => {
+        meta[nodeId] = {
+          updatedAt: m.updatedAt,
+          editor: emails[m.adminId] ?? m.adminId,
+        };
+      });
+      setNodeMeta(meta);
+    } catch (err) {
+      console.error('[TaxNodes] loadNodeMeta failed:', err);
+    }
   };
 
   useEffect(() => {
@@ -111,6 +160,16 @@ export default function TaxNodesPage() {
         Configure tax rate and jurisdiction for each node. Rate is shown as a percent.
       </p>
 
+      {/* Cross-link: global sales-tax switches live in /config → Tax */}
+      <div className="mb-4">
+        <SettingsLinkBanner
+          message="Global sales-tax settings live in Config → Tax. This page manages per-node rates only."
+          href="/config?tab=tax"
+          linkLabel="Open Config → Tax"
+          testId="tax-nodes-config-link"
+        />
+      </div>
+
       <input
         type="text"
         placeholder="Filter by name or jurisdiction…"
@@ -131,6 +190,7 @@ export default function TaxNodesPage() {
                 <th className="text-left p-2 border-b">Tax Rate (%)</th>
                 <th className="text-left p-2 border-b">Jurisdiction</th>
                 <th className="text-left p-2 border-b">Enabled</th>
+                <th className="text-left p-2 border-b">Last Updated</th>
                 <th className="text-left p-2 border-b">Actions</th>
               </tr>
             </thead>
@@ -185,6 +245,22 @@ export default function TaxNodesPage() {
                         }
                         data-testid={`tax-enabled-input-${n.id}`}
                       />
+                    </td>
+                    <td
+                      className="p-2 text-xs"
+                      data-testid={`tax-node-last-updated-${n.id}`}
+                    >
+                      {nodeMeta[n.id]?.updatedAt ? (
+                        <>
+                          {new Date(nodeMeta[n.id].updatedAt!).toLocaleString()}
+                          <br />
+                          <span className="text-gray-500">
+                            by {nodeMeta[n.id].editor}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
                     </td>
                     <td className="p-2">
                       <button

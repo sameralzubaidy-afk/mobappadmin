@@ -317,7 +317,7 @@ export default function NotificationAnalyticsPage() {
               </div>
               <div>
                 <div className="flex items-center gap-2 mb-2">
-                  <div className="text-4xl font-bold text-purple-600" data-testid="avg-open-rate">
+                  <div className="text-4xl font-bold text-primary-600" data-testid="avg-open-rate">
                     {metrics.by_category.length > 0
                       ? (
                           metrics.by_category.reduce(
@@ -394,7 +394,7 @@ export default function NotificationAnalyticsPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-purple-50 text-purple-600 font-semibold text-sm">
+                        <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-primary-50 text-primary-600 font-semibold text-sm">
                           {metric.push}
                         </span>
                       </td>
@@ -489,7 +489,7 @@ export default function NotificationAnalyticsPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <span className="font-semibold text-purple-600">
+                        <span className="font-semibold text-primary-600">
                           {cat.open_rate?.toFixed(1) || 0}%
                         </span>
                       </td>
@@ -558,7 +558,7 @@ export default function NotificationAnalyticsPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {type.total}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-purple-600">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-primary-600">
                         {type.open_rate?.toFixed(1) || 0}%
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-blue-600">

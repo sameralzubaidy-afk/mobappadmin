@@ -1,7 +1,16 @@
 // File: p2p-kids-admin/__tests__/components/layout/TopNavbar.test.tsx
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { TopNavbar } from '@/components/layout/TopNavbar';
+
+// The bell navigates via useRouter, and the badge reads a live admin API on a
+// 60s poll — mock both so these unit tests are isolated from the router and network.
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}));
+vi.mock('@/hooks/useActionCenterCount', () => ({
+  useActionCenterCount: () => ({ total: 5, loading: false, refresh: async () => {} }),
+}));
 
 describe('TopNavbar', () => {
   it('should render search input', () => {
@@ -27,15 +36,16 @@ describe('TopNavbar', () => {
     expect(brandMatches.length).toBeGreaterThan(0);
   });
 
-  it('should render notification bell with indicator', () => {
+  it('should render notification bell with live count badge', () => {
     render(<TopNavbar sidebarWidth={256} />);
     
     const bell = screen.getByLabelText('Notifications');
     expect(bell).toBeInTheDocument();
     
-    // Orange dot indicator
-    const indicator = bell.querySelector('[style*="background"]');
-    expect(indicator).toBeTruthy();
+    // Live count badge (Accent 500) — shows the pending action count.
+    const badge = bell.querySelector('[data-testid="notification-bell-badge"]');
+    expect(badge).toBeTruthy();
+    expect(badge?.textContent).toBe('5');
   });
 
   it('should render admin profile with name', () => {

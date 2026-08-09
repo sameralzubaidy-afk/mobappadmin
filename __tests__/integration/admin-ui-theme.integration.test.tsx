@@ -30,6 +30,12 @@ vi.mock('@supabase/supabase-js', () => ({
   }),
 }));
 
+// The bell badge + sidebar badge read a live admin API on a 60s poll — mock it
+// so the shell integration tests stay isolated from the network.
+vi.mock('@/hooks/useActionCenterCount', () => ({
+  useActionCenterCount: () => ({ total: 5, loading: false, refresh: async () => {} }),
+}));
+
 describe('Admin UI Theme Integration', () => {
   beforeEach(() => {
     // Reset any theme-related state
@@ -132,7 +138,7 @@ describe('Admin UI Theme Integration', () => {
     });
   });
 
-  it('should render notification bell with indicator', async () => {
+  it('should render notification bell with live count badge', async () => {
     render(
       <AdminShell>
         <div>Content</div>
@@ -142,10 +148,11 @@ describe('Admin UI Theme Integration', () => {
     await waitFor(() => {
       const bell = screen.getByLabelText('Notifications');
       expect(bell).toBeInTheDocument();
-      
-      // Orange indicator dot should be present
-      const indicator = bell.querySelector('[style*="background"]');
-      expect(indicator).toBeTruthy();
+
+      // Live count badge (Accent 500) shows the pending action count.
+      const badge = bell.querySelector('[data-testid="notification-bell-badge"]');
+      expect(badge).toBeTruthy();
+      expect(badge?.textContent).toBe('5');
     });
   });
 });

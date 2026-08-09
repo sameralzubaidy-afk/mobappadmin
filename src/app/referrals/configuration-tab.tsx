@@ -20,6 +20,7 @@ export default function ConfigurationTab() {
   const [programEnabled, setProgramEnabled] = useState(true);
   const [firstTradeEnabled, setFirstTradeEnabled] = useState(true);
   const [firstListingEnabled, setFirstListingEnabled] = useState(true);
+  const [missingKeys, setMissingKeys] = useState<string[]>([]);
 
   const adminSecret = process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '';
 
@@ -30,21 +31,34 @@ export default function ConfigurationTab() {
   const loadConfig = async () => {
     setLoading(true);
     setError(null);
+    setMissingKeys([]);
     try {
       const config = await SPConfigService.getReferralConfig();
-      setReferrerSP(config.referrer_sp.toString());
-      setRefereeSP(config.referee_sp.toString());
-      setReferrerListingSP(config.referrer_listing_sp.toString());
-      setRefereeListingSP(config.referee_listing_sp.toString());
-      setStarterPackSP(config.starter_pack_amount.toString());
-      setProgramEnabled(config.program_enabled);
-      
-      // Load feature toggles (returns null if key doesn't exist)
+      setReferrerSP(config.referrer_sp?.toString() ?? '');
+      setRefereeSP(config.referee_sp?.toString() ?? '');
+      setReferrerListingSP(config.referrer_listing_sp?.toString() ?? '');
+      setRefereeListingSP(config.referee_listing_sp?.toString() ?? '');
+      setStarterPackSP(config.starter_pack_amount?.toString() ?? '');
+      if (config.program_enabled !== null) setProgramEnabled(config.program_enabled);
+
+      // Feature toggles — report a missing key instead of silently enabling.
       const firstTradeToggle = await SPConfigService.get('referral_first_trade_enabled');
-      setFirstTradeEnabled(firstTradeToggle?.config_value !== 'false' ? true : false);
-      
+      if (firstTradeToggle) {
+        setFirstTradeEnabled(firstTradeToggle.config_value !== 'false');
+      } else {
+        setMissingKeys((prev) => Array.from(new Set([...prev, 'referral_first_trade_enabled'])));
+      }
+
       const firstListingToggle = await SPConfigService.get('referral_first_listing_enabled');
-      setFirstListingEnabled(firstListingToggle?.config_value !== 'false' ? true : false);
+      if (firstListingToggle) {
+        setFirstListingEnabled(firstListingToggle.config_value !== 'false');
+      } else {
+        setMissingKeys((prev) => Array.from(new Set([...prev, 'referral_first_listing_enabled'])));
+      }
+
+      if (config.missingKeys && config.missingKeys.length > 0) {
+        setMissingKeys((prev) => Array.from(new Set([...prev, ...config.missingKeys])));
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to load configuration');
     } finally {
@@ -92,6 +106,18 @@ export default function ConfigurationTab() {
         {success && (
           <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
             <p className="text-green-800 text-sm">{success}</p>
+          </div>
+        )}
+
+        {missingKeys.length > 0 && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+            <p className="text-amber-800 text-sm font-medium">
+              Missing configuration: {missingKeys.join(', ')}
+            </p>
+            <p className="text-amber-700 text-xs mt-1">
+              These referral settings are not present in the database. Add them below, or the
+              referral program will fail loudly until they are configured.
+            </p>
           </div>
         )}
 

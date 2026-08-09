@@ -240,7 +240,7 @@ export function ManualAwardModal({ badges, onClose, onSuccess }: ManualAwardModa
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 bg-purple-600 text-white rounded-md text-sm font-medium hover:bg-purple-700 disabled:opacity-50"
+                className="px-4 py-2 bg-primary-600 text-white rounded-md text-sm font-medium hover:bg-primary-700 disabled:opacity-50"
                 disabled={awarding}
               >
                 {awarding ? 'Awarding...' : 'Award Badge'}

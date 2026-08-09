@@ -309,7 +309,7 @@ function UserDetailModal({
                       <span
                         className={`inline-block px-2 py-0.5 text-xs font-semibold rounded-full ${
                           c.actor_role === 'seller'
-                            ? 'bg-purple-100 text-purple-800'
+                            ? 'bg-primary-100 text-primary-800'
                             : 'bg-blue-100 text-blue-800'
                         }`}
                       >
@@ -560,7 +560,7 @@ export default function CancellationInsightsClient() {
                           <span
                             className={`inline-block px-2 py-0.5 text-xs font-semibold rounded-full ${
                               user.role === 'seller'
-                                ? 'bg-purple-100 text-purple-800'
+                                ? 'bg-primary-100 text-primary-800'
                                 : 'bg-blue-100 text-blue-800'
                             }`}
                           >

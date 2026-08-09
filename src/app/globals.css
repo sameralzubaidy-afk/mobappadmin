@@ -4,36 +4,59 @@
 @tailwind utilities;
 
 :root {
-  /* Sidebar */
-  --sidebar-bg:       #3D1073;
-  --sidebar-active:   #5A2D9C;
+  /* Sidebar — light variant (design-system §2)
+     Surface = white; active item = Primary 500 fill + white text; inactive
+     text = Neutral 700; section labels = Label style in Neutral 500. */
+  --sidebar-bg:       #FFFFFF;
+  --sidebar-active:   #4A7C59;                 /* Primary 500 */
   --sidebar-text:     #FFFFFF;
-  --sidebar-muted:    #C4A8E8;
+  --sidebar-muted:    #808080;                 /* Neutral 500 (icons, scrollbar) */
   --sidebar-width:    256px;
+  --sidebar-shadow:   0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --sidebar-section-label: #808080;            /* Neutral 500 (muted) */
+  --sidebar-item-inactive: #4D4D4D;            /* Neutral 700 */
 
   /* Topbar */
   --topbar-bg:        #FFFFFF;
-  --topbar-border:    #F0EDF9;
+  --topbar-border:    #CCCCCC;                 /* Neutral 300 */
   --topbar-height:    64px;
 
-  /* Brand */
-  --brand-primary:    #6C3CE1;
-  --brand-accent:     #FF6B35;
-  --brand-green:      #28A745;
-  --brand-blue:       #17A2B8;
+  /* Brand — design-system §2.1/§2.2 */
+  --brand-primary:      #4A7C59;               /* Primary 500 */
+  --brand-primary-100:  #E8F3EC;               /* Primary 100 (avatar bg) */
+  --brand-accent:       #FF8C42;               /* Accent 500 */
+  --brand-green:        #4A7C59;               /* Primary 500 (primary actions) */
+  --brand-blue:         #5B8FB9;               /* Secondary 500 */
 
   /* Content */
-  --content-bg:       #F2F0FB;
+  --content-bg:       #FAFAFA;                 /* Neutral 50 */
 
-  /* Cards */
+  /* Cards — §6.2: white, 16px radius, Level 1 shadow */
   --card-bg:          #FFFFFF;
-  --card-border:      #F0EDF9;
-  --card-shadow:      0 1px 3px rgba(109, 60, 225, 0.06), 0 4px 16px rgba(109, 60, 225, 0.04);
+  --card-border:      #CCCCCC;                 /* Neutral 300 */
+  --card-shadow:      0px 2px 8px rgba(0, 0, 0, 0.08); /* Level 1 (§8.1) */
 
-  /* Text */
-  --text-primary:     #2D2D4E;
-  --text-secondary:   #6B6B8F;
-  --text-muted:       #9B97B5;
+  /* Text — §3.3 */
+  --text-primary:     #1A1A1A;                 /* Neutral 900 */
+  --text-secondary:   #4D4D4D;                 /* Neutral 700 */
+  --text-muted:       #808080;                 /* Neutral 500 */
+
+  /* Command palette (design-system.md neutral scale + Level 2 shadow) */
+  --neutral-100:      #F5F5F5;
+  --neutral-500:      #808080;
+  --neutral-700:      #4D4D4D;
+  --shadow-level-2:   0px 4px 16px rgba(0, 0, 0, 0.12);
+
+  /* Semantic tokens — design-system §2.4 (status) + §2.5 (SP gold) + §2.2 (Accent/Secondary) */
+  --neutral-300:        #CCCCCC; /* Neutral 300 (borders) */
+  --success-500:        #4CAF50; /* Success 500 */
+  --success-100:        #E8F5E9; /* Success 100 (banner bg) */
+  --warning-500:        #FFA726; /* Warning 500 */
+  --error-500:          #E53935; /* Error 500 */
+  --error-100:          #FFEBEE; /* Error 100 (banner bg) */
+  --accent-500:         #FF8C42; /* Accent 500 */
+  --secondary-500:      #5B8FB9; /* Secondary 500 */
+  --sp-500:             #F59E0B; /* SP Gold */
 }
 
 * {

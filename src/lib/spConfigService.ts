@@ -104,12 +104,13 @@ export class SPConfigService {
    * Get referral config values (helper)
    */
   static async getReferralConfig(): Promise<{
-    referrer_sp: number;
-    referee_sp: number;
-    referrer_listing_sp: number;
-    referee_listing_sp: number;
-    starter_pack_amount: number;
-    program_enabled: boolean;
+    referrer_sp: number | null;
+    referee_sp: number | null;
+    referrer_listing_sp: number | null;
+    referee_listing_sp: number | null;
+    starter_pack_amount: number | null;
+    program_enabled: boolean | null;
+    missingKeys: string[];
   }> {
     // IMPORTANT: Do NOT rely on category.
     // In this repo, many referral keys are stored in sp_config with category='general',
@@ -123,27 +124,38 @@ export class SPConfigService {
       ...item,
       config_value: this.normalizeConfigValue(item.config_value),
     }));
-    
-    const getValue = (key: string, defaultValue: any) => {
-      const item = items.find(i => i.config_key === key);
-      if (!item) return defaultValue;
-      
+
+    // No hardcoded fallbacks: an absent key returns { found: false, value: null }.
+    const getValue = (
+      key: string
+    ): { found: boolean; value: number | boolean | string | null } => {
+      const item = items.find((i) => i.config_key === key);
+      if (!item) return { found: false, value: null };
       if (item.value_type === 'number') {
         const parsed = parseInt(item.config_value, 10);
-        return Number.isFinite(parsed) ? parsed : defaultValue;
+        return Number.isFinite(parsed) ? { found: true, value: parsed } : { found: false, value: null };
       }
-      if (item.value_type === 'boolean') return item.config_value === 'true';
-      return item.config_value;
+      if (item.value_type === 'boolean') return { found: true, value: item.config_value === 'true' };
+      return { found: true, value: item.config_value };
     };
 
+    const REQUIRED_KEYS = [
+      'referral_reward_referrer_sp',
+      'referral_reward_referee_sp',
+      'referral_reward_referrer_listing_sp',
+      'referral_reward_referee_listing_sp',
+      'referral_program_enabled',
+      'starter_pack_amount',
+    ];
+
     return {
-      // Defaults match the seeded values in migrations (25/10 etc)
-      referrer_sp: getValue('referral_reward_referrer_sp', 25),
-      referee_sp: getValue('referral_reward_referee_sp', 10),
-      referrer_listing_sp: getValue('referral_reward_referrer_listing_sp', 25),
-      referee_listing_sp: getValue('referral_reward_referee_listing_sp', 10),
-      starter_pack_amount: getValue('starter_pack_amount', 10),
-      program_enabled: getValue('referral_program_enabled', true),
+      referrer_sp: getValue('referral_reward_referrer_sp').value as number | null,
+      referee_sp: getValue('referral_reward_referee_sp').value as number | null,
+      referrer_listing_sp: getValue('referral_reward_referrer_listing_sp').value as number | null,
+      referee_listing_sp: getValue('referral_reward_referee_listing_sp').value as number | null,
+      starter_pack_amount: getValue('starter_pack_amount').value as number | null,
+      program_enabled: getValue('referral_program_enabled').value as boolean | null,
+      missingKeys: REQUIRED_KEYS.filter((key) => !getValue(key).found),
     };
   }
 }

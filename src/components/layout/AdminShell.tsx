@@ -3,8 +3,9 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { Sidebar }    from './Sidebar';
-import { TopNavbar }  from './TopNavbar';
+import { Sidebar }         from './Sidebar';
+import { TopNavbar }       from './TopNavbar';
+import { CommandPalette }  from '../command-palette/CommandPalette';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -22,7 +23,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [adminName, setAdminName] = useState('Admin');
+  const [adminEmail, setAdminEmail] = useState<string>('');
   const [adminAvatar, setAdminAvatar] = useState<string | undefined>(undefined);
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   const sidebarWidth = collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH;
 
@@ -45,6 +48,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
         console.log('User authenticated:', user.email);
         setAdminName(user.email?.split('@')[0] || 'Admin');
+        setAdminEmail(user.email ?? '');
         setIsAuthenticated(true);
         setIsLoading(false);
       } catch (error) {
@@ -94,12 +98,15 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       <Sidebar
         collapsed={collapsed}
         onToggle={() => setCollapsed((c) => !c)}
+        adminKey={adminEmail}
       />
       <TopNavbar
         sidebarWidth={sidebarWidth}
         adminName={adminName}
         adminAvatar={adminAvatar}
+        onOpenSearch={() => setPaletteOpen(true)}
       />
+      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
       <main
         className="min-h-screen transition-all duration-300"
         style={{

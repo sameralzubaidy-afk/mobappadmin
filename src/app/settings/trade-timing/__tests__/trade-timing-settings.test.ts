@@ -16,6 +16,8 @@ interface TradeTimingConfig {
   pending_sp_release_days: number;
   transaction_fee_subscriber_cents: number;
   transaction_fee_non_subscriber_cents: number;
+  platform_fee_seller_percentage: number;
+  platform_fee_seller_discount_percentage_kids_club_plus: number;
 }
 
 /**
@@ -52,6 +54,15 @@ function validateTradeTimingSettings(s: TradeTimingConfig): Record<string, strin
   if (s.transaction_fee_non_subscriber_cents < 0) {
     e.transaction_fee_non_subscriber_cents = 'Cannot be negative';
   }
+  if (s.platform_fee_seller_percentage < 0 || s.platform_fee_seller_percentage > 100) {
+    e.platform_fee_seller_percentage = 'Must be between 0 and 100';
+  }
+  if (
+    s.platform_fee_seller_discount_percentage_kids_club_plus < 0 ||
+    s.platform_fee_seller_discount_percentage_kids_club_plus > 100
+  ) {
+    e.platform_fee_seller_discount_percentage_kids_club_plus = 'Must be between 0 and 100';
+  }
 
   return e;
 }
@@ -65,6 +76,8 @@ const DEFAULT_VALID: TradeTimingConfig = {
   pending_sp_release_days: 3,
   transaction_fee_subscriber_cents: 150,
   transaction_fee_non_subscriber_cents: 250,
+  platform_fee_seller_percentage: 5,
+  platform_fee_seller_discount_percentage_kids_club_plus: 0,
 };
 
 describe('validateTradeTimingSettings', () => {
@@ -162,6 +175,40 @@ describe('validateTradeTimingSettings', () => {
       });
       expect(errors.transaction_fee_non_subscriber_cents).toBeDefined();
     });
+
+    it('should error when platform_fee_seller_percentage is negative', () => {
+      const errors = validateTradeTimingSettings({
+        ...DEFAULT_VALID,
+        platform_fee_seller_percentage: -1,
+      });
+      expect(errors.platform_fee_seller_percentage).toBeDefined();
+    });
+
+    it('should error when platform_fee_seller_percentage > 100', () => {
+      const errors = validateTradeTimingSettings({
+        ...DEFAULT_VALID,
+        platform_fee_seller_percentage: 101,
+      });
+      expect(errors.platform_fee_seller_percentage).toBeDefined();
+    });
+
+    it('should error when platform_fee_seller_discount_percentage_kids_club_plus is negative', () => {
+      const errors = validateTradeTimingSettings({
+        ...DEFAULT_VALID,
+        platform_fee_seller_discount_percentage_kids_club_plus: -5,
+      });
+      expect(errors.platform_fee_seller_discount_percentage_kids_club_plus).toBeDefined();
+    });
+
+    it('should accept zero seller fee percentages', () => {
+      const errors = validateTradeTimingSettings({
+        ...DEFAULT_VALID,
+        platform_fee_seller_percentage: 0,
+        platform_fee_seller_discount_percentage_kids_club_plus: 0,
+      });
+      expect(errors.platform_fee_seller_percentage).toBeUndefined();
+      expect(errors.platform_fee_seller_discount_percentage_kids_club_plus).toBeUndefined();
+    });
   });
 
   describe('Multiple violations', () => {
@@ -175,6 +222,8 @@ describe('validateTradeTimingSettings', () => {
         pending_sp_release_days: 0,
         transaction_fee_subscriber_cents: -50,
         transaction_fee_non_subscriber_cents: -100,
+        platform_fee_seller_percentage: -1,
+        platform_fee_seller_discount_percentage_kids_club_plus: 101,
       };
       const errors = validateTradeTimingSettings(invalid);
       expect(Object.keys(errors).length).toBeGreaterThan(3);

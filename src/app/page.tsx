@@ -1,165 +1,47 @@
 // File: p2p-kids-admin/src/app/page.tsx
+// Admin Dashboard homepage — composed top-to-bottom per the admin IA:
+//   1. Intro line (page title + blurb)
+//   2. System health strip (HealthStatusStrip — Prompt 6)
+//   3. Action Center feed (ActionCenterClient embedded — Prompt 3; top 5 items + View all)
+//   4. KPI stat cards (TradeAnalytics + SPEconomySummary) below the Action Center
+//
+// The legacy duplicate card grid (Revenue & Analytics, SP Economy, Trades,
+// Subscriptions, etc.) was removed — every one of those destinations already
+// exists in the left sidebar (src/components/layout/Sidebar.tsx), so repeating
+// them as homepage cards added noise without new navigation value.
+//
+// Visual spec (docx/old/design-system.md): 24px (lg) spacing between major
+// sections; KPI cards are white with a 16px radius, Level 1 shadow, and 16px
+// padding (see TradeAnalytics / SPEconomySummary).
+
 import TradeAnalytics from './components/TradeAnalytics';
 import SPEconomySummary from './components/SPEconomySummary';
+import HealthStatusStrip from '../components/health/HealthStatusStrip';
+import ActionCenterClient from './action-center/ActionCenterClient';
 
 export default function HomePage() {
   return (
-    <div className="container mx-auto px-4 py-8 max-w-5xl">
-      <h1 className="text-4xl font-bold mb-4">Welcome to Admin Portal</h1>
-      <p className="text-gray-600 mb-8">
-        Manage system configuration, users, and review audit logs.
-      </p>
+    <div className="container mx-auto px-4 py-8 max-w-5xl space-y-6">
+      <div>
+        <h1 className="text-[32px] font-bold leading-10 mb-2" style={{ letterSpacing: '-0.5px' }}>
+          Welcome to Admin Portal
+        </h1>
+        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+          Manage system configuration, users, and review audit logs.
+        </p>
+      </div>
 
+      {/* System health strip — always visible below the page title, above the Action Center */}
+      <HealthStatusStrip />
+
+      {/* Action Center (embedded) — top pending admin actions, "View all" → /action-center */}
+      <section aria-label="Action Center">
+        <ActionCenterClient variant="embedded" maxCards={5} />
+      </section>
+
+      {/* KPI stat cards — positioned below the Action Center */}
       <TradeAnalytics />
       <SPEconomySummary />
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <a
-          href="/analytics"
-          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
-          data-testid="card-analytics"
-        >
-          <h2 className="text-xl font-semibold mb-2">📊 Revenue & Analytics</h2>
-          <p className="text-gray-600 text-sm">
-            View comprehensive revenue metrics (MRR, ARR, churn), transaction fees, and user engagement (DAU/MAU).
-          </p>
-        </a>
-        <a
-          href="/sp-economy"
-          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
-          data-testid="card-sp-economy"
-        >
-          <h2 className="text-xl font-semibold mb-2">💎 SP Economy</h2>
-          <p className="text-gray-600 text-sm">
-            One hub for SP health KPIs, category flow, wallet operations, and rules &amp; impact simulation.
-          </p>
-        </a>
-        <a
-          href="/trades"
-          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
-        >
-          <h2 className="text-xl font-semibold mb-2">Trades</h2>
-          <p className="text-gray-600 text-sm">
-            Inspect and manage marketplace trades, handle refunds, and view audit trails.
-          </p>
-        </a>
-        <a
-          href="/subscriptions"
-          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
-          data-testid="card-subscriptions"
-        >
-          <h2 className="text-xl font-semibold mb-2">Subscriptions</h2>
-          <p className="text-gray-600 text-sm">
-            View subscription metrics, manage grace periods and reminder thresholds.
-          </p>
-        </a>
-        <a
-          href="/id-badges"
-          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
-        >
-          <h2 className="text-xl font-semibold mb-2">🪪 ID Badge Verification</h2>
-          <p className="text-gray-600 text-sm">
-            Review and approve user identity verification requests and manage badges.
-          </p>
-        </a>
-        <a
-          href="/payouts/earnings"
-          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
-        >
-          <h2 className="text-xl font-semibold mb-2">💰 Payouts</h2>
-          <p className="text-gray-600 text-sm">
-            Manage seller payouts, view earnings statistics, and handle failed payments.
-          </p>
-        </a>
-        <a
-          href="/referrals"
-          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
-        >
-          <h2 className="text-xl font-semibold mb-2">🔗 Manage Referral</h2>
-          <p className="text-gray-600 text-sm">
-            Configure SP bonus rewards, trial extensions, and view referral program analytics.
-          </p>
-        </a>
-        <a
-          href="/config"
-          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
-        >
-          <h2 className="text-xl font-semibold mb-2">Configuration</h2>
-          <p className="text-gray-600 text-sm">
-            Manage SMS rate limits, verification settings, and system parameters.
-          </p>
-        </a>
-        
-        <a
-          href="/nodes"
-          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
-        >
-          <h2 className="text-xl font-semibold mb-2">Geographic Nodes</h2>
-          <p className="text-gray-600 text-sm">
-            Manage geographic nodes, activate/deactivate nodes, and view node members.
-          </p>
-        </a>
-        
-        <a
-          href="/settings/nodes"
-          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
-        >
-          <h2 className="text-xl font-semibold mb-2">Node Settings</h2>
-          <p className="text-gray-600 text-sm">
-            Configure default search radius, distance units, and auto-assignment rules.
-          </p>
-        </a>
-        
-        <a
-          href="/users"
-          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
-        >
-          <h2 className="text-xl font-semibold mb-2">Users</h2>
-          <p className="text-gray-600 text-sm">
-            View and manage user accounts, verification status, and permissions.
-          </p>
-        </a>
-        
-        <a
-          href="/monitoring"
-          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
-        >
-          <h2 className="text-xl font-semibold mb-2">Monitoring</h2>
-          <p className="text-gray-600 text-sm">
-            Subscription alerts, trade monitoring, and system health checks.
-          </p>
-        </a>
-
-        <a
-          href="/audit-logs"
-          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
-        >
-          <h2 className="text-xl font-semibold mb-2">Audit Logs</h2>
-          <p className="text-gray-600 text-sm">
-            Review system changes, configuration updates, and admin actions.
-          </p>
-        </a>
-
-        <a
-          href="/reviews"
-          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
-        >
-          <h2 className="text-xl font-semibold mb-2">🚩 Review Moderation</h2>
-          <p className="text-gray-600 text-sm">
-            Review and moderate reported reviews from the community.
-          </p>
-        </a>
-
-        <a
-          href="/monitoring/cron"
-          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
-        >
-          <h2 className="text-xl font-semibold mb-2">⏰ Cron Jobs</h2>
-          <p className="text-gray-600 text-sm">
-            Monitor scheduled tasks, view execution history, and track job status with timezone-aware timestamps.
-          </p>
-        </a>
-      </div>
     </div>
   );
 }

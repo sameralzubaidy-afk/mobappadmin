@@ -153,6 +153,12 @@ export default function UsersPage() {
     };
   }, [search]);
 
+  // Prefill search from ?search= (command palette deep link).
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get('search');
+    if (q) setSearch(q);
+  }, []);
+
   // Fetch analytics
   useEffect(() => {
     fetchAnalytics();
@@ -483,7 +489,7 @@ export default function UsersPage() {
           </div>
           <div className="bg-white p-4 rounded shadow border border-gray-200">
             <div className="text-sm text-gray-600">Subscribers</div>
-            <div className="text-2xl font-bold text-purple-600">
+            <div className="text-2xl font-bold text-primary-600">
               {(analytics.subscription_breakdown.trial || 0) +
                 (analytics.subscription_breakdown.active || 0) +
                 (analytics.subscription_breakdown.grace_period || 0)}
@@ -641,7 +647,7 @@ export default function UsersPage() {
                       <div className="flex flex-wrap gap-1 items-center">
                         {getAccountStatusBadge(user.account_status)}
                         {user.account_status === 'deleted' && user.deletion_type === 'self' && (
-                          <span className="px-2 py-1 rounded text-xs font-semibold bg-purple-100 text-purple-800">
+                          <span className="px-2 py-1 rounded text-xs font-semibold bg-primary-100 text-primary-800">
                             Self-Deleted
                           </span>
                         )}

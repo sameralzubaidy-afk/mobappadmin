@@ -11,7 +11,8 @@
 
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
 
 const adminSecret = process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '';
@@ -150,9 +151,31 @@ export default function ListingSearch() {
   
   const ITEMS_PER_PAGE = 20;
 
+  // Skip the initial (empty-query) mount search when the command palette
+  // deep-linked with ?q= — the seed effect below runs the one search that matters.
+  const skipInitialSearchRef = useRef(
+    typeof window !== 'undefined'
+      ? !!new URLSearchParams(window.location.search).get('q')
+      : false
+  );
+
   React.useEffect(() => {
+    if (skipInitialSearchRef.current) {
+      skipInitialSearchRef.current = false;
+      return;
+    }
     handleSearch(false);
   }, [filters.page]);
+
+  // Command palette deep link (?q=): prefill the query and run one search.
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const q = new URLSearchParams(window.location.search).get('q') || '';
+    if (!q) return;
+    setFilters((prev) => ({ ...prev, query: q }));
+    void handleSearch(true, q);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   React.useEffect(() => {
     const loadCategories = async () => {
@@ -196,11 +219,11 @@ export default function ListingSearch() {
     );
   };
 
-  const handleSearch = async (resetPage = true) => {
+  const handleSearch = async (resetPage = true, overrideQuery?: string) => {
     try {
       setLoading(true);
       const targetPage = resetPage ? 1 : filters.page;
-      const normalizedQuery = filters.query.trim();
+      const normalizedQuery = (overrideQuery ?? filters.query).trim();
       const normalizedSellerEmail = filters.sellerEmail.trim();
       const normalizedCategory = filters.category.trim();
 
@@ -838,15 +861,23 @@ export default function ListingSearch() {
                             {listing.seller_items_count}
                           </td>
                           <td className="px-6 py-4 text-sm">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedListing(listing);
-                              }}
-                              className="text-blue-600 hover:text-blue-800 font-medium"
-                            >
-                              View Details
-                            </button>
+                            <div className="flex flex-col gap-1">
+                              <Link
+                                href={`/items/${listing.id}`}
+                                className="text-blue-600 hover:text-blue-800 font-medium"
+                              >
+                                View
+                              </Link>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedListing(listing);
+                                }}
+                                className="text-emerald-600 hover:text-emerald-800 font-medium text-left"
+                              >
+                                Actions
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}

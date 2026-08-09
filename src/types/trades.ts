@@ -23,6 +23,10 @@ export interface Trade {
   sp_debit_ledger_entry_id: string | null;
   sp_credit_ledger_entry_id: string | null;
   cancellation_reason: string | null;
+  /** UUID shared by all trades in a bundle — null for single-item trades */
+  bundle_id?: string | null;
+  /** Number of items in the bundle (1 for single-item trades) */
+  bundle_size?: number | null;
   created_at: string;
   updated_at: string;
   completed_at: string | null;
@@ -39,6 +43,27 @@ export interface Trade {
     name: string;
     phone?: string;
   };
+}
+
+/** Represents a grouped bundle of trades sharing the same bundle_id */
+export interface BundleGroup {
+  bundle_id: string;
+  bundle_size: number;
+  trades: Trade[];
+  buyer_id: string;
+  seller_id: string;
+  buyer_name: string | null;
+  buyer_email: string | null;
+  buyer_phone: string | null;
+  seller_name: string | null;
+  seller_email: string | null;
+  seller_phone: string | null;
+  total_cash_cents: number;
+  total_sp: number;
+  total_fee_cents: number;
+  statuses: string[];
+  created_at: string;
+  earliest_created_at: string;
 }
 
 export interface TradeAnalytics {

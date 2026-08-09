@@ -35,13 +35,13 @@ export function MetricCard({
 
   const trendColor =
     trendDir === 'up'   ? theme.colors.brand.green  :
-    trendDir === 'down' ? '#E53935'                  :
+    trendDir === 'down' ? 'var(--error-500)'        :
     theme.colors.text.muted;
 
   return (
     <div
       data-testid={testID}
-      className={`rounded-xl p-6 flex flex-col gap-3 transition-shadow hover:shadow-lg ${className}`}
+      className={`rounded-2xl p-6 flex flex-col gap-3 transition-shadow hover:shadow-[0_4px_16px_rgba(0,0,0,0.12)] ${className}`}
       style={{
         background: theme.colors.card.bg,
         border:     `1px solid ${theme.colors.card.border}`,

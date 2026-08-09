@@ -279,7 +279,7 @@ function KnobSlider(props: {
       <div className="flex items-baseline justify-between mb-1">
         <span className="text-sm font-medium text-gray-700">{props.label}</span>
         <span
-          className={`text-sm font-mono ${dirty ? 'text-indigo-700' : 'text-gray-500'}`}
+          className={`text-sm font-mono ${dirty ? 'text-primary-700' : 'text-gray-500'}`}
         >
           {props.format(props.value)}
           {dirty && (

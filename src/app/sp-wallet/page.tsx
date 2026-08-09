@@ -30,7 +30,7 @@ function TxTypeBadge({ type }: { type: string }) {
   const isEarn = type.startsWith('earn_') || type === 'unfreeze';
   const isAdmin = type === 'earn_admin_grant' || type === 'admin_deduct';
   const base = 'inline-block px-2 py-0.5 rounded text-xs font-medium';
-  if (isAdmin) return <span className={`${base} bg-purple-100 text-purple-700`}>{type}</span>;
+  if (isAdmin) return <span className={`${base} bg-primary-100 text-primary-700`}>{type}</span>;
   if (isEarn) return <span className={`${base} bg-green-100 text-green-700`}>{type}</span>;
   return <span className={`${base} bg-red-100 text-red-700`}>{type}</span>;
 }
@@ -272,13 +272,13 @@ export default function SpWalletAdminPage() {
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="User ID (UUID)"
-            className="flex-1 border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="flex-1 border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
             data-testid="wallet-search-input"
           />
           <button
             type="submit"
             disabled={walletLoading || !searchInput.trim()}
-            className="bg-indigo-600 text-white px-4 py-2 rounded text-sm hover:bg-indigo-700 disabled:opacity-50"
+            className="bg-primary-600 text-white px-4 py-2 rounded text-sm hover:bg-primary-700 disabled:opacity-50"
             data-testid="wallet-search-btn"
           >
             {walletLoading ? 'Loading…' : 'Load Wallet'}
@@ -303,7 +303,7 @@ export default function SpWalletAdminPage() {
               </div>
               <div className="text-right">
                 <StatusBadge status={walletDetail.wallet.state} />
-                <p className="text-2xl font-bold text-indigo-700 mt-1" data-testid="wallet-balance">
+                <p className="text-2xl font-bold text-primary-700 mt-1" data-testid="wallet-balance">
                   {formatSP(walletDetail.wallet.available_balance)} SP
                 </p>
                 <p className="text-xs text-gray-400">
@@ -361,7 +361,7 @@ export default function SpWalletAdminPage() {
                     className={`px-3 py-1 rounded text-sm font-medium border transition-colors
                       ${walletDetail.wallet.state === s
                         ? 'bg-gray-200 text-gray-500 cursor-not-allowed border-gray-300'
-                        : 'hover:bg-indigo-50 border-indigo-300 text-indigo-700'
+                        : 'hover:bg-primary-50 border-primary-300 text-primary-700'
                       }`}
                   >
                     {s.charAt(0).toUpperCase() + s.slice(1)}
@@ -391,7 +391,7 @@ export default function SpWalletAdminPage() {
                       onChange={(e) => setAdjAmount(e.target.value)}
                       placeholder="e.g. 50 or -20"
                       required
-                      className="w-full border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                      className="w-full border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
                       data-testid="adj-amount-input"
                     />
                   </div>
@@ -405,7 +405,7 @@ export default function SpWalletAdminPage() {
                       onChange={(e) => setAdjReason(e.target.value)}
                       placeholder="Required – e.g. Compensation for failed trade"
                       required
-                      className="w-full border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                      className="w-full border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
                       data-testid="adj-reason-input"
                     />
                   </div>
@@ -419,14 +419,14 @@ export default function SpWalletAdminPage() {
                     value={adjNotes}
                     onChange={(e) => setAdjNotes(e.target.value)}
                     placeholder="Internal note for audit trail"
-                    className="w-full border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                    className="w-full border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
                     data-testid="adj-notes-input"
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={adjInProgress || !adjAmount || !adjReason.trim()}
-                  className="bg-indigo-600 text-white px-4 py-2 rounded text-sm hover:bg-indigo-700 disabled:opacity-50"
+                  className="bg-primary-600 text-white px-4 py-2 rounded text-sm hover:bg-primary-700 disabled:opacity-50"
                   data-testid="adj-submit-btn"
                 >
                   {adjInProgress ? 'Applying…' : 'Apply Adjustment'}
@@ -485,7 +485,7 @@ function MetricCard({
     red: 'text-red-600',
     blue: 'text-blue-600',
     gray: 'text-gray-700',
-    purple: 'text-purple-600',
+    purple: 'text-primary-600',
   };
   return (
     <div className="bg-white rounded border border-gray-200 p-3 shadow-sm">

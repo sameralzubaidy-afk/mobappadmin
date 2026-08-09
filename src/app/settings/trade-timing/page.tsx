@@ -7,6 +7,13 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { TradeTimingConfig } from '@/types/config';
+import {
+  getAdminConfigMeta,
+  formatUpdatedMeta,
+  type AdminConfigMetaRow,
+} from '@/lib/settingsAudit';
+import SettingsLinkBanner from '@/components/settings/SettingsLinkBanner';
+import LastUpdatedLabel from '@/components/settings/LastUpdatedLabel';
 
 const DEFAULT_CONFIG: TradeTimingConfig = {
   offer_timeout_hours: 48,
@@ -18,6 +25,10 @@ const DEFAULT_CONFIG: TradeTimingConfig = {
   transaction_fee_subscriber_cents: 150,
   transaction_fee_non_subscriber_cents: 250,
   max_pending_offers_per_seller: 3,
+  // B2: Seller fee per tier. Defaults match the admin_config seeds in
+  // 20250113_create_admin_config.sql (free=5, subscriber=0). Both are editable here.
+  platform_fee_seller_percentage: 5,
+  platform_fee_seller_discount_percentage_kids_club_plus: 0,
 };
 
 export default function TradeTimingSettingsPage() {
@@ -30,6 +41,8 @@ export default function TradeTimingSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [success, setSuccess] = useState<string | null>(null);
+  // Last-updated metadata per key (admin_config.updated_at + updated_by).
+  const [meta, setMeta] = useState<Record<string, AdminConfigMetaRow>>({});
 
   useEffect(() => {
     loadSettings();
@@ -53,6 +66,13 @@ export default function TradeTimingSettingsPage() {
       });
 
       setSettings((prev) => ({ ...prev, ...parsed }));
+
+      // Same "Last updated" metadata the /config hub shows for these keys.
+      const metaRows = await getAdminConfigMeta(
+        supabase,
+        Object.keys(DEFAULT_CONFIG)
+      );
+      setMeta(metaRows);
     } catch (err: any) {
       console.error('[TradeTimingSettings] load error:', err);
     } finally {
@@ -90,6 +110,18 @@ export default function TradeTimingSettingsPage() {
     if (settings.transaction_fee_non_subscriber_cents < 0) {
       e.transaction_fee_non_subscriber_cents = 'Cannot be negative';
     }
+    if (
+      settings.platform_fee_seller_percentage < 0 ||
+      settings.platform_fee_seller_percentage > 100
+    ) {
+      e.platform_fee_seller_percentage = 'Must be between 0 and 100';
+    }
+    if (
+      settings.platform_fee_seller_discount_percentage_kids_club_plus < 0 ||
+      settings.platform_fee_seller_discount_percentage_kids_club_plus > 100
+    ) {
+      e.platform_fee_seller_discount_percentage_kids_club_plus = 'Must be between 0 and 100';
+    }
     if (settings.max_pending_offers_per_seller < 1) {
       e.max_pending_offers_per_seller = 'Must be at least 1';
     }
@@ -108,6 +140,13 @@ export default function TradeTimingSettingsPage() {
     setSuccess(null);
 
     try {
+      // Record the acting admin so admin_config.updated_by is set — the same
+      // audit source the /config hub uses.
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const adminId = user?.id ?? null;
+
       for (const [key, value] of Object.entries(settings)) {
         const { error } = await supabase.rpc('upsert_admin_config_setting', {
           p_key: key,
@@ -116,15 +155,15 @@ export default function TradeTimingSettingsPage() {
           p_data_type: 'number',
           p_is_secret: false,
           p_is_active: true,
+          p_admin_id: adminId,
         });
         if (error) throw error;
       }
 
       // Audit log
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user?.id) {
+      if (adminId) {
         await supabase.from('admin_audit_log').insert({
-          admin_id: user.id,
+          admin_id: adminId,
           action: 'update_trade_timing_settings',
           entity_type: 'admin_config',
           changes: settings,
@@ -172,6 +211,10 @@ export default function TradeTimingSettingsPage() {
           {errors[key]}
         </p>
       )}
+      <LastUpdatedLabel
+        {...formatUpdatedMeta(meta[key as string])}
+        testId={`last-updated-${key}`}
+      />
     </div>
   );
 
@@ -189,10 +232,20 @@ export default function TradeTimingSettingsPage() {
   return (
     <div className="container mx-auto px-6 py-8 max-w-3xl">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Trade Timing Settings</h1>
-        <p className="text-gray-500 mt-1 text-sm">
+        <h1 className="text-[32px] font-bold leading-10 text-gray-900" style={{ letterSpacing: '-0.5px' }}>Trade Timing Settings</h1>
+        <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
           Configure offer expiry windows, auto-complete timing, SP release schedules, and transaction fees.
         </p>
+      </div>
+
+      {/* Cross-link: these settings share the same admin_config rows as /config */}
+      <div className="mb-6">
+        <SettingsLinkBanner
+          message="Related settings also live in Config → Trade / Feature Flags."
+          href="/config?tab=trade"
+          linkLabel="Open Config → Trade"
+          testId="trade-timing-config-link"
+        />
       </div>
 
       {success && (
@@ -292,6 +345,20 @@ export default function TradeTimingSettingsPage() {
             'Free-Tier User Fee',
             'Platform fee for free-tier users in cents (e.g. 250 = $2.50).',
             'cents',
+            0
+          )}
+          {numField(
+            'platform_fee_seller_percentage',
+            'Seller Fee % — Free Tier',
+            'Seller platform fee for FREE (non-subscriber) sellers, as a % of the cash portion (item price − SP). Example: 5 = 5% (default).',
+            '%',
+            0
+          )}
+          {numField(
+            'platform_fee_seller_discount_percentage_kids_club_plus',
+            'Seller Fee % — Kids Club+',
+            'Seller platform fee for Kids Club+ (subscriber) sellers, as an ABSOLUTE % of the cash portion (item price − SP). This is the rate itself, not a discount. Seeded default 0; set to 5 for a uniform 5% seller fee across tiers.',
+            '%',
             0
           )}
           <div className="bg-amber-50 border border-amber-200 rounded-md p-3">

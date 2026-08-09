@@ -30,24 +30,36 @@ export default async function TradeAnalytics(): Promise<JSX.Element | null> {
   const completedRate = total > 0 ? Math.round((completedCount / total) * 100) : 0;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-      <div className="bg-white p-4 rounded shadow-sm border border-gray-200">
-        <p className="text-sm text-gray-500 uppercase font-semibold">Total Trades</p>
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div
+        className="bg-white p-4 rounded-2xl border" // 16px radius (§8.2)
+        style={{ boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.08)', borderColor: 'var(--neutral-300)' }} // Level 1 shadow (§8.1)
+      >
+        <p className="text-xs text-gray-500 uppercase font-semibold tracking-wider">Total Trades</p>
         <p className="text-2xl font-bold">{total}</p>
       </div>
 
-      <div className="bg-white p-4 rounded shadow-sm border border-gray-200">
-        <p className="text-sm text-gray-500 uppercase font-semibold">Fee Revenue</p>
-        <p className="text-2xl font-bold text-green-600">${(stats.total_fee_revenue_cents / 100).toFixed(2)}</p>
+      <div
+        className="bg-white p-4 rounded-2xl border"
+        style={{ boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.08)', borderColor: 'var(--neutral-300)' }}
+      >
+        <p className="text-xs text-gray-500 uppercase font-semibold tracking-wider">Fee Revenue</p>
+        <p className="text-2xl font-bold" style={{ color: 'var(--success-500)' }}>${(stats.total_fee_revenue_cents / 100).toFixed(2)}</p>
       </div>
 
-      <div className="bg-white p-4 rounded shadow-sm border border-gray-200">
-        <p className="text-sm text-gray-500 uppercase font-semibold">Avg SP Usage</p>
-        <p className="text-2xl font-bold text-blue-600">{Math.round(stats.avg_sp_usage)} SP</p>
+      <div
+        className="bg-white p-4 rounded-2xl border"
+        style={{ boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.08)', borderColor: 'var(--neutral-300)' }}
+      >
+        <p className="text-xs text-gray-500 uppercase font-semibold tracking-wider">Avg SP Usage</p>
+        <p className="text-2xl font-bold" style={{ color: 'var(--secondary-500)' }}>{Math.round(stats.avg_sp_usage)} SP</p>
       </div>
 
-      <div className="bg-white p-4 rounded shadow-sm border border-gray-200">
-        <p className="text-sm text-gray-500 uppercase font-semibold">Completed Rate</p>
+      <div
+        className="bg-white p-4 rounded-2xl border"
+        style={{ boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.08)', borderColor: 'var(--neutral-300)' }}
+      >
+        <p className="text-xs text-gray-500 uppercase font-semibold tracking-wider">Completed Rate</p>
         <p className="text-2xl font-bold">{completedRate}%</p>
       </div>
     </div>

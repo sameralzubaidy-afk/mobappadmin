@@ -161,13 +161,13 @@ describe('Review Moderation API - POST /api/reviews/:reviewId/hide', () => {
   });
 });
 
-describe('Review Moderation API - POST /api/reviews/:reviewId/approve', () => {
+describe('Review Moderation API - POST /api/reviews/:reviewId/keep', () => {
   beforeAll(async () => {
     // Ensure test review is hidden and has reports
     if (testReviewId) {
       await supabase
         .from('reviews')
-        .update({ is_hidden: true, report_count: 2 })
+        .update({ is_hidden: true, report_count: 2, review_status: 'pending_review' })
         .eq('id', testReviewId);
       
       // Add test reports
@@ -189,28 +189,30 @@ describe('Review Moderation API - POST /api/reviews/:reviewId/approve', () => {
     }
   });
 
-  it('should unhide review and delete reports', async () => {
+  it('should keep review visible, mark reviewed, delete reports, and notify reporter', async () => {
     if (!testReviewId) {
-      console.warn('Skipping approve test: no test review created');
+      console.warn('Skipping keep test: no test review created');
       return;
     }
     
-    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/reviews/${testReviewId}/approve`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/reviews/${testReviewId}/keep`, {
       method: 'POST',
     });
     
     expect(response.ok).toBe(true);
     const data = await response.json();
     expect(data.success).toBe(true);
+    expect(data.review_status).toBe('reviewed');
     
-    // Verify review is visible and report_count reset
+    // Verify review is visible, reviewed, and report_count reset
     const { data: reviewData } = await supabase
       .from('reviews')
-      .select('is_hidden, report_count')
+      .select('is_hidden, report_count, review_status')
       .eq('id', testReviewId)
       .single();
     
     expect(reviewData?.is_hidden).toBe(false);
+    expect(reviewData?.review_status).toBe('reviewed');
     expect(reviewData?.report_count).toBe(0);
     
     // Verify reports are deleted
@@ -220,6 +222,16 @@ describe('Review Moderation API - POST /api/reviews/:reviewId/approve', () => {
       .eq('review_id', testReviewId);
     
     expect(reportsData).toHaveLength(0);
+
+    // Verify the reporter was notified (in-app notification row created)
+    const { data: notifData } = await supabase
+      .from('user_notifications')
+      .select('id, type, user_id')
+      .eq('user_id', testUserId)
+      .eq('type', 'review_report_kept')
+      .limit(1);
+    
+    expect(notifData && notifData.length).toBeGreaterThan(0);
   });
 });
 

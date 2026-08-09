@@ -109,10 +109,10 @@ export default function ViewPolicyPage() {
             </button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold">
+            <h1 className="text-[32px] font-bold leading-10" style={{ letterSpacing: '-0.5px' }}>
               {POLICY_TYPE_LABELS[policy.policy_type] || policy.policy_type}
             </h1>
-            <p className="text-gray-600 mt-1">
+            <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
               Version {policy.version} • {policy.status}
             </p>
           </div>

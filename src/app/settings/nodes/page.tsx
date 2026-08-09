@@ -4,6 +4,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import {
+  getAdminConfigMeta,
+  formatUpdatedMeta,
+  type AdminConfigMetaRow,
+} from '@/lib/settingsAudit';
+import SettingsLinkBanner from '@/components/settings/SettingsLinkBanner';
+import LastUpdatedLabel from '@/components/settings/LastUpdatedLabel';
 
 interface NodeSettings {
   default_radius_miles: number;
@@ -31,6 +38,8 @@ export default function NodeSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [success, setSuccess] = useState<string | null>(null);
+  // Last-updated metadata per key (admin_config.updated_at + updated_by).
+  const [meta, setMeta] = useState<Record<string, AdminConfigMetaRow>>({});
 
   useEffect(() => {
     loadSettings();
@@ -68,6 +77,17 @@ export default function NodeSettingsPage() {
       });
 
       setSettings((prev) => ({ ...prev, ...settingsObj }));
+
+      // Same "Last updated" metadata the /config hub shows for these keys.
+      const metaRows = await getAdminConfigMeta(supabase, [
+        'default_radius_miles',
+        'max_assignment_distance_miles',
+        'allow_user_radius_adjustment',
+        'min_user_radius_miles',
+        'max_user_radius_miles',
+        'distance_warning_threshold_miles',
+      ]);
+      setMeta(metaRows);
     } catch (error: any) {
       console.error('Failed to load settings:', error);
       alert(`Failed to load settings: ${error.message}`);
@@ -115,6 +135,11 @@ export default function NodeSettingsPage() {
     setSuccess(null);
 
     try {
+      // Record the acting admin so admin_config.updated_by is set — the same
+      // audit source the /config hub uses.
+      const adminUser = await supabase.auth.getUser();
+      const adminId = adminUser.data.user?.id ?? null;
+
       // Save each setting to admin_config
       const updates = Object.entries(settings).map(([key, value]) => ({
         key,
@@ -134,6 +159,7 @@ export default function NodeSettingsPage() {
           p_data_type: data_type,
           p_is_secret: is_secret,
           p_is_active: is_active,
+          p_admin_id: adminId,
         });
 
         if (error) {
@@ -145,10 +171,9 @@ export default function NodeSettingsPage() {
       }
 
       // Log admin action
-      const adminUser = await supabase.auth.getUser();
-      if (adminUser.data.user?.id) {
+      if (adminId) {
         await supabase.from('admin_audit_log').insert({
-          admin_id: adminUser.data.user.id,
+          admin_id: adminId,
           action: 'update_node_settings',
           entity_type: 'admin_config',
           changes: settings,
@@ -179,10 +204,20 @@ export default function NodeSettingsPage() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Node Settings</h1>
-        <p className="text-gray-600 mt-2">
+        <h1 className="text-[32px] font-bold leading-10 text-gray-900" style={{ letterSpacing: '-0.5px' }}>Node Settings</h1>
+        <p className="text-sm mt-2" style={{ color: 'var(--text-secondary)' }}>
           Configure default node behavior, assignment rules, and user preferences
         </p>
+      </div>
+
+      {/* Cross-link: these settings share the same admin_config rows as /config */}
+      <div className="mb-6">
+        <SettingsLinkBanner
+          message="Related settings also live in Config → Feature Flags."
+          href="/config?tab=feature_flags"
+          linkLabel="Open Config → Feature Flags"
+          testId="node-settings-config-link"
+        />
       </div>
 
       {success && (
@@ -214,6 +249,10 @@ export default function NodeSettingsPage() {
           {errors.default_radius_miles && (
             <p className="text-red-600 text-sm mt-1">{errors.default_radius_miles}</p>
           )}
+          <LastUpdatedLabel
+            {...formatUpdatedMeta(meta.default_radius_miles)}
+            testId="last-updated-default_radius_miles"
+          />
         </div>
 
         {/* Max Assignment Distance */}
@@ -243,6 +282,10 @@ export default function NodeSettingsPage() {
               {errors.max_assignment_distance_miles}
             </p>
           )}
+          <LastUpdatedLabel
+            {...formatUpdatedMeta(meta.max_assignment_distance_miles)}
+            testId="last-updated-max_assignment_distance_miles"
+          />
         </div>
 
         {/* Distance Warning Threshold */}
@@ -272,6 +315,10 @@ export default function NodeSettingsPage() {
               {errors.distance_warning_threshold_miles}
             </p>
           )}
+          <LastUpdatedLabel
+            {...formatUpdatedMeta(meta.distance_warning_threshold_miles)}
+            testId="last-updated-distance_warning_threshold_miles"
+          />
         </div>
 
         {/* Allow User Radius Adjustment */}
@@ -322,6 +369,10 @@ export default function NodeSettingsPage() {
                     {errors.min_user_radius_miles}
                   </p>
                 )}
+                <LastUpdatedLabel
+                  {...formatUpdatedMeta(meta.min_user_radius_miles)}
+                  testId="last-updated-min_user_radius_miles"
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -346,9 +397,17 @@ export default function NodeSettingsPage() {
                     {errors.max_user_radius_miles}
                   </p>
                 )}
+                <LastUpdatedLabel
+                  {...formatUpdatedMeta(meta.max_user_radius_miles)}
+                  testId="last-updated-max_user_radius_miles"
+                />
               </div>
             </div>
           )}
+          <LastUpdatedLabel
+            {...formatUpdatedMeta(meta.allow_user_radius_adjustment)}
+            testId="last-updated-allow_user_radius_adjustment"
+          />
         </div>
 
         {/* Example Usage */}

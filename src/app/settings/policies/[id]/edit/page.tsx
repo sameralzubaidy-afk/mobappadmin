@@ -129,8 +129,8 @@ export default function EditPolicyPage() {
             ← Back to Policy
           </button>
         </Link>
-        <h1 className="text-3xl font-bold">Edit Draft Policy</h1>
-        <p className="text-gray-600 mt-2">Version {policy.version}</p>
+        <h1 className="text-[32px] font-bold leading-10" style={{ letterSpacing: '-0.5px' }}>Edit Draft Policy</h1>
+        <p className="text-sm mt-2" style={{ color: 'var(--text-secondary)' }}>Version {policy.version}</p>
       </div>
 
       <form onSubmit={handleSave} className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">

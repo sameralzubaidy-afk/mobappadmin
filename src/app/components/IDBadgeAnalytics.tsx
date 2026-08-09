@@ -60,9 +60,9 @@ export default function IDBadgeAnalytics() {
           <p className="text-2xl font-bold text-blue-800">{stats?.approval_rate.toFixed(1) || 0}%</p>
         </div>
 
-        <div className="p-4 bg-purple-50 border border-purple-100 rounded-lg">
-          <p className="text-sm text-purple-600 font-medium mb-1">Avg Review Time</p>
-          <p className="text-2xl font-bold text-purple-800">{stats?.avg_review_time_hours.toFixed(1) || 0}h</p>
+        <div className="p-4 bg-primary-50 border border-primary-100 rounded-lg">
+          <p className="text-sm text-primary-600 font-medium mb-1">Avg Review Time</p>
+          <p className="text-2xl font-bold text-primary-800">{stats?.avg_review_time_hours.toFixed(1) || 0}h</p>
         </div>
       </div>
     </div>

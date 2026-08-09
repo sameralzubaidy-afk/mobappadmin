@@ -170,10 +170,11 @@ describe('SPConfigService', () => {
         referee_listing_sp: 20,
         starter_pack_amount: 12,
         program_enabled: true,
+        missingKeys: [],
       });
     });
 
-    it('should return defaults if config missing', async () => {
+    it('should report missing keys as null instead of hardcoded defaults', async () => {
       (global.fetch as any).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ success: true, data: [] }),
@@ -186,12 +187,20 @@ describe('SPConfigService', () => {
       const result = await SPConfigService.getReferralConfig();
 
       expect(result).toEqual({
-        referrer_sp: 25,
-        referee_sp: 10,
-        referrer_listing_sp: 25,
-        referee_listing_sp: 10,
-        starter_pack_amount: 10,
-        program_enabled: true,
+        referrer_sp: null,
+        referee_sp: null,
+        referrer_listing_sp: null,
+        referee_listing_sp: null,
+        starter_pack_amount: null,
+        program_enabled: null,
+        missingKeys: [
+          'referral_reward_referrer_sp',
+          'referral_reward_referee_sp',
+          'referral_reward_referrer_listing_sp',
+          'referral_reward_referee_listing_sp',
+          'referral_program_enabled',
+          'starter_pack_amount',
+        ],
       });
     });
   });

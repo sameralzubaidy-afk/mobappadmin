@@ -3,7 +3,156 @@
 // filepath: p2p-kids-admin/src/app/config/page.tsx
 
 import { useState, useEffect } from "react";
+import { createClient } from "@supabase/supabase-js";
 import type { AdminConfigItem, SMSRateLimitStats } from "@/types/config";
+import { resolveAdminEmails } from "@/lib/settingsAudit";
+import SettingsLinkBanner from "@/components/settings/SettingsLinkBanner";
+import LastUpdatedLabel from "@/components/settings/LastUpdatedLabel";
+
+/**
+ * KEY_PAGE_LINKS — single source for which standalone settings page owns a
+ * given admin_config key. Used to render cross-link banners on the matching
+ * /config tab so an admin never edits a setting here and silently diverges
+ * from the standalone page (both surfaces read/write the SAME admin_config row).
+ */
+const KEY_PAGE_LINKS: Record<
+  string,
+  { href: string; label: string; message: string }
+> = {
+  // Tax (Config → Tax tab ↔ /tax/settings)
+  sales_tax_enabled: {
+    href: "/tax/settings",
+    label: "Open Sales Tax Settings",
+    message:
+      "These global sales-tax settings are also managed on the Sales Tax page.",
+  },
+  default_sales_tax_rate: {
+    href: "/tax/settings",
+    label: "Open Sales Tax Settings",
+    message:
+      "These global sales-tax settings are also managed on the Sales Tax page.",
+  },
+  subscription_fee_taxable: {
+    href: "/tax/settings",
+    label: "Open Sales Tax Settings",
+    message:
+      "These global sales-tax settings are also managed on the Sales Tax page.",
+  },
+  tax_remittance_jurisdiction: {
+    href: "/tax/settings",
+    label: "Open Sales Tax Settings",
+    message:
+      "These global sales-tax settings are also managed on the Sales Tax page.",
+  },
+  include_fee_in_tax_base: {
+    href: "/tax/settings",
+    label: "Open Sales Tax Settings",
+    message:
+      "These global sales-tax settings are also managed on the Sales Tax page.",
+  },
+  // Cart (Config → Feature Flags tab ↔ /settings/cart)
+  cart_min_value_cents: {
+    href: "/settings/cart",
+    label: "Open Cart Settings",
+    message: "Cart settings are also managed on the Cart Settings page.",
+  },
+  cart_max_saved_carts: {
+    href: "/settings/cart",
+    label: "Open Cart Settings",
+    message: "Cart settings are also managed on the Cart Settings page.",
+  },
+  cart_saved_expiry_days: {
+    href: "/settings/cart",
+    label: "Open Cart Settings",
+    message: "Cart settings are also managed on the Cart Settings page.",
+  },
+  // Trade timing (Config → Trade / Feature Flags ↔ /settings/trade-timing)
+  offer_timeout_hours: {
+    href: "/settings/trade-timing",
+    label: "Open Trade Timing Settings",
+    message:
+      "Trade timing settings are also managed on the Trade Timing page.",
+  },
+  offer_notif_1_hours_before: {
+    href: "/settings/trade-timing",
+    label: "Open Trade Timing Settings",
+    message:
+      "Trade timing settings are also managed on the Trade Timing page.",
+  },
+  offer_notif_2_hours_before: {
+    href: "/settings/trade-timing",
+    label: "Open Trade Timing Settings",
+    message:
+      "Trade timing settings are also managed on the Trade Timing page.",
+  },
+  auto_complete_hours: {
+    href: "/settings/trade-timing",
+    label: "Open Trade Timing Settings",
+    message:
+      "Trade timing settings are also managed on the Trade Timing page.",
+  },
+  auto_complete_notif_hours_before: {
+    href: "/settings/trade-timing",
+    label: "Open Trade Timing Settings",
+    message:
+      "Trade timing settings are also managed on the Trade Timing page.",
+  },
+  pending_sp_release_days: {
+    href: "/settings/trade-timing",
+    label: "Open Trade Timing Settings",
+    message:
+      "Trade timing settings are also managed on the Trade Timing page.",
+  },
+  transaction_fee_subscriber_cents: {
+    href: "/settings/trade-timing",
+    label: "Open Trade Timing Settings",
+    message:
+      "Trade timing settings are also managed on the Trade Timing page.",
+  },
+  transaction_fee_non_subscriber_cents: {
+    href: "/settings/trade-timing",
+    label: "Open Trade Timing Settings",
+    message:
+      "Trade timing settings are also managed on the Trade Timing page.",
+  },
+  max_pending_offers_per_seller: {
+    href: "/settings/trade-timing",
+    label: "Open Trade Timing Settings",
+    message:
+      "Trade timing settings are also managed on the Trade Timing page.",
+  },
+  // Node settings (Config → Feature Flags ↔ /settings/nodes)
+  default_radius_miles: {
+    href: "/settings/nodes",
+    label: "Open Node Settings",
+    message: "Node settings are also managed on the Node Settings page.",
+  },
+  max_assignment_distance_miles: {
+    href: "/settings/nodes",
+    label: "Open Node Settings",
+    message: "Node settings are also managed on the Node Settings page.",
+  },
+  allow_user_radius_adjustment: {
+    href: "/settings/nodes",
+    label: "Open Node Settings",
+    message: "Node settings are also managed on the Node Settings page.",
+  },
+  min_user_radius_miles: {
+    href: "/settings/nodes",
+    label: "Open Node Settings",
+    message: "Node settings are also managed on the Node Settings page.",
+  },
+  max_user_radius_miles: {
+    href: "/settings/nodes",
+    label: "Open Node Settings",
+    message: "Node settings are also managed on the Node Settings page.",
+  },
+  distance_warning_threshold_miles: {
+    href: "/settings/nodes",
+    label: "Open Node Settings",
+    message: "Node settings are also managed on the Node Settings page.",
+  },
+};
 
 export default function ConfigPage() {
   const [config, setConfig] = useState<AdminConfigItem[]>([]);
@@ -13,10 +162,24 @@ export default function ConfigPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [canWrite, setCanWrite] = useState<boolean | null>(null);
+  const [editorEmails, setEditorEmails] = useState<Record<string, string>>({});
 
-  const [activeTab, setActiveTab] = useState<string>("general");
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    // Support deep links like /config?tab=tax so cross-link banners from the
+    // standalone settings pages land on the matching tab.
+    if (typeof window !== "undefined") {
+      const tab = new URLSearchParams(window.location.search).get("tab");
+      return tab || "general";
+    }
+    return "general";
+  });
 
   const adminSecret = process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || "";
+
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+  );
 
   const loadConfigFromApi = async () => {
     setLoading(true);
@@ -88,6 +251,20 @@ export default function ConfigPage() {
           (initial[item.key] = String(item.value ?? "")),
       );
       setEditValues(initial);
+
+      // Resolve editor emails for the "Last updated by" labels (same audit
+      // source as the standalone settings pages).
+      const editorIds = Array.from(
+        new Set(
+          validConfig
+            .map((item: AdminConfigItem) => (item as any).updated_by)
+            .filter(Boolean) as string[]
+        )
+      );
+      if (editorIds.length) {
+        const emails = await resolveAdminEmails(supabase, editorIds);
+        setEditorEmails(emails);
+      }
     } catch (err: any) {
       setError(err.message || "Failed to load configuration");
     } finally {
@@ -109,13 +286,20 @@ export default function ConfigPage() {
         editValues[key],
       );
 
+      // Record which admin made the edit so admin_config.updated_by is set
+      // (same audit source as the standalone settings pages).
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const userId = user?.id || null;
+
       const res = await fetch("/api/admin/config", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           "x-admin-secret": adminSecret,
         },
-        body: JSON.stringify({ key, value: editValues[key] }),
+        body: JSON.stringify({ key, value: editValues[key], user_id: userId }),
       });
 
       console.log(`[Config Save] Response status:`, res.status);
@@ -165,6 +349,8 @@ export default function ConfigPage() {
         'Enable automatic CPSC recall matching for new listings. When enabled, item titles/descriptions are checked against the CPSC recalls database. Set to "true" to enable or "false" to disable.',
       cpsc_match_threshold:
         "Confidence threshold (0.0 to 1.0) for automatic item flagging. Items with similarity score >= this value will be flagged for review. Recommended: 0.5 (50%). Lower values increase sensitivity (more false positives).",
+      charge_one_fee_per_bundle:
+        "When enabled, bundles charge the platform fee once instead of per item. Single-item trades are unaffected. Applies to both free-tier and subscriber fixed fees.",
     };
     return descriptions[key] || "";
   };
@@ -197,8 +383,8 @@ export default function ConfigPage() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <h1 className="text-3xl font-bold mb-2">System Configuration</h1>
-      <p className="text-gray-600 mb-8">
+      <h1 className="text-[32px] font-bold leading-10 mb-8" style={{ letterSpacing: '-0.5px' }}>System Configuration</h1>
+      <p className="text-sm mb-8" style={{ color: 'var(--text-secondary)' }}>
         Manage system-wide settings and rate limits
       </p>
 
@@ -300,6 +486,20 @@ export default function ConfigPage() {
           // Ensure the active tab defaults to something that exists
           const currentTab = categories.includes(activeTab) ? activeTab : categories[0];
 
+          // Which standalone settings pages own keys in the current tab?
+          // Renders the "also managed on ..." cross-link banners.
+          const relatedByHref = new Map<
+            string,
+            { href: string; label: string; message: string }
+          >();
+          (groupedConfig[currentTab] || []).forEach((i: AdminConfigItem) => {
+            const link = KEY_PAGE_LINKS[i.key];
+            if (link && !relatedByHref.has(link.href)) {
+              relatedByHref.set(link.href, link);
+            }
+          });
+          const relatedPages = Array.from(relatedByHref.values());
+
           return (
             <div className="flex flex-col md:flex-row min-h-[600px]">
               {/* Sidebar Navigation */}
@@ -324,7 +524,7 @@ export default function ConfigPage() {
               {/* Tab Content */}
               {currentTab && groupedConfig[currentTab] && (
                 <div className="flex-1 divide-y divide-gray-100 bg-white">
-                  <div className="px-6 py-4 bg-gradient-to-r from-blue-50/50 to-transparent">
+                  <div className="px-6 py-4 bg-gray-50/50">
                     <h3 className="text-xl font-semibold text-gray-900 capitalize">
                       {currentTab.replace(/_/g, " ")}
                     </h3>
@@ -332,6 +532,24 @@ export default function ConfigPage() {
                       {groupedConfig[currentTab].length} settings
                     </p>
                   </div>
+
+                  {/* Cross-link banners to standalone settings pages that share
+                      these admin_config keys (same underlying rows). */}
+                  {relatedPages.length > 0 && (
+                    <div className="px-6 pt-4 space-y-3">
+                      {relatedPages.map((link) => (
+                        <SettingsLinkBanner
+                          key={link.href}
+                          message={link.message}
+                          href={link.href}
+                          linkLabel={link.label}
+                          testId={`config-link-${link.href
+                            .replace(/[^a-z0-9]+/gi, "-")
+                            .replace(/^-|-$/g, "")}`}
+                        />
+                      ))}
+                    </div>
+                  )}
 
                   {groupedConfig[currentTab].map((item) => {
                     if (!item || !item.key) return null;
@@ -408,10 +626,17 @@ export default function ConfigPage() {
                             </div>
                           </div>
                         </div>
-                        <div className="mt-4 text-xs text-gray-500 flex items-center gap-2">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                          Last updated:{" "}
-                          {new Date(item.updated_at).toLocaleString()}
+                        <div className="mt-4 flex items-center gap-2">
+                          <svg className="w-4 h-4" style={{ color: "#4D4D4D" }} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                          <LastUpdatedLabel
+                            updatedAt={item.updated_at}
+                            editor={
+                              editorEmails[(item as any).updated_by] ||
+                              (item as any).updated_by ||
+                              null
+                            }
+                            testId={`last-updated-${item.key}`}
+                          />
                         </div>
                       </div>
                     );
@@ -535,14 +760,14 @@ function SMSRateLimitStats() {
           <p className="text-xs text-green-600 mt-1">SMS sent this hour</p>
         </div>
 
-        <div className="bg-purple-50 rounded-lg p-4">
-          <p className="text-sm text-purple-600 font-medium mb-1">
+        <div className="bg-gray-50 rounded-lg p-4">
+          <p className="text-sm text-gray-600 font-medium mb-1">
             Unique Phones
           </p>
-          <p className="text-3xl font-bold text-purple-900">
+          <p className="text-3xl font-bold text-gray-900">
             {stats?.uniquePhonesThisHour || 0}
           </p>
-          <p className="text-xs text-purple-600 mt-1">This hour</p>
+          <p className="text-xs text-gray-600 mt-1">This hour</p>
         </div>
 
         <div className="bg-red-50 rounded-lg p-4">

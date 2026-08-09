@@ -119,8 +119,8 @@ export default function NewPolicyPage() {
             ← Back to Policies
           </button>
         </Link>
-        <h1 className="text-3xl font-bold">Create {POLICY_LABELS[policyType]}</h1>
-        <p className="text-gray-600 mt-2">
+        <h1 className="text-[32px] font-bold leading-10" style={{ letterSpacing: '-0.5px' }}>Create {POLICY_LABELS[policyType]}</h1>
+        <p className="text-sm mt-2" style={{ color: 'var(--text-secondary)' }}>
           Create a new version of the {POLICY_LABELS[policyType]}
         </p>
       </div>

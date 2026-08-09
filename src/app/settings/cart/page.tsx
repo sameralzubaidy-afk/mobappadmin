@@ -7,6 +7,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import {
+  getAdminConfigMeta,
+  getCurrentAdminId,
+  formatUpdatedMeta,
+  type AdminConfigMetaRow,
+} from '@/lib/settingsAudit';
+import SettingsLinkBanner from '@/components/settings/SettingsLinkBanner';
+import LastUpdatedLabel from '@/components/settings/LastUpdatedLabel';
 
 interface CartConfig {
   cart_min_value_cents: number;
@@ -30,6 +38,8 @@ export default function CartSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [success, setSuccess] = useState<string | null>(null);
+  // Last-updated metadata per key (admin_config.updated_at + updated_by).
+  const [meta, setMeta] = useState<Record<string, AdminConfigMetaRow>>({});
 
   useEffect(() => {
     loadSettings();
@@ -54,6 +64,10 @@ export default function CartSettingsPage() {
       });
 
       setSettings((prev) => ({ ...prev, ...parsed }));
+
+      // Same "Last updated" metadata the /config hub shows for these keys.
+      const metaRows = await getAdminConfigMeta(supabase, Object.keys(DEFAULT_CONFIG));
+      setMeta(metaRows);
     } catch (err: unknown) {
       console.error('[CartSettings] load error:', err);
     } finally {
@@ -83,6 +97,10 @@ export default function CartSettingsPage() {
     setSuccess(null);
 
     try {
+      // Record the acting admin so admin_config.updated_by is set — the same
+      // audit source the /config hub uses.
+      const adminId = await getCurrentAdminId(supabase);
+
       const entries: Array<[keyof CartConfig, number]> = [
         ['cart_min_value_cents', settings.cart_min_value_cents],
         ['cart_max_saved_carts', settings.cart_max_saved_carts],
@@ -97,8 +115,20 @@ export default function CartSettingsPage() {
           p_data_type: 'number',
           p_is_secret: false,
           p_is_active: true,
+          p_admin_id: adminId ?? null,
         });
         if (error) throw new Error(`Failed to save ${key}: ${error.message}`);
+      }
+
+      // Audit trail (shared admin_audit_log table — same as the other settings
+      // pages and the /config hub).
+      if (adminId) {
+        await supabase.from('admin_audit_log').insert({
+          admin_id: adminId,
+          action: 'update_cart_settings',
+          entity_type: 'admin_config',
+          changes: settings,
+        });
       }
 
       setSuccess('Cart settings saved successfully!');
@@ -128,11 +158,21 @@ export default function CartSettingsPage() {
 
   return (
     <div className="max-w-2xl mx-auto p-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">Cart Settings</h1>
-      <p className="text-sm text-gray-500 mb-8">
+      <h1 className="text-[32px] font-bold leading-10 text-gray-900 mb-2" style={{ letterSpacing: '-0.5px' }}>Cart Settings</h1>
+      <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
         Configure cart rules enforced across iOS and Android apps.
         Changes take effect immediately (fetched from admin_config at checkout).
       </p>
+
+      {/* Cross-link: these settings share the same admin_config rows as /config → Feature Flags */}
+      <div className="mb-4">
+        <SettingsLinkBanner
+          message="Related settings also live in Config → Feature Flags."
+          href="/config?tab=feature_flags"
+          linkLabel="Open Config → Feature Flags"
+          testId="cart-settings-config-link"
+        />
+      </div>
 
       {success && (
         <div className="mb-6 p-4 rounded-lg bg-green-50 border border-green-200 text-green-800 text-sm">
@@ -169,6 +209,10 @@ export default function CartSettingsPage() {
           {errors.cart_min_value_cents && (
             <p className="mt-1 text-xs text-red-600">{errors.cart_min_value_cents}</p>
           )}
+          <LastUpdatedLabel
+            {...formatUpdatedMeta(meta.cart_min_value_cents)}
+            testId="last-updated-cart_min_value_cents"
+          />
         </div>
 
         {/* Max Saved Carts */}
@@ -197,6 +241,10 @@ export default function CartSettingsPage() {
           {errors.cart_max_saved_carts && (
             <p className="mt-1 text-xs text-red-600">{errors.cart_max_saved_carts}</p>
           )}
+          <LastUpdatedLabel
+            {...formatUpdatedMeta(meta.cart_max_saved_carts)}
+            testId="last-updated-cart_max_saved_carts"
+          />
         </div>
 
         {/* Saved Cart Expiry */}
@@ -226,6 +274,10 @@ export default function CartSettingsPage() {
           {errors.cart_saved_expiry_days && (
             <p className="mt-1 text-xs text-red-600">{errors.cart_saved_expiry_days}</p>
           )}
+          <LastUpdatedLabel
+            {...formatUpdatedMeta(meta.cart_saved_expiry_days)}
+            testId="last-updated-cart_saved_expiry_days"
+          />
         </div>
       </div>
 

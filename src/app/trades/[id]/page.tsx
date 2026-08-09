@@ -200,9 +200,15 @@ export default async function TradeDetailPage({ params }: Props) {
                 <span className="text-gray-600">Platform Fee</span>
                 <span className="font-medium">${(trade.buyer_transaction_fee_cents / 100).toFixed(2)}</span>
               </div>
+              {/* TAX-VISIBILITY (2026-07-30): include sales tax in the per-trade monetary
+                  breakdown — previously omitted, understating the real buyer cost. */}
+              <div className="flex justify-between py-2 border-b border-gray-100">
+                <span className="text-gray-600">Sales Tax</span>
+                <span className="font-medium">${((trade.tax_amount_cents || 0) / 100).toFixed(2)}</span>
+              </div>
               <div className="flex justify-between py-2 font-bold text-lg">
                 <span>Total Charged (Cash)</span>
-                <span>${((trade.cash_amount_cents + trade.buyer_transaction_fee_cents) / 100).toFixed(2)}</span>
+                <span>${((trade.cash_amount_cents + trade.buyer_transaction_fee_cents + (trade.tax_amount_cents || 0)) / 100).toFixed(2)}</span>
               </div>
             </div>
           </div>
@@ -391,7 +397,13 @@ export default async function TradeDetailPage({ params }: Props) {
             </div>
           </div>
 
-          <TradeActions tradeId={trade.id} status={trade.status} />
+          <TradeActions
+            tradeId={trade.id}
+            status={trade.status}
+            cashAmountCents={trade.cash_amount_cents ?? 0}
+            feeCents={trade.buyer_transaction_fee_cents ?? 0}
+            taxCents={trade.tax_amount_cents ?? 0}
+          />
         </div>
       </div>
     </div>

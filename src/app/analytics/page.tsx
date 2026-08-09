@@ -202,7 +202,7 @@ export default function RevenueAnalyticsDashboard() {
           <MetricCard
             title="ARR (Annual Recurring Revenue)"
             value={formatCurrency(revenue.subscription_revenue.arr)}
-            color="purple"
+            color="primary"
             testId="metric-arr"
             subtitle="MRR × 12"
           />
@@ -216,7 +216,7 @@ export default function RevenueAnalyticsDashboard() {
           <MetricCard
             title="Total Transaction Fees"
             value={formatCurrency(revenue.transaction_fee_revenue.total)}
-            color="indigo"
+            color="secondary"
             testId="metric-total-fees"
             subtitle={`${dateRange.toUpperCase()} Period`}
           />
@@ -271,14 +271,14 @@ export default function RevenueAnalyticsDashboard() {
           <MetricCard
             title="DAU (Daily Active Users)"
             value={formatNumber(engagement.daily.total)}
-            color="violet"
+            color="success"
             testId="metric-dau"
             subtitle={`${formatNumber(engagement.daily.subscribers)} subscribers`}
           />
           <MetricCard
             title="MAU (Monthly Active Users)"
             value={formatNumber(engagement.monthly.total)}
-            color="fuchsia"
+            color="accent"
             testId="metric-mau"
             subtitle={`${formatNumber(engagement.monthly.subscribers)} subscribers`}
           />
@@ -338,7 +338,7 @@ export default function RevenueAnalyticsDashboard() {
                       <td className="py-2 px-3">
                         {new Date(point.period).toLocaleDateString()}
                       </td>
-                      <td className="text-right py-2 px-3 text-indigo-600">
+                      <td className="text-right py-2 px-3 text-secondary-600">
                         {formatCurrency(point.transaction_fees)}
                       </td>
                       <td className="text-right py-2 px-3 text-green-600">
@@ -380,7 +380,7 @@ export default function RevenueAnalyticsDashboard() {
 interface MetricCardProps {
   title: string;
   value: string;
-  color: 'blue' | 'green' | 'purple' | 'indigo' | 'cyan' | 'orange' | 'emerald' | 'gray' | 'pink' | 'violet' | 'fuchsia' | 'rose' | 'amber';
+  color: 'blue' | 'green' | 'primary' | 'secondary' | 'cyan' | 'orange' | 'emerald' | 'gray' | 'pink' | 'success' | 'accent' | 'rose' | 'amber';
   testId: string;
   subtitle?: string;
 }
@@ -389,15 +389,15 @@ function MetricCard({ title, value, color, testId, subtitle }: MetricCardProps) 
   const colorClasses = {
     blue: 'bg-blue-50 border-blue-200 text-blue-900',
     green: 'bg-green-50 border-green-200 text-green-900',
-    purple: 'bg-purple-50 border-purple-200 text-purple-900',
-    indigo: 'bg-indigo-50 border-indigo-200 text-indigo-900',
+    primary: 'bg-primary-50 border-primary-100 text-primary-800',
+    secondary: 'bg-secondary-100 border-secondary-400 text-secondary-700',
     cyan: 'bg-cyan-50 border-cyan-200 text-cyan-900',
     orange: 'bg-orange-50 border-orange-200 text-orange-900',
     emerald: 'bg-emerald-50 border-emerald-200 text-emerald-900',
     gray: 'bg-gray-50 border-gray-200 text-gray-900',
     pink: 'bg-pink-50 border-pink-200 text-pink-900',
-    violet: 'bg-violet-50 border-violet-200 text-violet-900',
-    fuchsia: 'bg-fuchsia-50 border-fuchsia-200 text-fuchsia-900',
+    success: 'bg-success-50 border-success-100 text-success-900',
+    accent: 'bg-accent-100 border-accent-400 text-accent-700',
     rose: 'bg-rose-50 border-rose-200 text-rose-900',
     amber: 'bg-amber-50 border-amber-200 text-amber-900',
   };

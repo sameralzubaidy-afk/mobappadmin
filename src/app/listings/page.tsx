@@ -10,12 +10,18 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import ListingSearch from '../components/ListingSearch';
 import ListingAnalytics from '../components/ListingAnalytics';
 
 export default function ListingsPage() {
   const [activeTab, setActiveTab] = useState<'search' | 'analytics'>('search');
+
+  // Open the Analytics tab when deep-linked with ?tab=analytics (command palette).
+  useEffect(() => {
+    const tab = new URLSearchParams(window.location.search).get('tab');
+    if (tab === 'analytics') setActiveTab('analytics');
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">

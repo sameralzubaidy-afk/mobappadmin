@@ -46,12 +46,30 @@ interface PayoutStats {
 
 type PayoutStatus = 'all' | 'requires_action' | 'pending' | 'processing' | 'completed' | 'failed';
 
+const PAYOUT_STATUSES: PayoutStatus[] = [
+  'all',
+  'requires_action',
+  'pending',
+  'processing',
+  'completed',
+  'failed',
+];
+
+// Support deep-links like /payouts/earnings?status=failed (used by the dashboard
+// health strip "Failed Payouts" indicator). Falls back to 'all' for any value
+// that isn't a valid PayoutStatus.
+function getInitialStatusFilter(): PayoutStatus {
+  if (typeof window === 'undefined') return 'all';
+  const raw = new URLSearchParams(window.location.search).get('status');
+  return (PAYOUT_STATUSES as string[]).includes(raw ?? '') ? (raw as PayoutStatus) : 'all';
+}
+
 export default function AdminPayoutsPage() {
   const [payouts, setPayouts] = useState<SellerPayout[]>([]);
   const [stats, setStats] = useState<PayoutStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<PayoutStatus>('all');
+  const [statusFilter, setStatusFilter] = useState<PayoutStatus>(getInitialStatusFilter);
   const [error, setError] = useState<string | null>(null);
   const [selectedPayout, setSelectedPayout] = useState<SellerPayout | null>(null);
 
@@ -102,7 +120,7 @@ export default function AdminPayoutsPage() {
       day: 'numeric',
       year: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     });
   };
 
@@ -134,7 +152,7 @@ export default function AdminPayoutsPage() {
 
     try {
       const res = await fetch(`/api/admin/payouts/${payoutId}/retry`, {
-        method: 'POST'
+        method: 'POST',
       });
 
       if (!res.ok) {
@@ -219,19 +237,17 @@ export default function AdminPayoutsPage() {
         )}
       </td>
       <td className="px-4 py-3 text-sm">
-        <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium border ${getStatusBadgeClass(payout.status)}`}>
+        <span
+          className={`inline-block px-2 py-1 rounded-full text-xs font-medium border ${getStatusBadgeClass(payout.status)}`}
+        >
           {getStatusLabel(payout.status)}
         </span>
       </td>
       <td className="px-4 py-3 text-sm font-medium text-gray-900">
         {formatAmount(payout.net_amount_cents)}
       </td>
-      <td className="px-4 py-3 text-sm text-gray-600">
-        {payout.provider || 'N/A'}
-      </td>
-      <td className="px-4 py-3 text-sm text-gray-600">
-        {formatDate(payout.created_at)}
-      </td>
+      <td className="px-4 py-3 text-sm text-gray-600">{payout.provider || 'N/A'}</td>
+      <td className="px-4 py-3 text-sm text-gray-600">{formatDate(payout.created_at)}</td>
       <td className="px-4 py-3 text-sm">
         {payout.status === 'failed' && (
           <button
@@ -280,7 +296,9 @@ export default function AdminPayoutsPage() {
                 <div>
                   <label className="text-sm text-gray-600">Status</label>
                   <div>
-                    <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium border ${getStatusBadgeClass(selectedPayout.status)}`}>
+                    <span
+                      className={`inline-block px-2 py-1 rounded-full text-xs font-medium border ${getStatusBadgeClass(selectedPayout.status)}`}
+                    >
                       {getStatusLabel(selectedPayout.status)}
                     </span>
                   </div>
@@ -304,15 +322,21 @@ export default function AdminPayoutsPage() {
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Gross Amount</span>
-                    <span className="font-medium">{formatAmount(selectedPayout.gross_amount_cents)}</span>
+                    <span className="font-medium">
+                      {formatAmount(selectedPayout.gross_amount_cents)}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Platform Fee</span>
-                    <span className="font-medium">-{formatAmount(selectedPayout.platform_fee_cents)}</span>
+                    <span className="font-medium">
+                      -{formatAmount(selectedPayout.platform_fee_cents)}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Payout Fee</span>
-                    <span className="font-medium">-{formatAmount(selectedPayout.payout_fee_cents)}</span>
+                    <span className="font-medium">
+                      -{formatAmount(selectedPayout.payout_fee_cents)}
+                    </span>
                   </div>
                   <div className="flex justify-between border-t pt-2">
                     <span className="font-semibold">Net Amount</span>
@@ -332,11 +356,15 @@ export default function AdminPayoutsPage() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Reference ID</span>
-                    <span className="font-mono text-sm">{selectedPayout.provider_reference_id || 'N/A'}</span>
+                    <span className="font-mono text-sm">
+                      {selectedPayout.provider_reference_id || 'N/A'}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Idempotency Key</span>
-                    <span className="font-mono text-xs">{selectedPayout.idempotency_key || 'N/A'}</span>
+                    <span className="font-mono text-xs">
+                      {selectedPayout.idempotency_key || 'N/A'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -378,9 +406,7 @@ export default function AdminPayoutsPage() {
     <div className="p-8 max-w-7xl mx-auto">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Seller Payouts</h1>
-        <p className="text-gray-600">
-          Search and manage all seller payouts across the platform
-        </p>
+        <p className="text-gray-600">Search and manage all seller payouts across the platform</p>
       </div>
 
       {renderStats()}
@@ -389,8 +415,18 @@ export default function AdminPayoutsPage() {
         <div className="p-4 border-b">
           <div className="flex gap-4 items-center">
             <div className="flex-1 relative">
-              <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              <svg
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
               </svg>
               <input
                 type="text"
@@ -419,8 +455,18 @@ export default function AdminPayoutsPage() {
               disabled={loading}
               className={`px-4 py-2 border rounded-lg flex items-center gap-2 ${loading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}
             >
-              <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              <svg
+                className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
               </svg>
               Refresh
             </button>
@@ -430,7 +476,12 @@ export default function AdminPayoutsPage() {
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                />
               </svg>
               Export
             </button>
@@ -441,7 +492,12 @@ export default function AdminPayoutsPage() {
           <div className="p-4 border-t">
             <div className="flex items-center gap-2 text-red-800">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
               <span>{error}</span>
             </div>
@@ -462,18 +518,30 @@ export default function AdminPayoutsPage() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Seller</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Trade ID</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Net Amount</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Provider</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Created</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Actions</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                    Seller
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                    Trade ID
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                    Status
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                    Net Amount
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                    Provider
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                    Created
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                    Actions
+                  </th>
                 </tr>
               </thead>
-              <tbody className="divide-y">
-                {payouts.map(renderPayoutRow)}
-              </tbody>
+              <tbody className="divide-y">{payouts.map(renderPayoutRow)}</tbody>
             </table>
           </div>
         )}

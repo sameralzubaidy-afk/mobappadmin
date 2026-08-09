@@ -191,7 +191,7 @@ export function SPHealthPanel() {
               data-testid={`sp-health-range-${p}`}
               className={`px-3 py-1 text-sm rounded ${
                 preset === p
-                  ? 'bg-indigo-600 text-white'
+                  ? 'bg-primary-600 text-white'
                   : 'text-gray-600 hover:bg-gray-100'
               }`}
             >

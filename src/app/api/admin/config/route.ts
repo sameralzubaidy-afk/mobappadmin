@@ -126,30 +126,40 @@ export async function PATCH(req: Request) {
       throw new Error(result.error || 'Failed to update configuration via secure RPC');
     }
 
-    // Try to log to audit trail (non-blocking)
-    try {
-      const auditResponse = await fetch(`${SUPABASE_URL}/rest/v1/audit_logs`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': ANON_KEY || '',
-          'Authorization': `Bearer ${ANON_KEY}`,
-        },
-        body: JSON.stringify({
-          user_id: user_id || null,
-          action: 'UPDATE_CONFIG',
-          resource_type: 'admin_config',
-          resource_id: key,
-          details: {
-            key,
-            old_value: body.old_value || null,
-            new_value: value,
-            timestamp: new Date().toISOString(),
+    // Log to the shared admin audit trail (non-blocking).
+    // Target: admin_audit_log (singular) — the table the standalone tax/cart/
+    // trade-timing/node settings pages also write to, so every settings edit
+    // lands in ONE audit trail regardless of which UI surface made it.
+    // NOTE: `audit_logs` (previously targeted here) does not exist in the DB,
+    // so those audit writes were silently dropped. entity_id is a UUID column,
+    // so the config key goes into `changes` instead.
+    if (user_id) {
+      try {
+        const auditResponse = await fetch(`${SUPABASE_URL}/rest/v1/admin_audit_log`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': WRITE_KEY,
+            'Authorization': `Bearer ${WRITE_KEY}`,
           },
-        }),
-      });
-    } catch (auditErr) {
-      console.warn('[Admin Config PATCH] Audit log failed (non-blocking):', auditErr);
+          body: JSON.stringify({
+            admin_id: user_id,
+            action: 'update_config',
+            entity_type: 'admin_config',
+            changes: {
+              key,
+              old_value: body.old_value || null,
+              new_value: value,
+              timestamp: new Date().toISOString(),
+            },
+          }),
+        });
+        if (!auditResponse.ok) {
+          console.warn('[Admin Config PATCH] Audit log failed (non-blocking):', auditResponse.status);
+        }
+      } catch (auditErr) {
+        console.warn('[Admin Config PATCH] Audit log failed (non-blocking):', auditErr);
+      }
     }
 
     return jsonNoStore({ data: result.data });

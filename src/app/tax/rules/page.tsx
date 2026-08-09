@@ -19,6 +19,8 @@
 
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import { resolveAdminEmails } from '@/lib/settingsAudit';
+import SettingsLinkBanner from '@/components/settings/SettingsLinkBanner';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                             */
@@ -131,8 +133,11 @@ export default function TaxRulesPage() {
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
   const [form, setForm] = useState<RuleForm>(EMPTY_FORM);
   const [filterCategory, setFilterCategory] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [showHistory, setShowHistory] = useState<string | null>(null);
   const [confirmDeactivate, setConfirmDeactivate] = useState<string | null>(null);
+  // Resolved editor emails for rule updated_by ids (shared audit trail).
+  const [editorEmails, setEditorEmails] = useState<Record<string, string>>({});
 
   /* ---- Load data ---- */
   const load = useCallback(async () => {
@@ -146,7 +151,17 @@ export default function TaxRulesPage() {
       if (catRes.error) throw catRes.error;
       if (ruleRes.error) throw ruleRes.error;
       setCategories((catRes.data ?? []) as TaxCategory[]);
-      setRules((ruleRes.data ?? []) as TaxRule[]);
+      const ruleList = (ruleRes.data ?? []) as TaxRule[];
+      setRules(ruleList);
+
+      // Resolve editor emails for the "by <editor>" labels.
+      const editorIds = Array.from(
+        new Set(ruleList.map((r) => r.updated_by).filter(Boolean) as string[])
+      );
+      if (editorIds.length) {
+        const emails = await resolveAdminEmails(supabase, editorIds);
+        setEditorEmails(emails);
+      }
     } catch (e: any) {
       setError(e?.message ?? 'Failed to load');
     } finally {
@@ -271,8 +286,10 @@ export default function TaxRulesPage() {
 
   /* ---- Filter rules ---- */
   const filteredRules = rules.filter((r) => {
-    if (!filterCategory) return true;
-    return r.tax_category_id === filterCategory;
+    if (filterCategory && r.tax_category_id !== filterCategory) return false;
+    if (statusFilter === 'active' && !r.is_active) return false;
+    if (statusFilter === 'inactive' && r.is_active) return false;
+    return true;
   });
 
   /* ---- Get history for a category ---- */
@@ -292,6 +309,16 @@ export default function TaxRulesPage() {
         effective-dated. Editing a rule creates a new prospective version — historical
         rules are preserved.
       </p>
+
+      {/* Cross-link: global sales-tax switches live in /config → Tax */}
+      <div className="mb-4">
+        <SettingsLinkBanner
+          message="Global sales-tax settings live in Config → Tax. This page manages per-category tax rules only."
+          href="/config?tab=tax"
+          linkLabel="Open Config → Tax"
+          testId="tax-rules-config-link"
+        />
+      </div>
 
       {/* Help text */}
       <div className="bg-blue-50 border border-blue-200 text-blue-800 rounded p-3 mb-4 text-sm">
@@ -335,6 +362,17 @@ export default function TaxRulesPage() {
               {c.name}
             </option>
           ))}
+        </select>
+
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}
+          className="border rounded px-3 py-2 text-sm"
+          data-testid="tax-rule-filter-status"
+        >
+          <option value="all">All statuses</option>
+          <option value="active">Active only</option>
+          <option value="inactive">Inactive only</option>
         </select>
 
         <button
@@ -575,13 +613,14 @@ export default function TaxRulesPage() {
                 <th className="text-left p-2 border-b">Jur.</th>
                 <th className="text-left p-2 border-b">Price Range</th>
                 <th className="text-left p-2 border-b">Effective</th>
+                <th className="text-left p-2 border-b">Last Updated</th>
                 <th className="text-left p-2 border-b">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredRules.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="p-4 text-center text-gray-500">
+                  <td colSpan={11} className="p-4 text-center text-gray-500">
                     No tax rules found. Create one to get started.
                   </td>
                 </tr>
@@ -617,6 +656,17 @@ export default function TaxRulesPage() {
                     <td className="p-2 text-xs">
                       {fmtDate(rule.effective_from)}
                       {rule.effective_to ? <> → {fmtDate(rule.effective_to)}</> : ' → Ongoing'}
+                    </td>
+                    <td className="p-2 text-xs" data-testid={`tax-rule-last-updated-${rule.id}`}>
+                      {fmtDate(rule.updated_at)}
+                      {rule.updated_by && (
+                        <>
+                          <br />
+                          <span className="text-gray-500">
+                            by {editorEmails[rule.updated_by] || rule.updated_by}
+                          </span>
+                        </>
+                      )}
                     </td>
                     <td className="p-2">
                       <div className="flex gap-1">
@@ -699,7 +749,17 @@ export default function TaxRulesPage() {
                     </td>
                     <td className="p-2">{fmtDate(rule.effective_from)}</td>
                     <td className="p-2">{fmtDate(rule.effective_to)}</td>
-                    <td className="p-2">{fmtDate(rule.updated_at)}</td>
+                    <td className="p-2">
+                      {fmtDate(rule.updated_at)}
+                      {rule.updated_by && (
+                        <>
+                          <br />
+                          <span className="text-gray-500">
+                            by {editorEmails[rule.updated_by] || rule.updated_by}
+                          </span>
+                        </>
+                      )}
+                    </td>
                   </tr>
                 ))}
                 {historyForCategory.length === 0 && (

@@ -41,26 +41,38 @@ export default async function SPEconomySummary(): Promise<JSX.Element | null> {
 
   return (
     <div
-      className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"
+      className="grid grid-cols-2 md:grid-cols-4 gap-4"
       data-testid="sp-economy-summary"
     >
-      <div className="bg-white p-4 rounded shadow-sm border border-gray-200">
-        <p className="text-sm text-gray-500 uppercase font-semibold">SP Circulation</p>
-        <p className="text-2xl font-bold text-indigo-600">{fmt(metrics.current_circulation)} SP</p>
+      <div
+        className="bg-white p-4 rounded-2xl border" // 16px radius (§8.2)
+        style={{ boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.08)', borderColor: 'var(--neutral-300)' }} // Level 1 shadow (§8.1)
+      >
+        <p className="text-xs text-gray-500 uppercase font-semibold tracking-wider">SP Circulation</p>
+        <p className="text-2xl font-bold" style={{ color: 'var(--sp-500)' }}>{fmt(metrics.current_circulation)} SP</p>
       </div>
 
-      <div className="bg-white p-4 rounded shadow-sm border border-gray-200">
-        <p className="text-sm text-gray-500 uppercase font-semibold">Total Earned</p>
-        <p className="text-2xl font-bold text-green-600">{fmt(metrics.total_earned)} SP</p>
+      <div
+        className="bg-white p-4 rounded-2xl border"
+        style={{ boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.08)', borderColor: 'var(--neutral-300)' }}
+      >
+        <p className="text-xs text-gray-500 uppercase font-semibold tracking-wider">Total Earned</p>
+        <p className="text-2xl font-bold" style={{ color: 'var(--success-500)' }}>{fmt(metrics.total_earned)} SP</p>
       </div>
 
-      <div className="bg-white p-4 rounded shadow-sm border border-gray-200">
-        <p className="text-sm text-gray-500 uppercase font-semibold">Total Spent</p>
-        <p className="text-2xl font-bold text-red-600">{fmt(metrics.total_spent)} SP</p>
+      <div
+        className="bg-white p-4 rounded-2xl border"
+        style={{ boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.08)', borderColor: 'var(--neutral-300)' }}
+      >
+        <p className="text-xs text-gray-500 uppercase font-semibold tracking-wider">Total Spent</p>
+        <p className="text-2xl font-bold" style={{ color: 'var(--error-500)' }}>{fmt(metrics.total_spent)} SP</p>
       </div>
 
-      <div className="bg-white p-4 rounded shadow-sm border border-gray-200">
-        <p className="text-sm text-gray-500 uppercase font-semibold">Active Wallets</p>
+      <div
+        className="bg-white p-4 rounded-2xl border"
+        style={{ boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.08)', borderColor: 'var(--neutral-300)' }}
+      >
+        <p className="text-xs text-gray-500 uppercase font-semibold tracking-wider">Active Wallets</p>
         <p className="text-2xl font-bold">{fmt(metrics.active_wallets)}</p>
       </div>
     </div>
