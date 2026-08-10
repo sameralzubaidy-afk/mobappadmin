@@ -4,7 +4,7 @@
 // TFV2-001: Admin UI for trade timing configuration
 // Reads/writes the 8 TradeTimingConfig keys from admin_config table.
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { TradeTimingConfig } from '@/types/config';
 import {
@@ -39,10 +39,27 @@ const DEFAULT_CONFIG: TradeTimingConfig = {
   platform_fee_buyer_fixed_cents: 25,
   platform_fee_buyer_percentage: 2.5,
   charge_one_fee_per_bundle: false,
+  // R1 — Tiered Buyer-Fee Engine (first-trade protection). SEED defaults only —
+  // the live values live in admin_config (fees) and are read at checkout by
+  // fn_get_buyer_fee_for_checkout. Active members + first-trade users pay a flat
+  // fee; free users with 1+ completed trades pay % of cash + fixed, capped.
+  buyer_fee_active_member_cents: 149,
+  buyer_fee_first_trade_cents: 149,
+  buyer_fee_subsequent_percentage: 5.0,
+  buyer_fee_subsequent_fixed_cents: 199,
+  buyer_fee_subsequent_max_cents: 499,
+  buyer_fee_label: 'Safety & Platform Fee',
   // B2: Seller fee per tier. Defaults match the admin_config seeds in
   // 20250113_create_admin_config.sql (free=5, subscriber=0). Both are editable here.
   platform_fee_seller_percentage: 5,
   platform_fee_seller_discount_percentage_kids_club_plus: 0,
+  // LEGACY fee keys (consolidated from /config so Trade Timing is the single fee
+  // surface). NOT read by current checkout — kept editable for audit only.
+  // Defaults match the 20260528 seeds (member=99, non_member=299) and the
+  // 20250113 seed (freemium seller discount=0).
+  transaction_fee_member_cents: 99,
+  transaction_fee_non_member_cents: 299,
+  platform_fee_seller_discount_percentage_freemium: 0,
 };
 
 export default function TradeTimingSettingsPage() {
@@ -57,10 +74,35 @@ export default function TradeTimingSettingsPage() {
   const [success, setSuccess] = useState<string | null>(null);
   // Last-updated metadata per key (admin_config.updated_at + updated_by).
   const [meta, setMeta] = useState<Record<string, AdminConfigMetaRow>>({});
+  // R1 — Buyer fee-tier distribution stats (how many users are in each tier).
+  const [feeTierStats, setFeeTierStats] = useState<
+    Array<{ fee_state: string; user_count: number; fee_tier: string }>
+  >([]);
+  const [feeTierStatsLoading, setFeeTierStatsLoading] = useState(false);
 
   useEffect(() => {
     loadSettings();
   }, []);
+
+  // R1 — Fee-tier distribution (BP-49: send x-admin-secret on /api/admin/* fetches).
+  const loadFeeTierStats = useCallback(async () => {
+    setFeeTierStatsLoading(true);
+    try {
+      const res = await fetch('/api/admin/fee-tier-stats', {
+        headers: { 'x-admin-secret': process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '' },
+      });
+      const json = await res.json();
+      if (json.success) setFeeTierStats(json.data ?? []);
+    } catch (err) {
+      console.error('[TradeTimingSettings] fee-tier stats load error:', err);
+    } finally {
+      setFeeTierStatsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadFeeTierStats();
+  }, [loadFeeTierStats]);
 
   const loadSettings = async () => {
     try {
@@ -148,6 +190,19 @@ export default function TradeTimingSettingsPage() {
     ) {
       e.platform_fee_seller_discount_percentage_kids_club_plus = 'Must be between 0 and 100';
     }
+    // Legacy fee keys (audit-only; not read by current checkout).
+    if (settings.transaction_fee_member_cents < 0) {
+      e.transaction_fee_member_cents = 'Cannot be negative';
+    }
+    if (settings.transaction_fee_non_member_cents < 0) {
+      e.transaction_fee_non_member_cents = 'Cannot be negative';
+    }
+    if (
+      settings.platform_fee_seller_discount_percentage_freemium < 0 ||
+      settings.platform_fee_seller_discount_percentage_freemium > 100
+    ) {
+      e.platform_fee_seller_discount_percentage_freemium = 'Must be between 0 and 100';
+    }
     if (settings.max_pending_offers_per_seller < 1) {
       e.max_pending_offers_per_seller = 'Must be at least 1';
     }
@@ -199,6 +254,28 @@ export default function TradeTimingSettingsPage() {
     ) {
       e.platform_fee_buyer_percentage = 'Must be between 0 and 100';
     }
+    // R1 — Tiered Buyer-Fee Engine validation.
+    if (settings.buyer_fee_active_member_cents < 0) {
+      e.buyer_fee_active_member_cents = 'Cannot be negative';
+    }
+    if (settings.buyer_fee_first_trade_cents < 0) {
+      e.buyer_fee_first_trade_cents = 'Cannot be negative';
+    }
+    if (
+      settings.buyer_fee_subsequent_percentage < 0 ||
+      settings.buyer_fee_subsequent_percentage > 100
+    ) {
+      e.buyer_fee_subsequent_percentage = 'Must be between 0 and 100';
+    }
+    if (settings.buyer_fee_subsequent_fixed_cents < 0) {
+      e.buyer_fee_subsequent_fixed_cents = 'Cannot be negative';
+    }
+    if (settings.buyer_fee_subsequent_max_cents < settings.buyer_fee_subsequent_fixed_cents) {
+      e.buyer_fee_subsequent_max_cents = 'Must be at least the fixed fee';
+    }
+    if (settings.buyer_fee_label.trim() === '') {
+      e.buyer_fee_label = 'Cannot be empty';
+    }
 
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -217,6 +294,17 @@ export default function TradeTimingSettingsPage() {
     platform_fee_buyer_fixed_cents: 'fees',
     platform_fee_buyer_percentage: 'fees',
     charge_one_fee_per_bundle: 'fees',
+    // R1 — Tiered Buyer-Fee Engine params live in the fees category.
+    buyer_fee_active_member_cents: 'fees',
+    buyer_fee_first_trade_cents: 'fees',
+    buyer_fee_subsequent_percentage: 'fees',
+    buyer_fee_subsequent_fixed_cents: 'fees',
+    buyer_fee_subsequent_max_cents: 'fees',
+    buyer_fee_label: 'fees',
+    // Legacy fee keys — keep in 'fees' to match their admin_config seeds.
+    transaction_fee_member_cents: 'fees',
+    transaction_fee_non_member_cents: 'fees',
+    platform_fee_seller_discount_percentage_freemium: 'fees',
   };
 
   // Boolean keys must save with data_type 'boolean' (admin_config data_type CHECK).
@@ -330,6 +418,37 @@ export default function TradeTimingSettingsPage() {
         <span className="text-sm text-gray-500">Enabled</span>
       </label>
       <p className="text-xs text-gray-500">{description}</p>
+      <LastUpdatedLabel
+        {...formatUpdatedMeta(meta[key as string])}
+        testId={`last-updated-${key}`}
+      />
+    </div>
+  );
+
+  // Text field for string admin_config keys (e.g. buyer_fee_label).
+  const textField = (
+    key: keyof TradeTimingConfig,
+    label: string,
+    description: string
+  ) => (
+    <div key={key} className="space-y-1">
+      <label className="block text-sm font-medium text-gray-700">{label}</label>
+      <input
+        type="text"
+        value={String(settings[key] ?? '')}
+        onChange={(e) =>
+          setSettings((prev) => ({ ...prev, [key]: e.target.value }))
+        }
+        className="w-72 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+        disabled={saving}
+        data-testid={`input-${key}`}
+      />
+      <p className="text-xs text-gray-500">{description}</p>
+      {errors[key] && (
+        <p className="text-xs text-red-600" data-testid={`error-${key}`}>
+          {errors[key]}
+        </p>
+      )}
       <LastUpdatedLabel
         {...formatUpdatedMeta(meta[key as string])}
         testId={`last-updated-${key}`}
@@ -537,11 +656,139 @@ export default function TradeTimingSettingsPage() {
             'Charge One Fee Per Bundle',
             'When enabled, a bundle charges the platform fee once instead of once per item. Single-item trades are unaffected. Applies to both free-tier and subscriber fixed fees.'
           )}
+          <div className="border-t border-gray-100 pt-4 mt-2 space-y-4">
+            <h3 className="text-sm font-semibold text-gray-800">
+              Tiered Buyer Fee — R1 (first-trade protection)
+            </h3>
+            <p className="text-xs text-gray-500">
+              Resolved at checkout by buyer fee-tier: active members and free users on their first trade pay a flat fee; free users with 1+ completed trades pay a percentage of the cash portion + a fixed fee, capped at the maximum. Swap Points never reduce the fee base. All values are dynamic — changes apply to new checkouts immediately.
+            </p>
+            {numField(
+              'buyer_fee_active_member_cents',
+              'Flat Fee — Active Members',
+              'Flat fee (cents) for active members (trial or paid). Example: 149 = $1.49.',
+              'cents',
+              0
+            )}
+            {numField(
+              'buyer_fee_first_trade_cents',
+              'Flat Fee — First Trade',
+              'Flat fee (cents) for free users on their first trade. Consumed only when the trade is successfully captured and completed.',
+              'cents',
+              0
+            )}
+            {numField(
+              'buyer_fee_subsequent_percentage',
+              'Percentage — Free users (1+ completed trades)',
+              'Percentage of the cash portion (order total minus Swap Points) for free users with 1+ completed trades. Example: 5 = 5%.',
+              '%',
+              0
+            )}
+            {numField(
+              'buyer_fee_subsequent_fixed_cents',
+              'Fixed Fee — Free users (1+ completed trades)',
+              'Fixed fee component (cents) for free users with 1+ completed trades. Example: 199 = $1.99.',
+              'cents',
+              0
+            )}
+            {numField(
+              'buyer_fee_subsequent_max_cents',
+              'Maximum Total Fee (cap)',
+              'Cap (cents) on the TOTAL fee (fixed + percentage) for free users with 1+ completed trades. Must be ≥ fixed fee. Example: 499 = $4.99.',
+              'cents',
+              0
+            )}
+            {textField(
+              'buyer_fee_label',
+              'Fee Display Label',
+              'Label shown to buyers on checkout / order summary (e.g. "Safety & Platform Fee").'
+            )}
+          </div>
+          <div className="border-t border-gray-100 pt-4 mt-2 space-y-4">
+            <h3 className="text-sm font-semibold text-gray-800">Legacy fee keys (audit only)</h3>
+            <p className="text-xs text-gray-500">
+              These keys were seeded under the old naming scheme and are NOT read by the
+              current checkout. They are surfaced here (single source) so no fee key is
+              editable on two pages. Changes have no effect on live trades — kept for
+              backward-compatibility auditing only.
+            </p>
+            {numField(
+              'transaction_fee_member_cents',
+              'Legacy Member Fee (cents)',
+              'Legacy: not used by current checkout. Replaced by "Kids Club+ Member Fee" (transaction_fee_subscriber_cents).',
+              'cents',
+              0
+            )}
+            {numField(
+              'transaction_fee_non_member_cents',
+              'Legacy Non-Member Fee (cents)',
+              'Legacy: not used by current checkout. Replaced by "Free-Tier User Fee" (transaction_fee_non_subscriber_cents).',
+              'cents',
+              0
+            )}
+            {numField(
+              'platform_fee_seller_discount_percentage_freemium',
+              'Legacy Seller Discount % — Free',
+              'Legacy: not used by current checkout. Replaced by "Seller Fee % — Free Tier" (platform_fee_seller_percentage, absolute per-tier, BP-38).',
+              '%',
+              0
+            )}
+          </div>
           <div className="bg-amber-50 border border-amber-200 rounded-md p-3">
             <p className="text-xs text-amber-800">
               ⚠️ Fee changes take effect on all new trades immediately. Existing pending trades are unaffected.
             </p>
           </div>
+        </section>
+
+        {/* R1 — Fee-Tier Distribution: how many users are in each buyer-fee tier. */}
+        <section className="bg-white rounded-lg border border-gray-200 p-6 space-y-5">
+          <h2 className="text-base font-semibold text-gray-800 border-b border-gray-100 pb-3">
+            Buyer Fee-Tier Distribution
+          </h2>
+          <p className="text-xs text-gray-500">
+            How many users are in each buyer-fee tier (flat vs percentage). Flat = active members + free users on their first trade; Percentage = free users with 1+ completed trades. Updated on load.
+          </p>
+          {feeTierStatsLoading ? (
+            <p className="text-sm text-gray-500">Loading…</p>
+          ) : feeTierStats.length === 0 ? (
+            <p className="text-sm text-gray-500">No fee-tier data yet.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-gray-500 border-b border-gray-100">
+                    <th className="py-2 pr-3">Tier</th>
+                    <th className="py-2 pr-3">Fee State</th>
+                    <th className="py-2">Users</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {feeTierStats.map((row) => (
+                    <tr key={row.fee_state} className="border-b border-gray-50">
+                      <td className="py-2 pr-3">
+                        <span
+                          className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                            row.fee_tier === 'flat'
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-blue-100 text-blue-800'
+                          }`}
+                        >
+                          {row.fee_tier === 'flat' ? 'Flat fee' : 'Percentage fee'}
+                        </span>
+                      </td>
+                      <td className="py-2 pr-3">
+                        {row.fee_state.replace(/_/g, ' ')}
+                      </td>
+                      <td className="py-2 font-medium">
+                        {row.user_count.toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
       </div>
 

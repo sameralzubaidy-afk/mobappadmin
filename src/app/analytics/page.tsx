@@ -5,6 +5,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import type { RevenueMetrics, EngagementMetrics, TimeSeriesDataPoint } from '@/lib/revenueAnalytics';
+import FeeTierDistributionCard from '@/components/analytics/FeeTierDistributionCard';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -181,6 +182,9 @@ export default function RevenueAnalyticsDashboard() {
         📊 Showing data from {new Date(periodStart).toLocaleDateString()} to{' '}
         {new Date(periodEnd).toLocaleDateString()}
       </div>
+
+      {/* R1 — Tiered Buyer-Fee Engine: fee-tier distribution (flat vs percentage). */}
+      <FeeTierDistributionCard />
 
       {/* Subscription Revenue Section */}
       <section className="mb-8">

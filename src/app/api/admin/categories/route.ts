@@ -100,7 +100,8 @@ export async function POST(request: NextRequest) {
   }
 
   const earningMultiplier = body.sp_earning_multiplier ?? 1.1;
-  const spendingCap = body.sp_spending_cap_percent ?? 70;
+  const spendingCap = body.sp_spending_cap_percent ?? 50;
+  const redemptionCap = body.sp_redemption_cap ?? null;
 
   if (earningMultiplier < SP_EARNING_MIN || earningMultiplier > SP_EARNING_MAX) {
     return NextResponse.json(
@@ -116,6 +117,18 @@ export async function POST(request: NextRequest) {
       {
         error: `sp_spending_cap_percent must be between ${SP_SPENDING_CAP_MIN} and ${SP_SPENDING_CAP_MAX}`,
       },
+      { status: 400 }
+    );
+  }
+
+  // R11: absolute per-item cap (0–1000, or null to disable)
+  if (
+    body.sp_redemption_cap !== undefined &&
+    body.sp_redemption_cap !== null &&
+    (body.sp_redemption_cap < 0 || body.sp_redemption_cap > 1000)
+  ) {
+    return NextResponse.json(
+      { error: 'sp_redemption_cap must be between 0 and 1000, or null' },
       { status: 400 }
     );
   }
@@ -155,6 +168,7 @@ export async function POST(request: NextRequest) {
       is_active: body.is_active ?? true,
       sp_earning_multiplier: earningMultiplier,
       sp_spending_cap_percent: spendingCap,
+      sp_redemption_cap: redemptionCap,
       sp_config_notes: body.sp_config_notes ?? null,
       display_order: displayOrder,
     })

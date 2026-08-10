@@ -28,6 +28,9 @@ const SP_EARNING_MAX = 1.40;
 const SP_SPENDING_CAP_MIN = 50;
 const SP_SPENDING_CAP_MAX = 80;
 
+// R11: absolute per-item SP redemption cap bounds (null = no absolute cap)
+const SP_REDEMPTION_CAP_MAX = 1000;
+
 // Icon upload constraints
 const MAX_ICON_SIZE_KB = 500;
 const MIN_ICON_DIMENSIONS = 100; // pixels
@@ -235,7 +238,7 @@ export async function createCategory(input: CreateCategoryInput): Promise<Catego
 
   // Validate SP rates if provided
   const earningMultiplier = input.sp_earning_multiplier ?? 1.10;
-  const spendingCap = input.sp_spending_cap_percent ?? 70;
+  const spendingCap = input.sp_spending_cap_percent ?? 50;
 
   if (earningMultiplier < SP_EARNING_MIN || earningMultiplier > SP_EARNING_MAX) {
     throw new SPRateOutOfRangeError(
@@ -252,6 +255,20 @@ export async function createCategory(input: CreateCategoryInput): Promise<Catego
       spendingCap,
       SP_SPENDING_CAP_MIN,
       SP_SPENDING_CAP_MAX
+    );
+  }
+
+  // R11: absolute per-item cap (0–1000, or null to disable)
+  if (
+    input.sp_redemption_cap !== undefined &&
+    input.sp_redemption_cap !== null &&
+    (input.sp_redemption_cap < 0 || input.sp_redemption_cap > SP_REDEMPTION_CAP_MAX)
+  ) {
+    throw new SPRateOutOfRangeError(
+      'sp_redemption_cap',
+      input.sp_redemption_cap,
+      0,
+      SP_REDEMPTION_CAP_MAX
     );
   }
 
@@ -277,6 +294,7 @@ export async function createCategory(input: CreateCategoryInput): Promise<Catego
       is_active: input.is_active ?? true,
       sp_earning_multiplier: earningMultiplier,
       sp_spending_cap_percent: spendingCap,
+      sp_redemption_cap: input.sp_redemption_cap ?? null,
       sp_config_notes: input.sp_config_notes ?? null,
       display_order: displayOrder,
     })
@@ -369,6 +387,20 @@ export async function updateCategory(
     }
   }
 
+  // R11: absolute per-item cap (0–1000, or null to disable)
+  if (
+    input.sp_redemption_cap !== undefined &&
+    input.sp_redemption_cap !== null &&
+    (input.sp_redemption_cap < 0 || input.sp_redemption_cap > SP_REDEMPTION_CAP_MAX)
+  ) {
+    throw new SPRateOutOfRangeError(
+      'sp_redemption_cap',
+      input.sp_redemption_cap,
+      0,
+      SP_REDEMPTION_CAP_MAX
+    );
+  }
+
   // Build update payload (exclude item_count, display_order — trigger/RPC only)
   const updatePayload: any = {};
   if (input.name !== undefined) updatePayload.name = input.name;
@@ -382,6 +414,8 @@ export async function updateCategory(
     updatePayload.sp_earning_multiplier = input.sp_earning_multiplier;
   if (input.sp_spending_cap_percent !== undefined)
     updatePayload.sp_spending_cap_percent = input.sp_spending_cap_percent;
+  if (input.sp_redemption_cap !== undefined)
+    updatePayload.sp_redemption_cap = input.sp_redemption_cap;
   if (input.sp_config_notes !== undefined)
     updatePayload.sp_config_notes = input.sp_config_notes;
   if (input.sp_rate_change_notify !== undefined)

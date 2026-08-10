@@ -28,6 +28,7 @@ interface SellerPayout {
   initiated_at: string | null;
   completed_at: string | null;
   failure_reason: string | null;
+  payout_release_at?: string | null;
   created_at: string;
   updated_at: string;
   // Joined data
@@ -242,6 +243,13 @@ export default function AdminPayoutsPage() {
         >
           {getStatusLabel(payout.status)}
         </span>
+        {payout.status === 'pending' &&
+          payout.payout_release_at &&
+          new Date(payout.payout_release_at).getTime() > Date.now() && (
+            <div className="text-xs text-emerald-700 mt-1">
+              Releases {formatDate(payout.payout_release_at)}
+            </div>
+          )}
       </td>
       <td className="px-4 py-3 text-sm font-medium text-gray-900">
         {formatAmount(payout.net_amount_cents)}

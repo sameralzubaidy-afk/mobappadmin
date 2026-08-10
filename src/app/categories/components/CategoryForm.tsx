@@ -36,7 +36,8 @@ export function CategoryForm({ category, onClose, onSuccess }: CategoryFormProps
     bonus_badge_icon_url: category?.bonus_badge_icon_url || '',
     is_active: category?.is_active ?? true,
     sp_earning_multiplier: category?.sp_earning_multiplier || 1.10,
-    sp_spending_cap_percent: category?.sp_spending_cap_percent || 70,
+    sp_spending_cap_percent: category?.sp_spending_cap_percent || 50,
+    sp_redemption_cap: category?.sp_redemption_cap ?? null,
     sp_config_notes: category?.sp_config_notes || '',
     sp_rate_change_notify: false,
   });
@@ -108,6 +109,14 @@ export function CategoryForm({ category, onClose, onSuccess }: CategoryFormProps
       newErrors.sp_spending_cap_percent = 'Must be between 50 and 80';
     }
 
+    if (
+      formData.sp_redemption_cap !== null &&
+      formData.sp_redemption_cap !== undefined &&
+      (formData.sp_redemption_cap < 0 || formData.sp_redemption_cap > 1000)
+    ) {
+      newErrors.sp_redemption_cap = 'Must be between 0 and 1000, or empty for no absolute cap';
+    }
+
     if (formData.sp_config_notes && formData.sp_config_notes.length > 500) {
       newErrors.sp_config_notes = 'Notes must be 500 characters or less';
     }
@@ -164,6 +173,10 @@ export function CategoryForm({ category, onClose, onSuccess }: CategoryFormProps
             formData.sp_spending_cap_percent !== category.sp_spending_cap_percent
               ? formData.sp_spending_cap_percent
               : undefined,
+          sp_redemption_cap:
+            formData.sp_redemption_cap !== category.sp_redemption_cap
+              ? formData.sp_redemption_cap
+              : undefined,
           sp_config_notes:
             formData.sp_config_notes !== category.sp_config_notes ? formData.sp_config_notes : undefined,
           sp_rate_change_notify: formData.sp_rate_change_notify || undefined,
@@ -185,6 +198,7 @@ export function CategoryForm({ category, onClose, onSuccess }: CategoryFormProps
           is_active: formData.is_active,
           sp_earning_multiplier: formData.sp_earning_multiplier,
           sp_spending_cap_percent: formData.sp_spending_cap_percent,
+          sp_redemption_cap: formData.sp_redemption_cap ?? null,
           sp_config_notes: formData.sp_config_notes || null,
         };
 
@@ -467,6 +481,35 @@ export function CategoryForm({ category, onClose, onSuccess }: CategoryFormProps
                   </div>
                   {errors.sp_spending_cap_percent && (
                     <p className="text-xs text-red-500 mt-1">{errors.sp_spending_cap_percent}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="sp_redemption_cap" className="block text-sm font-medium text-gray-700 mb-2">
+                    SP Redemption Cap (SP per item, optional)
+                  </label>
+                  <input
+                    id="sp_redemption_cap"
+                    type="number"
+                    min="0"
+                    max="1000"
+                    value={formData.sp_redemption_cap ?? ''}
+                    onChange={(e) =>
+                      handleInputChange(
+                        'sp_redemption_cap',
+                        e.target.value === '' ? null : parseInt(e.target.value, 10)
+                      )
+                    }
+                    placeholder="Leave empty for no absolute cap"
+                    data-testid="input-sp-redemption-cap"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Absolute max SP a buyer can redeem per item in this category. The spend-cap %
+                    above still applies; this only tightens it. Empty = no absolute cap.
+                  </p>
+                  {errors.sp_redemption_cap && (
+                    <p className="text-xs text-red-500 mt-1">{errors.sp_redemption_cap}</p>
                   )}
                 </div>
 

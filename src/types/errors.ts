@@ -53,24 +53,27 @@ export class CategoryNotEmptyError extends CategoryError {
 
 /**
  * Thrown when SP rate values are outside the legal bounds
- * (earning: 1.05–1.40, spending cap: 50–80)
+ * (earning: 1.05–1.40, spending cap: 50–80, redemption cap: 0–1000)
  */
 export class SPRateOutOfRangeError extends CategoryError {
   readonly code = 'SP_RATE_OUT_OF_RANGE' as const;
-  readonly field: 'sp_earning_multiplier' | 'sp_spending_cap_percent';
+  readonly field: 'sp_earning_multiplier' | 'sp_spending_cap_percent' | 'sp_redemption_cap';
   readonly value: number;
   readonly min: number;
   readonly max: number;
 
   constructor(
-    field: 'sp_earning_multiplier' | 'sp_spending_cap_percent',
+    field: 'sp_earning_multiplier' | 'sp_spending_cap_percent' | 'sp_redemption_cap',
     value: number,
     min: number,
     max: number
   ) {
-    const fieldName = field === 'sp_earning_multiplier' 
-      ? 'SP Earning Multiplier' 
-      : 'SP Spending Cap %';
+    const fieldName =
+      field === 'sp_earning_multiplier'
+        ? 'SP Earning Multiplier'
+        : field === 'sp_spending_cap_percent'
+          ? 'SP Spending Cap %'
+          : 'SP Redemption Cap';
     const minText = field === 'sp_earning_multiplier' ? min.toFixed(2) : String(min);
     const maxText = field === 'sp_earning_multiplier' ? max.toFixed(2) : String(max);
     super(

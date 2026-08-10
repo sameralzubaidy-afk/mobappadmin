@@ -17,6 +17,7 @@ export interface Category {
   display_order: number;
   sp_earning_multiplier: number; // 1.05–1.40
   sp_spending_cap_percent: number; // 50–80
+  sp_redemption_cap: number | null; // Absolute per-item SP cap (NULL = no absolute cap, R11)
   sp_config_notes: string | null; // Max 500 chars
   sp_rate_change_notify: boolean; // One-shot notification flag
   created_at: string; // ISO timestamp
@@ -34,6 +35,7 @@ export interface CreateCategoryInput {
   bonus_badge_icon_url?: string | null;
   sp_earning_multiplier?: number; // Default 1.10
   sp_spending_cap_percent?: number; // Default 70
+  sp_redemption_cap?: number | null; // Absolute per-item SP cap (null = no cap)
   sp_config_notes?: string | null;
   is_active?: boolean; // Default true
 }
@@ -49,6 +51,7 @@ export interface UpdateCategoryInput {
   bonus_badge_icon_url?: string | null;
   sp_earning_multiplier?: number;
   sp_spending_cap_percent?: number;
+  sp_redemption_cap?: number | null;
   sp_config_notes?: string | null;
   is_active?: boolean;
   sp_rate_change_notify?: boolean;

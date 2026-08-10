@@ -120,6 +120,18 @@ export async function PATCH(
     );
   }
 
+  // R11: absolute per-item cap (0–1000, or null to disable)
+  if (
+    body.sp_redemption_cap !== undefined &&
+    body.sp_redemption_cap !== null &&
+    (body.sp_redemption_cap < 0 || body.sp_redemption_cap > 1000)
+  ) {
+    return NextResponse.json(
+      { error: 'sp_redemption_cap must be between 0 and 1000, or null' },
+      { status: 400 }
+    );
+  }
+
   const nextIsActive = body.is_active;
   if (
     nextIsActive === false &&
@@ -144,6 +156,8 @@ export async function PATCH(
     updatePayload.sp_earning_multiplier = body.sp_earning_multiplier;
   if (body.sp_spending_cap_percent !== undefined)
     updatePayload.sp_spending_cap_percent = body.sp_spending_cap_percent;
+  if (body.sp_redemption_cap !== undefined)
+    updatePayload.sp_redemption_cap = body.sp_redemption_cap;
   if (body.sp_config_notes !== undefined)
     updatePayload.sp_config_notes = body.sp_config_notes;
   if (body.sp_rate_change_notify !== undefined)

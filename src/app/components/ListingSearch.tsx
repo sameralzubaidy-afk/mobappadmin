@@ -148,6 +148,38 @@ export default function ListingSearch() {
   const [actionReason, setActionReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [approvalMessage, setApprovalMessage] = useState('');
+
+  // R8 (2026-08-09): AI image-moderation gate status for the selected listing.
+  const [moderationGate, setModerationGate] = useState<{
+    status: string;
+    enforced: boolean;
+    total_images?: number;
+    approved?: number;
+    flagged?: number;
+    pending?: number;
+  } | null>(null);
+  const [moderationGateLoading, setModerationGateLoading] = useState(false);
+
+  // R8: select a listing and fetch its image-moderation gate status.
+  const handleSelectListing = async (listing: ListingSearchResult) => {
+    setSelectedListing(listing);
+    setAdminAction(null);
+    setActionReason('');
+    setModerationGate(null);
+    try {
+      setModerationGateLoading(true);
+      const { data, error } = await supabase.rpc('get_listing_moderation_gate', {
+        p_listing_id: listing.id,
+      });
+      if (!error && data) {
+        setModerationGate(data as typeof moderationGate);
+      }
+    } catch {
+      setModerationGate(null);
+    } finally {
+      setModerationGateLoading(false);
+    }
+  };
   
   const ITEMS_PER_PAGE = 20;
 
@@ -476,7 +508,17 @@ export default function ListingSearch() {
       // Check if RPC response indicates failure
       if (data && !data.success) {
         console.error('[ListingSearch] Approval failed:', data.error);
-        alert(`Failed to approve listing: ${data.error}`);
+        // R8: map image-moderation gate errors to clear, actionable copy.
+        const code = data.code;
+        let reason = data.error;
+        if (code === 'MODERATION_BLOCKED_FLAGGED') {
+          reason =
+            'Blocked by AI moderation: one or more images were flagged. Reject the listing or ask the seller to replace the flagged image.';
+        } else if (code === 'MODERATION_IN_PROGRESS') {
+          reason =
+            "Blocked by AI moderation: this listing's images are still being reviewed. Try again shortly.";
+        }
+        alert(`Failed to approve listing: ${reason}`);
         return;
       }
 
@@ -799,7 +841,7 @@ export default function ListingSearch() {
                         <tr
                           key={listing.id}
                           className={`border-b hover:bg-gray-50 ${selectedListingIds.has(listing.id) ? 'bg-blue-50/40' : ''}`}
-                          onClick={() => setSelectedListing(listing)}
+                          onClick={() => handleSelectListing(listing)}
                         >
                           <td className="px-4 py-4 text-sm">
                             <input
@@ -871,7 +913,7 @@ export default function ListingSearch() {
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setSelectedListing(listing);
+                                  handleSelectListing(listing);
                                 }}
                                 className="text-emerald-600 hover:text-emerald-800 font-medium text-left"
                               >
@@ -1061,6 +1103,36 @@ export default function ListingSearch() {
               <div>
                 <label className="text-sm font-medium text-gray-700">Status</label>
                 <p className="text-sm text-gray-900">{formatStatusLabel(selectedListing.status)}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">AI Image Moderation</label>
+                <p className="text-sm text-gray-900">
+                  {moderationGateLoading ? (
+                    <span className="text-gray-500">Checking…</span>
+                  ) : moderationGate ? (
+                    <span
+                      className={
+                        moderationGate.status === 'ok'
+                          ? 'text-green-700'
+                          : moderationGate.status === 'flagged'
+                          ? 'text-red-700'
+                          : moderationGate.status === 'pending'
+                          ? 'text-amber-700'
+                          : 'text-gray-700'
+                      }
+                    >
+                      {moderationGate.status === 'ok'
+                        ? `✅ Approved (${moderationGate.approved ?? 0}/${moderationGate.total_images ?? 0} images)`
+                        : moderationGate.status === 'flagged'
+                        ? `⛔ Flagged (${moderationGate.flagged ?? 0} image(s) block approval)`
+                        : moderationGate.status === 'pending'
+                        ? `⏳ Reviewing images (${moderationGate.pending ?? 0} pending)`
+                        : '🚫 Disabled by admin config'}
+                    </span>
+                  ) : (
+                    <span className="text-gray-500">Unavailable</span>
+                  )}
+                </p>
               </div>
               {selectedListing.eligible_for_starter_pack && (
                 <div className="bg-green-50 border border-green-200 rounded-lg p-3">

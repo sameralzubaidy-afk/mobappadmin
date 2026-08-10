@@ -32,6 +32,8 @@ export interface PipelineTrade {
   authorization_expires_at: string | null;
   dispute_status: string | null;
   dispute_resolution: string | null;
+  payout_status: string | null;
+  payout_release_at: string | null;
 }
 
 function formatMoney(cents: number | null | undefined): string {
@@ -116,7 +118,18 @@ function CountdownLine({ trade, now }: { trade: PipelineTrade; now: number }) {
     return <p className="text-xs text-gray-500">{trade.cancellation_reason}</p>;
   }
   if (trade.status === 'completed' && trade.completed_at) {
-    return <p className="text-xs text-gray-500">Completed {new Date(trade.completed_at).toLocaleDateString()}</p>;
+    const releaseAt = trade.payout_release_at
+      ? Date.parse(trade.payout_release_at)
+      : null;
+    const isBuffered = releaseAt !== null && releaseAt > Date.now();
+    return (
+      <p className="text-xs text-gray-500">
+        Completed {new Date(trade.completed_at).toLocaleDateString()}
+        {isBuffered
+          ? ` · Payout releases ${new Date(trade.payout_release_at!).toLocaleDateString()}`
+          : ''}
+      </p>
+    );
   }
   return null;
 }

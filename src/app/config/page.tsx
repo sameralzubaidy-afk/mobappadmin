@@ -179,6 +179,32 @@ const KEY_PAGE_LINKS: Record<
   },
 };
 
+// SINGLE-SOURCE (2026-08-09): keys that /settings/trade-timing renders as editable
+// fields. The /config hub still lists them via cross-link banners but never renders
+// an editable duplicate — so two admin surfaces with different fallback defaults
+// can never silently flip the same admin_config row.
+const TRADE_TIMING_OWNED_KEYS = new Set([
+  // Transaction / platform fees (Trade Timing → Transaction Fees)
+  "transaction_fee_subscriber_cents",
+  "transaction_fee_non_subscriber_cents",
+  "platform_fee_seller_percentage",
+  "platform_fee_seller_discount_percentage_kids_club_plus",
+  "platform_fee_buyer_fixed_cents",
+  "platform_fee_buyer_percentage",
+  "charge_one_fee_per_bundle",
+  // R1 — Tiered Buyer-Fee Engine (Trade Timing → Tiered Buyer Fee)
+  "buyer_fee_active_member_cents",
+  "buyer_fee_first_trade_cents",
+  "buyer_fee_subsequent_percentage",
+  "buyer_fee_subsequent_fixed_cents",
+  "buyer_fee_subsequent_max_cents",
+  "buyer_fee_label",
+  // Legacy fee keys (Trade Timing → Transaction Fees → Legacy fee keys)
+  "transaction_fee_member_cents",
+  "transaction_fee_non_member_cents",
+  "platform_fee_seller_discount_percentage_freemium",
+]);
+
 export default function ConfigPage() {
   const [config, setConfig] = useState<AdminConfigItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -532,6 +558,11 @@ export default function ConfigPage() {
             }
           });
           const relatedPages = Array.from(relatedByHref.values());
+          // Editable list = current tab minus the keys owned by Trade Timing
+          // (they're edited only there; /config keeps the cross-link banner).
+          const visibleItems = (groupedConfig[currentTab] || []).filter(
+            (item) => item && !TRADE_TIMING_OWNED_KEYS.has(item.key),
+          );
 
           return (
             <div className="flex flex-col md:flex-row min-h-[600px]">
@@ -562,7 +593,7 @@ export default function ConfigPage() {
                       {currentTab.replace(/_/g, " ")}
                     </h3>
                     <p className="text-sm text-gray-500 mt-1">
-                      {groupedConfig[currentTab].length} settings
+                      {visibleItems.length} settings
                     </p>
                   </div>
 
@@ -584,7 +615,7 @@ export default function ConfigPage() {
                     </div>
                   )}
 
-                  {groupedConfig[currentTab].map((item) => {
+                  {visibleItems.map((item) => {
                     if (!item || !item.key) return null;
                     const displayValue = getDisplayValue(item);
                     const isBoolean = isBooleanConfig(item);
@@ -732,6 +763,12 @@ function SMSRateLimitStats() {
     try {
       const res = await fetch(`/api/admin/sms-stats?ts=${Date.now()}`, {
         cache: "no-store",
+        // BP-49: /api/admin/* routes authenticate via the x-admin-secret header
+        // (no middleware injects it). Without it the API returns 401
+        // "No valid authentication provided" and the stats silently show zeros.
+        headers: {
+          "x-admin-secret": process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || "",
+        },
       });
       const json = await res.json();
       if (json.error) throw new Error(json.error);

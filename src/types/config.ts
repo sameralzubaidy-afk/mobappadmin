@@ -46,12 +46,34 @@ export interface TradeTimingConfig {
   platform_fee_buyer_percentage: number;
   // Bundle fee behavior toggle (boolean; read by create-trade-offer).
   charge_one_fee_per_bundle: boolean;
+  // R1 — Tiered Buyer-Fee Engine (first-trade protection). All values are dynamic
+  // from admin_config (fees category) and resolved at checkout by
+  // fn_get_buyer_fee_for_checkout. Tiers:
+  //   active member (trial/paid)                -> buyer_fee_active_member_cents (flat)
+  //   free + 0 completed trades                 -> buyer_fee_first_trade_cents (flat, first-trade protection)
+  //   free + 1+ completed trades                -> % of cash portion + fixed, capped
+  buyer_fee_active_member_cents: number;
+  buyer_fee_first_trade_cents: number;
+  buyer_fee_subsequent_percentage: number;
+  buyer_fee_subsequent_fixed_cents: number;
+  buyer_fee_subsequent_max_cents: number;
+  buyer_fee_label: string;
   // B2: Seller fee per subscription tier — ABSOLUTE % of the cash portion (item price − SP).
   //   platform_fee_seller_percentage                          = % for FREE (non-subscriber) sellers
   //   platform_fee_seller_discount_percentage_kids_club_plus  = % for Kids Club+ (subscriber) sellers
   // (key name keeps legacy "discount" wording; the value is the rate itself, not a discount)
   platform_fee_seller_percentage: number;
   platform_fee_seller_discount_percentage_kids_club_plus: number;
+  // LEGACY fee keys (single-source consolidation 2026-08-09): seeded under the
+  // old naming scheme; surfaced on Trade Timing for audit only. The current
+  // checkout does NOT read them:
+  //   - transaction_fee_member_cents / transaction_fee_non_member_cents — replaced
+  //     by transaction_fee_subscriber_cents / transaction_fee_non_subscriber_cents
+  //   - platform_fee_seller_discount_percentage_freemium — replaced by the
+  //     absolute-per-tier platform_fee_seller_percentage (BP-38)
+  transaction_fee_member_cents: number;
+  transaction_fee_non_member_cents: number;
+  platform_fee_seller_discount_percentage_freemium: number;
 }
 
 export interface AuditLog {
