@@ -12,14 +12,17 @@ export default function ConfigurationTab() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const [referrerSP, setReferrerSP] = useState('25');
-  const [refereeSP, setRefereeSP] = useState('10');
-  const [referrerListingSP, setReferrerListingSP] = useState('25');
-  const [refereeListingSP, setRefereeListingSP] = useState('10');
-  const [starterPackSP, setStarterPackSP] = useState('10');
-  const [programEnabled, setProgramEnabled] = useState(true);
-  const [firstTradeEnabled, setFirstTradeEnabled] = useState(true);
-  const [firstListingEnabled, setFirstListingEnabled] = useState(true);
+  // Not-loaded sentinel: empty fields + toggles off. If the config fetch fails,
+  // the form never presents hardcoded 25/10 values as if they were the live
+  // config (REF-V2-008 requires configured amounts only — no hardcoded fallback).
+  const [referrerSP, setReferrerSP] = useState('');
+  const [refereeSP, setRefereeSP] = useState('');
+  const [referrerListingSP, setReferrerListingSP] = useState('');
+  const [refereeListingSP, setRefereeListingSP] = useState('');
+  const [starterPackSP, setStarterPackSP] = useState('');
+  const [programEnabled, setProgramEnabled] = useState(false);
+  const [firstTradeEnabled, setFirstTradeEnabled] = useState(false);
+  const [firstListingEnabled, setFirstListingEnabled] = useState(false);
   const [missingKeys, setMissingKeys] = useState<string[]>([]);
 
   const adminSecret = process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '';
