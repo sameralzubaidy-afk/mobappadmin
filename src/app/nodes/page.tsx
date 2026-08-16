@@ -204,6 +204,7 @@ export default function NodesPage() {
           onClick={handleAdd}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition font-medium"
           disabled={loading}
+          data-testid="btn-add-node"
         >
           + Add Node
         </button>
@@ -238,6 +239,7 @@ export default function NodesPage() {
             onClick={() => loadKpis()}
             className="text-xs text-blue-600 hover:text-blue-900 hover:underline"
             disabled={kpisLoading}
+            data-testid="btn-node-kpis-refresh"
           >
             {kpisLoading ? 'Loading...' : 'Refresh'}
           </button>
@@ -371,6 +373,7 @@ export default function NodesPage() {
                         onClick={() => handleEdit(node)}
                         className="text-blue-600 hover:text-blue-900 hover:underline transition"
                         disabled={togglingId === node.id}
+                        data-testid={`btn-edit-node-${node.id}`}
                       >
                         Edit
                       </button>
@@ -382,6 +385,7 @@ export default function NodesPage() {
                             : 'text-green-600 hover:text-green-900 hover:underline'
                         } disabled:opacity-50 disabled:cursor-not-allowed`}
                         disabled={togglingId === node.id}
+                        data-testid={`btn-toggle-node-${node.id}`}
                       >
                         {togglingId === node.id
                           ? 'Updating...'

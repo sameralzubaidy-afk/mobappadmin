@@ -236,6 +236,7 @@ function UserDetailModal({
           <button
             onClick={onClose}
             className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition"
+            data-testid="btn-cancellation-insights-modal-close"
           >
             Close
           </button>
@@ -436,6 +437,7 @@ export default function CancellationInsightsClient() {
         <button
           onClick={fetchData}
           className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm"
+          data-testid="btn-cancellation-insights-retry"
         >
           Retry
         </button>

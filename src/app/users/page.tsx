@@ -897,6 +897,7 @@ export default function UsersPage() {
                 <div className="flex flex-wrap gap-3">
                   {selectedUser.identity.account_status === 'active' ? (
                     <button
+                      data-testid="btn-suspend-user"
                       onClick={() => handleSuspend(selectedUser.identity.user_id)}
                       disabled={actionLoading}
                       className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50"
@@ -905,6 +906,7 @@ export default function UsersPage() {
                     </button>
                   ) : (
                     <button
+                      data-testid="btn-unsuspend-user"
                       onClick={() => handleUnsuspend(selectedUser.identity.user_id)}
                       disabled={actionLoading}
                       className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
@@ -913,6 +915,7 @@ export default function UsersPage() {
                     </button>
                   )}
                   <button
+                    data-testid="btn-reset-password"
                     onClick={() =>
                       handleResetPassword(selectedUser.identity.user_id, selectedUser.identity.email)
                     }
@@ -922,6 +925,7 @@ export default function UsersPage() {
                     Reset Password
                   </button>
                   <button
+                    data-testid="btn-delete-user-soft"
                     onClick={() => handleDelete(selectedUser.identity.user_id)}
                     disabled={actionLoading}
                     className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"

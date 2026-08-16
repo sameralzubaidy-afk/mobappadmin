@@ -130,6 +130,7 @@ export default function MonitoringPage() {
           disabled={loading}
           onClick={runMonitor}
           className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
+          data-testid="btn-monitor-run"
         >
           {loading ? 'Running…' : 'Re-run Monitor'}
         </button>
@@ -139,6 +140,7 @@ export default function MonitoringPage() {
             disabled={loading}
             onClick={runMonitor}
             className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
+            data-testid="btn-monitor-run"
           >
             {loading ? 'Running…' : 'Re-run Monitor'}
           </button>
@@ -157,6 +159,7 @@ export default function MonitoringPage() {
               }
             }}
             className="px-4 py-2 bg-gray-200 rounded"
+            data-testid="btn-monitor-diagnostics"
           >
             Run Diagnostics
           </button>
@@ -197,14 +200,14 @@ export default function MonitoringPage() {
         <div className="bg-white p-4 rounded shadow-sm border border-gray-200">
           <div className="flex justify-between items-center mb-2">
             <h3 className="font-semibold">Recent Alerts</h3>
-            <button onClick={fetchLogs} className="text-xs text-blue-600 underline">Refresh List</button>
+            <button onClick={fetchLogs} className="text-xs text-blue-600 underline" data-testid="btn-monitor-refresh-list">Refresh List</button>
           </div>
           {logs.length === 0 && <div className="text-sm text-gray-600">No alerts found.</div>}
           {logs.map((l: any) => (
             <div key={l.id} className="p-3 border rounded mb-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <strong>Trade:</strong> <button onClick={() => openTradeModal(l.trade_id)} className="text-left text-blue-600 underline">{l.trade_id || '—'}</button> <span className="ml-2 text-sm text-gray-500">{l.alert_type}</span>
+                  <strong>Trade:</strong> <button onClick={() => openTradeModal(l.trade_id)} className="text-left text-blue-600 underline" data-testid={`btn-monitor-trade-${l.trade_id}`}>{l.trade_id || '—'}</button> <span className="ml-2 text-sm text-gray-500">{l.alert_type}</span>
                 </div>
                 <div className="text-sm text-gray-600">{new Date(l.created_at).toLocaleString()}</div>
               </div>
@@ -217,9 +220,9 @@ export default function MonitoringPage() {
                 )}
               </div>
               <div className="mt-2 flex items-center gap-2">
-                <button onClick={() => acknowledgeLog(l.id)} className="px-3 py-1 bg-green-600 text-white rounded">Acknowledge</button>
-                <button onClick={() => openAddNote(l.id)} className="px-3 py-1 bg-yellow-500 text-white rounded">Add note</button>
-                <button onClick={() => runMonitor()} className="px-3 py-1 bg-gray-200 rounded">Re-run Monitor</button>
+                <button onClick={() => acknowledgeLog(l.id)} className="px-3 py-1 bg-green-600 text-white rounded" data-testid={`btn-monitor-acknowledge-${l.id}`}>Acknowledge</button>
+                <button onClick={() => openAddNote(l.id)} className="px-3 py-1 bg-yellow-500 text-white rounded" data-testid={`btn-monitor-add-note-${l.id}`}>Add note</button>
+                <button onClick={() => runMonitor()} className="px-3 py-1 bg-gray-200 rounded" data-testid={`btn-monitor-rerun-${l.id}`}>Re-run Monitor</button>
                 <a href={`/trades/${l.trade_id}`} className="text-blue-600 underline">Open full page</a>
               </div>
             </div>
@@ -244,7 +247,7 @@ LIMIT 50;`}</pre>
             <div className="bg-white max-w-2xl w-full p-6 rounded shadow">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="font-semibold">Trade Details</h3>
-                <button onClick={closeTradeModal} className="text-gray-500">Close</button>
+                <button onClick={closeTradeModal} className="text-gray-500" data-testid="btn-monitor-trade-modal-close">Close</button>
               </div>
               {tradeDetail ? (
                 <div>
@@ -264,9 +267,9 @@ LIMIT 50;`}</pre>
                   </div>
 
                   <div className="mt-4 flex items-center gap-2">
-                    <button onClick={() => { acknowledgeLog(tradeDetail.id, 'Acknowledged via Trade modal') }} className="px-3 py-1 bg-green-600 text-white rounded">Acknowledge trade</button>
+                    <button onClick={() => { acknowledgeLog(tradeDetail.id, 'Acknowledged via Trade modal') }} className="px-3 py-1 bg-green-600 text-white rounded" data-testid="btn-monitor-acknowledge-trade">Acknowledge trade</button>
                     <a className="text-blue-600 underline" href={`/subscriptions?user_id=${tradeDetail.buyer_id}`}>View buyer subscriptions</a>
-                    <button onClick={runMonitor} className="px-3 py-1 bg-gray-200 rounded ml-auto">Re-run Monitor</button>
+                    <button onClick={runMonitor} className="px-3 py-1 bg-gray-200 rounded ml-auto" data-testid="btn-monitor-rerun-trade-modal">Re-run Monitor</button>
                   </div>
                 </div>
               ) : (
@@ -278,7 +281,7 @@ LIMIT 50;`}</pre>
 
         {/* Add Note Modal */}
         {showNoteModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center" data-testid="monitor-note-modal">
             <div className="bg-white max-w-md w-full p-6 rounded shadow">
               <h3 className="font-semibold mb-4">Add Admin Note</h3>
               <textarea
@@ -286,17 +289,20 @@ LIMIT 50;`}</pre>
                 placeholder="Enter note here..."
                 value={noteText}
                 onChange={(e) => setNoteText(e.target.value)}
+                data-testid="monitor-note-input"
               />
               <div className="flex justify-end gap-2">
                 <button
                   onClick={() => setShowNoteModal(false)}
                   className="px-4 py-2 text-gray-600"
+                  data-testid="btn-monitor-note-cancel"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={submitNote}
                   className="px-4 py-2 bg-blue-600 text-white rounded"
+                  data-testid="btn-monitor-note-submit"
                 >
                   Save Note & Acknowledge
                 </button>

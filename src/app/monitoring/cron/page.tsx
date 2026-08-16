@@ -418,6 +418,7 @@ export default function CronMonitoringPage() {
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Timezone</label>
           <select
+            data-testid="cron-timezone-select"
             value={timezone}
             onChange={(e) => setTimezone(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-md text-sm"
@@ -436,6 +437,7 @@ export default function CronMonitoringPage() {
           <label className="block text-sm font-medium text-gray-700 mb-1">Time Period</label>
           <div className="flex gap-2">
             <button
+              data-testid="cron-lookback-24h"
               onClick={() => setLookbackHours(24)}
               className={`px-3 py-2 text-sm rounded-md font-medium transition-colors ${
                 lookbackHours === 24
@@ -446,6 +448,7 @@ export default function CronMonitoringPage() {
               Today
             </button>
             <button
+              data-testid="cron-lookback-7d"
               onClick={() => setLookbackHours(7 * 24)}
               className={`px-3 py-2 text-sm rounded-md font-medium transition-colors ${
                 lookbackHours === 7 * 24
@@ -456,6 +459,7 @@ export default function CronMonitoringPage() {
               Last 7d
             </button>
             <button
+              data-testid="cron-lookback-14d"
               onClick={() => setLookbackHours(14 * 24)}
               className={`px-3 py-2 text-sm rounded-md font-medium transition-colors ${
                 lookbackHours === 14 * 24
@@ -466,6 +470,7 @@ export default function CronMonitoringPage() {
               Last 14d
             </button>
             <button
+              data-testid="cron-lookback-30d"
               onClick={() => setLookbackHours(30 * 24)}
               className={`px-3 py-2 text-sm rounded-md font-medium transition-colors ${
                 lookbackHours === 30 * 24
@@ -476,6 +481,7 @@ export default function CronMonitoringPage() {
               Last 30d
             </button>
             <button
+              data-testid="cron-lookback-365d"
               onClick={() => setLookbackHours(365 * 24)}
               className={`px-3 py-2 text-sm rounded-md font-medium transition-colors ${
                 lookbackHours === 365 * 24
@@ -493,6 +499,7 @@ export default function CronMonitoringPage() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
             <select
+              data-testid="cron-status-filter"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-md text-sm"
@@ -509,6 +516,7 @@ export default function CronMonitoringPage() {
 
         <div>
           <button
+            data-testid="btn-cron-refresh"
             onClick={fetchData}
             className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
           >
@@ -526,6 +534,7 @@ export default function CronMonitoringPage() {
       {/* Tabs */}
       <div className="mb-6 flex gap-2 border-b border-gray-200">
         <button
+          data-testid="cron-tab-info"
           onClick={() => setActiveTab('info')}
           className={`px-4 py-3 font-medium border-b-2 transition-colors ${
             activeTab === 'info'
@@ -536,6 +545,7 @@ export default function CronMonitoringPage() {
           Info ({jobs.length})
         </button>
         <button
+          data-testid="cron-tab-jobs"
           onClick={() => setActiveTab('jobs')}
           className={`px-4 py-3 font-medium border-b-2 transition-colors ${
             activeTab === 'jobs'
@@ -546,6 +556,7 @@ export default function CronMonitoringPage() {
           Jobs ({jobs.length})
         </button>
         <button
+          data-testid="cron-tab-runs"
           onClick={() => setActiveTab('runs')}
           className={`px-4 py-3 font-medium border-b-2 transition-colors ${
             activeTab === 'runs'
@@ -669,7 +680,11 @@ export default function CronMonitoringPage() {
                       <div className="flex gap-1.5">
                         {job.active ? (
                           <>
+                            {/* ⚠️ SIDE-EFFECTING ACTION: Run Now triggers a real cron job execution
+                                (POST /api/admin/cron-jobs/<id>/run) with genuine DB side effects,
+                                NOT a read. Do not run in automation without staging guardrails. */}
                             <button
+                              data-testid={`btn-cron-run-now-${job.jobid}`}
                               onClick={() => runJobNow(job)}
                               disabled={runningJobId === job.jobid}
                               className={`px-3 py-1.5 text-xs font-medium rounded transition-colors flex items-center gap-1 ${
@@ -685,7 +700,11 @@ export default function CronMonitoringPage() {
                                 <><span>▶</span> Run Now</>
                               )}
                             </button>
+                            {/* ⚠️ SIDE-EFFECTING ACTION: Schedule writes a new cron schedule
+                                (PUT /api/admin/cron-jobs/<id>) — production-impacting, NOT a read.
+                                Requires explicit approval + revert in automation. */}
                             <button
+                              data-testid={`btn-cron-schedule-${job.jobid}`}
                               onClick={() => openEditModal(job)}
                               className="px-3 py-1.5 text-xs font-medium rounded bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
                             >

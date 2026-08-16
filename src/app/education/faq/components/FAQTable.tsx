@@ -115,6 +115,7 @@ export function FAQTable({ items, categories, onEdit, onRefresh, onError, onSucc
                     onClick={() => handleToggleStatus(item)}
                     disabled={isLoading}
                     title={item.status === 'published' ? 'Click to unpublish' : 'Click to publish'}
+                    data-testid={`btn-faq-toggle-status-${item.id}`}
                     className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
                       item.status === 'published'
                         ? 'bg-green-100 text-green-700 hover:bg-green-200'
@@ -137,6 +138,7 @@ export function FAQTable({ items, categories, onEdit, onRefresh, onError, onSucc
                       disabled={isFirst || isLoading}
                       className="p-1 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
                       title="Move up"
+                      data-testid={`btn-faq-move-up-${item.id}`}
                     >
                       <ChevronUp size={16} />
                     </button>
@@ -145,6 +147,7 @@ export function FAQTable({ items, categories, onEdit, onRefresh, onError, onSucc
                       disabled={isLast || isLoading}
                       className="p-1 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
                       title="Move down"
+                      data-testid={`btn-faq-move-down-${item.id}`}
                     >
                       <ChevronDown size={16} />
                     </button>
@@ -159,6 +162,7 @@ export function FAQTable({ items, categories, onEdit, onRefresh, onError, onSucc
                       disabled={isLoading}
                       className="p-1.5 rounded text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                       title="Edit"
+                      data-testid={`btn-faq-edit-${item.id}`}
                     >
                       <Edit2 size={15} />
                     </button>
@@ -167,6 +171,7 @@ export function FAQTable({ items, categories, onEdit, onRefresh, onError, onSucc
                       disabled={isLoading}
                       className="p-1.5 rounded text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors"
                       title="Delete"
+                      data-testid={`btn-faq-delete-${item.id}`}
                     >
                       <Trash2 size={15} />
                     </button>

@@ -89,6 +89,7 @@ export default function ListingAnalytics() {
         <p className="text-red-800 font-medium">⚠️ {error || 'Failed to load analytics'}</p>
         <button
           onClick={loadAnalytics}
+          data-testid="btn-analytics-retry"
           className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
         >
           Retry
@@ -257,6 +258,7 @@ export default function ListingAnalytics() {
         <p>Analytics update automatically every 60 seconds</p>
         <button
           onClick={loadAnalytics}
+          data-testid="btn-analytics-refresh"
           className="mt-2 text-blue-600 hover:text-blue-800 font-medium underline"
         >
           Refresh Now

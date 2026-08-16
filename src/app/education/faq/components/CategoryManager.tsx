@@ -130,6 +130,7 @@ export function CategoryManager({ categories, onRefresh, onError, onSuccess }: C
                   onClick={() => handleMove(cat.id, 'up')}
                   disabled={isFirst || isLoading}
                   className="p-0.5 text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed"
+                  data-testid={`btn-faq-cat-up-${cat.id}`}
                 >
                   <ChevronUp size={14} />
                 </button>
@@ -137,6 +138,7 @@ export function CategoryManager({ categories, onRefresh, onError, onSuccess }: C
                   onClick={() => handleMove(cat.id, 'down')}
                   disabled={isLast || isLoading}
                   className="p-0.5 text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed"
+                  data-testid={`btn-faq-cat-down-${cat.id}`}
                 >
                   <ChevronDown size={14} />
                 </button>
@@ -153,6 +155,7 @@ export function CategoryManager({ categories, onRefresh, onError, onSuccess }: C
                     if (e.key === 'Escape') cancelEdit();
                   }}
                   className="flex-1 rounded border border-blue-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  data-testid={`faq-cat-rename-${cat.id}`}
                 />
               ) : (
                 <span className="flex-1 text-sm text-gray-800 font-medium">{cat.name}</span>
@@ -172,6 +175,7 @@ export function CategoryManager({ categories, onRefresh, onError, onSuccess }: C
                       disabled={isLoading}
                       className="p-1.5 rounded text-green-600 hover:bg-green-50"
                       title="Save"
+                      data-testid={`btn-faq-cat-save-${cat.id}`}
                     >
                       <Check size={14} />
                     </button>
@@ -179,6 +183,7 @@ export function CategoryManager({ categories, onRefresh, onError, onSuccess }: C
                       onClick={cancelEdit}
                       className="p-1.5 rounded text-gray-400 hover:bg-gray-100"
                       title="Cancel"
+                      data-testid={`btn-faq-cat-cancel-${cat.id}`}
                     >
                       <X size={14} />
                     </button>
@@ -190,6 +195,7 @@ export function CategoryManager({ categories, onRefresh, onError, onSuccess }: C
                       disabled={isLoading}
                       className="p-1.5 rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                       title="Rename"
+                      data-testid={`btn-faq-cat-edit-${cat.id}`}
                     >
                       <Edit2 size={14} />
                     </button>
@@ -198,6 +204,7 @@ export function CategoryManager({ categories, onRefresh, onError, onSuccess }: C
                       disabled={isLoading}
                       className="p-1.5 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                       title="Delete"
+                      data-testid={`btn-faq-cat-delete-${cat.id}`}
                     >
                       <Trash2 size={14} />
                     </button>
@@ -222,11 +229,13 @@ export function CategoryManager({ categories, onRefresh, onError, onSuccess }: C
               if (e.key === 'Enter') handleAdd();
             }}
             className="flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            data-testid="faq-cat-new-name-input"
           />
           <button
             onClick={handleAdd}
             disabled={adding || !newName.trim()}
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            data-testid="btn-faq-cat-add"
           >
             <Plus size={15} />
             Add

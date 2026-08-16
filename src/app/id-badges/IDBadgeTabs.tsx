@@ -20,6 +20,7 @@ export function IDBadgeTabs() {
             <Link
               key={tab.name}
               href={tab.href}
+              data-testid={`id-badges-tab-${tab.href === '/id-badges' ? 'verification-queue' : 'message-templates'}`}
               className={`
                 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors
                 ${

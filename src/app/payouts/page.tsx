@@ -128,6 +128,7 @@ export default function PayoutFeesPage() {
               }
               className="flex-1 px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               disabled={isSaving}
+              data-testid={`payouts-input-${item.key}`}
             >
               <option value="true">Enabled</option>
               <option value="false">Disabled</option>
@@ -143,12 +144,14 @@ export default function PayoutFeesPage() {
               disabled={isSaving}
               step={item.value_type === 'decimal' ? '0.01' : '1'}
               min="0"
+              data-testid={`payouts-input-${item.key}`}
             />
           )}
           
           <button
             onClick={() => handleSave(item.key)}
             disabled={!isEdited || isSaving}
+            data-testid={`btn-payouts-save-${item.key}`}
             className={`px-4 py-2 rounded font-medium ${
               isEdited && !isSaving
                 ? 'bg-blue-600 hover:bg-blue-700 text-white'
@@ -161,6 +164,7 @@ export default function PayoutFeesPage() {
           <button
             onClick={() => handleReset(item.key)}
             disabled={!isEdited || isSaving}
+            data-testid={`btn-payouts-reset-${item.key}`}
             className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Reset
@@ -198,6 +202,7 @@ export default function PayoutFeesPage() {
             placeholder="10000"
             step="100"
             min="0"
+            data-testid="payouts-test-amount-input"
           />
           <p className="text-xs text-gray-500 mt-1">
             ${(parseInt(testAmount) / 100).toFixed(2)}
@@ -257,7 +262,7 @@ export default function PayoutFeesPage() {
   }
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
+    <div className="p-8 max-w-6xl mx-auto" data-testid="payouts-config-page">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Payout Fee Configuration</h1>
         <p className="text-gray-600">

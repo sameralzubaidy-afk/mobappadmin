@@ -124,12 +124,14 @@ export default function BadgesPage() {
           </div>
           <div className="flex space-x-3">
             <a
+              data-testid="link-badge-sandbox"
               href="/badges/sandbox"
               className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors flex items-center"
             >
               🧪 Sandbox
             </a>
             <button
+              data-testid="btn-manual-award"
               onClick={() => setShowManualAward(true)}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
             >
@@ -217,6 +219,7 @@ export default function BadgesPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <button
+                      data-testid={`badge-toggle-${badge.id}`}
                       onClick={() => toggleBadgeActive(badge.id, badge.is_active)}
                       className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
                         badge.is_active
@@ -229,6 +232,7 @@ export default function BadgesPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <button
+                      data-testid={`btn-edit-badge-${badge.id}`}
                       onClick={() => setEditingBadge(badge)}
                       className="text-blue-600 hover:text-blue-900 mr-4"
                     >

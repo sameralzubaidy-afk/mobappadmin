@@ -106,6 +106,7 @@ export default function SupportMessageDetailPage() {
           href="/support"
           className="inline-flex items-center gap-2 text-sm mb-6"
           style={{ color: 'var(--text-secondary)' }}
+          data-testid="btn-support-back"
         >
           <ArrowLeft size={16} /> Back to Support
         </Link>
@@ -130,6 +131,7 @@ export default function SupportMessageDetailPage() {
             href="/support"
             className="inline-flex items-center gap-1.5 text-sm mb-3 transition-colors"
             style={{ color: 'var(--text-secondary)' }}
+            data-testid="btn-support-back"
           >
             <ArrowLeft size={15} />
             Back to Support Messages
@@ -195,6 +197,7 @@ export default function SupportMessageDetailPage() {
             onClick={markAsRead}
             disabled={marking}
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-opacity"
+            data-testid="btn-support-mark-read"
             style={{
               background: 'var(--brand-primary)',
               color: '#fff',

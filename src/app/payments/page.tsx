@@ -202,7 +202,7 @@ export default function PaymentsPage() {
                       {new Date(r.created_at).toLocaleDateString()}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <Link href={`/trades/${r.trade_id}`} className="text-blue-600 hover:underline font-mono text-xs">
+                      <Link href={`/trades/${r.trade_id}`} className="text-blue-600 hover:underline font-mono text-xs" data-testid={`payment-trade-link-${r.id}`}>
                         {r.trade_id.substring(0, 8)}...
                       </Link>
                       {r.bundle_id && (

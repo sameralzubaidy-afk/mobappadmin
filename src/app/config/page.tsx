@@ -503,6 +503,7 @@ export default function ConfigPage() {
                 }
               }}
               className="px-3 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700"
+              data-testid="btn-config-copy-setup-snippet"
             >
               Copy setup snippet
             </button>
@@ -573,6 +574,7 @@ export default function ConfigPage() {
                     <button
                       key={cat}
                       onClick={() => setActiveTab(cat)}
+                      data-testid={`config-tab-${cat}`}
                       className={`text-left whitespace-nowrap md:whitespace-normal px-4 py-3 font-medium text-sm transition-colors border-b-2 md:border-b-0 md:border-l-4 ${
                         currentTab === cat
                           ? "border-blue-600 bg-blue-50/80 text-blue-700"
@@ -651,6 +653,7 @@ export default function ConfigPage() {
                                     }
                                     disabled={saving || canWrite === false}
                                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 rounded"
+                                    data-testid={`ref-config-${item.key}`}
                                   />
                                   <span className="text-sm font-medium text-gray-800">
                                     {displayValue === "true"
@@ -670,6 +673,7 @@ export default function ConfigPage() {
                                   }
                                   className="flex-1 min-w-[200px] max-w-md px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                                   disabled={saving || canWrite === false}
+                                  data-testid={`ref-config-${item.key}`}
                                 />
                               )}
                               <button
@@ -679,6 +683,7 @@ export default function ConfigPage() {
                                   displayValue === String(item.value ?? "") ||
                                   canWrite === false
                                 }
+                                data-testid={`btn-save-${item.key}`}
                                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium text-sm"
                               >
                                 {saving
@@ -808,6 +813,7 @@ function SMSRateLimitStats() {
         <button
           onClick={loadStatsFromApi}
           className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+          data-testid="btn-config-sms-stats-refresh"
         >
           Refresh
         </button>

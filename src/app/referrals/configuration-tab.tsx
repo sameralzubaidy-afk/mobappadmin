@@ -140,6 +140,7 @@ export default function ConfigurationTab() {
                 </label>
                 <div className="flex gap-2">
                   <input
+                    data-testid="ref-config-first-trade-referrer-sp"
                     type="number"
                     min="0"
                     step="1"
@@ -149,6 +150,7 @@ export default function ConfigurationTab() {
                     disabled={!!savingField}
                   />
                   <button
+                    data-testid="btn-save-first-trade-referrer-sp"
                     onClick={() => handleSave('referral_reward_referrer_sp', referrerSP)}
                     disabled={!!savingField}
                     className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed min-w-[80px]"
@@ -165,6 +167,7 @@ export default function ConfigurationTab() {
                 </label>
                 <div className="flex gap-2">
                   <input
+                    data-testid="ref-config-first-trade-referee-sp"
                     type="number"
                     min="0"
                     step="1"
@@ -174,6 +177,7 @@ export default function ConfigurationTab() {
                     disabled={!!savingField}
                   />
                   <button
+                    data-testid="btn-save-first-trade-referee-sp"
                     onClick={() => handleSave('referral_reward_referee_sp', refereeSP)}
                     disabled={!!savingField}
                     className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed min-w-[80px]"
@@ -200,6 +204,7 @@ export default function ConfigurationTab() {
                 </label>
                 <div className="flex gap-2">
                   <input
+                    data-testid="ref-config-first-listing-referrer-sp"
                     type="number"
                     min="0"
                     step="1"
@@ -209,6 +214,7 @@ export default function ConfigurationTab() {
                     disabled={!!savingField}
                   />
                   <button
+                    data-testid="btn-save-first-listing-referrer-sp"
                     onClick={() => handleSave('referral_reward_referrer_listing_sp', referrerListingSP)}
                     disabled={!!savingField}
                     className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed min-w-[80px]"
@@ -225,6 +231,7 @@ export default function ConfigurationTab() {
                 </label>
                 <div className="flex gap-2">
                   <input
+                    data-testid="ref-config-first-listing-referee-sp"
                     type="number"
                     min="0"
                     step="1"
@@ -234,6 +241,7 @@ export default function ConfigurationTab() {
                     disabled={!!savingField}
                   />
                   <button
+                    data-testid="btn-save-first-listing-referee-sp"
                     onClick={() => handleSave('referral_reward_referee_listing_sp', refereeListingSP)}
                     disabled={!!savingField}
                     className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed min-w-[80px]"
@@ -250,6 +258,7 @@ export default function ConfigurationTab() {
                 </label>
                 <div className="flex gap-2">
                   <input
+                    data-testid="ref-config-starter-pack-sp"
                     type="number"
                     min="0"
                     step="1"
@@ -259,6 +268,7 @@ export default function ConfigurationTab() {
                     disabled={!!savingField}
                   />
                   <button
+                    data-testid="btn-save-starter-pack-sp"
                     onClick={() => handleSave('starter_pack_amount', starterPackSP)}
                     disabled={!!savingField}
                     className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed min-w-[80px]"
@@ -292,6 +302,7 @@ export default function ConfigurationTab() {
                   <div className="ios-toggle-container">
                     <label className="ios-toggle">
                       <input
+                        data-testid="toggle-first-trade-enabled"
                         type="checkbox"
                         checked={firstTradeEnabled}
                         onChange={(e) => {
@@ -321,6 +332,7 @@ export default function ConfigurationTab() {
                   <div className="ios-toggle-container">
                     <label className="ios-toggle">
                       <input
+                        data-testid="toggle-first-listing-enabled"
                         type="checkbox"
                         checked={firstListingEnabled}
                         onChange={(e) => {
@@ -350,6 +362,7 @@ export default function ConfigurationTab() {
                   <div className="ios-toggle-container">
                     <label className="ios-toggle">
                       <input
+                        data-testid="toggle-program-enabled"
                         type="checkbox"
                         checked={programEnabled}
                         onChange={(e) => {

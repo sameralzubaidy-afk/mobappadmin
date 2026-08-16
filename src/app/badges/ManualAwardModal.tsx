@@ -139,6 +139,7 @@ export function ManualAwardModal({ badges, onClose, onSuccess }: ManualAwardModa
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-medium text-gray-900">Manual Badge Award</h3>
           <button
+            data-testid="manual-award-close"
             onClick={onClose}
             className="text-gray-400 hover:text-gray-500"
             disabled={awarding}
@@ -160,6 +161,7 @@ export function ManualAwardModal({ badges, onClose, onSuccess }: ManualAwardModa
           
           <div className="flex space-x-2">
             <input
+              data-testid="manual-award-email-input"
               type="email"
               placeholder="Enter user email"
               value={searchEmail}
@@ -168,6 +170,7 @@ export function ManualAwardModal({ badges, onClose, onSuccess }: ManualAwardModa
               disabled={searching || awarding}
             />
             <button
+              data-testid="btn-manual-award-search"
               type="button"
               onClick={handleSearchUser}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
@@ -199,6 +202,7 @@ export function ManualAwardModal({ badges, onClose, onSuccess }: ManualAwardModa
                   Select Badge
                 </label>
                 <select
+                  data-testid="manual-award-badge-select"
                   value={selectedBadgeId}
                   onChange={(e) => setSelectedBadgeId(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -219,6 +223,7 @@ export function ManualAwardModal({ badges, onClose, onSuccess }: ManualAwardModa
                   Reason (optional)
                 </label>
                 <textarea
+                  data-testid="manual-award-reason"
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   rows={3}
@@ -231,6 +236,7 @@ export function ManualAwardModal({ badges, onClose, onSuccess }: ManualAwardModa
             {/* Actions */}
             <div className="mt-6 flex justify-end space-x-3">
               <button
+                data-testid="manual-award-cancel"
                 type="button"
                 onClick={onClose}
                 className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
@@ -239,6 +245,7 @@ export function ManualAwardModal({ badges, onClose, onSuccess }: ManualAwardModa
                 Cancel
               </button>
               <button
+                data-testid="btn-manual-award-submit"
                 type="submit"
                 className="px-4 py-2 bg-primary-600 text-white rounded-md text-sm font-medium hover:bg-primary-700 disabled:opacity-50"
                 disabled={awarding}

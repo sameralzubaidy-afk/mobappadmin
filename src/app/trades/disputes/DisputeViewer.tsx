@@ -141,6 +141,7 @@ export default function DisputeViewer({
           value={selectedStatus}
           onChange={(e) => handleStatusChange(e.target.value)}
           className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          data-testid="disputes-status-select"
         >
           <option value="all">All Statuses</option>
           <option value="reported">Reported</option>
@@ -156,6 +157,7 @@ export default function DisputeViewer({
           onChange={(e) => setSearchText(e.target.value)}
           placeholder="Search by item name or trade ID…"
           className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white text-gray-700 min-w-[220px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+          data-testid="disputes-search-input"
         />
 
         {/* Reason filter */}
@@ -163,6 +165,7 @@ export default function DisputeViewer({
           value={selectedReason}
           onChange={(e) => handleReasonChange(e.target.value)}
           className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          data-testid="disputes-reason-select"
         >
           <option value="">All Reasons</option>
           {uniqueReasons.map((r) => (
@@ -205,6 +208,7 @@ export default function DisputeViewer({
                         <a
                           href={`/trades/disputes/${d.id}`}
                           className="text-blue-600 hover:underline font-mono text-xs"
+                          data-testid={`dispute-trade-link-${d.id}`}
                         >
                           {d.id.slice(0, 8)}…
                         </a>
@@ -285,6 +289,7 @@ export default function DisputeViewer({
                 disabled={safePage <= 1}
                 onClick={() => setPage(safePage - 1)}
                 className="px-3 py-1.5 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                data-testid="btn-disputes-prev"
               >
                 ← Previous
               </button>
@@ -295,6 +300,7 @@ export default function DisputeViewer({
                 disabled={safePage >= totalPages}
                 onClick={() => setPage(safePage + 1)}
                 className="px-3 py-1.5 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                data-testid="btn-disputes-next"
               >
                 Next →
               </button>

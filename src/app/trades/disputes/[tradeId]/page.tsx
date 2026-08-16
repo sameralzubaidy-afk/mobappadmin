@@ -95,7 +95,7 @@ export default function DisputeDetailPage() {
     return (
       <div className="p-8">
         <div className="text-red-500 mb-4">{error || 'Trade not found.'}</div>
-        <button onClick={() => router.push('/trades/disputes')} className="text-sm text-blue-600 hover:underline">
+        <button onClick={() => router.push('/trades/disputes')} className="text-sm text-blue-600 hover:underline" data-testid="btn-dispute-back">
           ← Back to disputes
         </button>
       </div>
@@ -109,6 +109,7 @@ export default function DisputeDetailPage() {
       <button
         onClick={() => router.push('/trades/disputes')}
         className="mb-6 text-sm text-blue-600 hover:underline"
+        data-testid="btn-dispute-back"
       >
         ← Back to disputes
       </button>
@@ -197,6 +198,7 @@ export default function DisputeDetailPage() {
               onClick={() => setConfirming('mark_under_review')}
               disabled={submitting}
               className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white font-medium rounded-lg disabled:opacity-50"
+              data-testid="btn-dispute-mark-under-review"
             >
               Mark Under Review
             </button>
@@ -206,6 +208,7 @@ export default function DisputeDetailPage() {
             onClick={() => setConfirming('resolve_complete')}
             disabled={submitting}
             className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg disabled:opacity-50"
+            data-testid="btn-dispute-resolve-complete"
           >
             Resolve → Complete
           </button>
@@ -214,6 +217,7 @@ export default function DisputeDetailPage() {
             onClick={() => setConfirming('resolve_refund')}
             disabled={submitting}
             className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg disabled:opacity-50"
+            data-testid="btn-dispute-resolve-refund"
           >
             Resolve → Refund Buyer
           </button>
@@ -228,7 +232,7 @@ export default function DisputeDetailPage() {
 
       {/* Confirmation modal */}
       {confirming && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" data-testid="dispute-confirm-modal">
           <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-xl">
             <h3 className="text-lg font-bold text-gray-900 mb-3">
               {confirming === 'mark_under_review'
@@ -249,6 +253,7 @@ export default function DisputeDetailPage() {
                 onClick={() => setConfirming(null)}
                 disabled={submitting}
                 className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                data-testid="btn-dispute-confirm-cancel"
               >
                 Cancel
               </button>
@@ -260,6 +265,7 @@ export default function DisputeDetailPage() {
                     ? 'bg-red-600 hover:bg-red-700'
                     : 'bg-green-600 hover:bg-green-700'
                 }`}
+                data-testid="btn-dispute-confirm-submit"
               >
                 {submitting ? 'Processing…' : 'Confirm'}
               </button>

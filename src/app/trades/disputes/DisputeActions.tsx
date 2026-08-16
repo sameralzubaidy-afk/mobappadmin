@@ -56,6 +56,7 @@ export default function DisputeActions({ tradeId, currentDisputeStatus, tradeSta
           onClick={() => callAction('mark_under_review')}
           disabled={loading}
           className="text-xs px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded hover:bg-blue-100 disabled:opacity-50 whitespace-nowrap"
+          data-testid={`btn-dispute-mark-under-review-${tradeId}`}
         >
           Mark Under Review
         </button>
@@ -66,6 +67,7 @@ export default function DisputeActions({ tradeId, currentDisputeStatus, tradeSta
             onClick={() => callAction('resolve_complete')}
             disabled={loading}
             className="text-xs px-3 py-1.5 bg-green-50 text-green-700 border border-green-200 rounded hover:bg-green-100 disabled:opacity-50 whitespace-nowrap"
+            data-testid={`btn-dispute-resolve-complete-${tradeId}`}
           >
             Resolve → Complete
           </button>
@@ -73,6 +75,7 @@ export default function DisputeActions({ tradeId, currentDisputeStatus, tradeSta
             onClick={() => callAction('resolve_refund')}
             disabled={loading}
             className="text-xs px-3 py-1.5 bg-red-50 text-red-700 border border-red-200 rounded hover:bg-red-100 disabled:opacity-50 whitespace-nowrap"
+            data-testid={`btn-dispute-resolve-refund-${tradeId}`}
           >
             Resolve → Refund
           </button>

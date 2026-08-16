@@ -32,6 +32,7 @@ export default function DisputeFilters({ initialStatus }: { initialStatus: strin
           <button
             key={tab.value}
             onClick={() => handleTabClick(tab.value)}
+            data-testid={`disputes-tab-${tab.value}`}
             className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
               isActive
                 ? 'bg-amber-500 text-white'

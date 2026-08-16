@@ -132,6 +132,7 @@ export default async function DisputesPage({ searchParams }: Props) {
                       <Link
                         href={`/disputes/${d.id}`}
                         className="text-blue-600 hover:text-blue-800 font-medium"
+                        data-testid={`dispute-view-link-${d.id}`}
                       >
                         View →
                       </Link>

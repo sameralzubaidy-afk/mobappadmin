@@ -169,6 +169,7 @@ export default function IDVerificationReviewPage({
             target="_blank"
             rel="noopener noreferrer"
             className="text-blue-600 hover:underline mt-2 inline-block"
+            data-testid="id-badge-download-screenshot"
           >
             Download Full Size
           </a>
@@ -189,6 +190,7 @@ export default function IDVerificationReviewPage({
                 value="approve"
                 onChange={(e) => setDecision(e.target.value as any)}
                 className="mr-2"
+                data-testid="id-badge-decision-approve"
               />
               <span>Approve</span>
             </label>
@@ -199,6 +201,7 @@ export default function IDVerificationReviewPage({
                 value="reject"
                 onChange={(e) => setDecision(e.target.value as any)}
                 className="mr-2"
+                data-testid="id-badge-decision-reject"
               />
               <span>Reject</span>
             </label>
@@ -212,6 +215,7 @@ export default function IDVerificationReviewPage({
               value={rejectionReason}
               onChange={(e) => setRejectionReason(e.target.value)}
               className="w-full px-3 py-2 border rounded"
+              data-testid="id-badge-rejection-reason"
             >
               <option value="">Select a reason</option>
               {REJECTION_REASONS.map((reason) => (
@@ -234,12 +238,14 @@ export default function IDVerificationReviewPage({
                 : 'Optional: Notes about approval'
             }
             className="w-full px-3 py-2 border rounded h-24"
+            data-testid="id-badge-review-notes"
           />
         </div>
 
         <button
           onClick={handleSubmitDecision}
           disabled={!decision || deciding}
+          data-testid="btn-id-badge-submit"
           className={`px-6 py-2 rounded font-medium text-white ${
             !decision || deciding
               ? 'bg-gray-400 cursor-not-allowed'

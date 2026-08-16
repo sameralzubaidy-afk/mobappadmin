@@ -245,7 +245,7 @@ export default function ReviewModerationPage() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
       <div className="mb-8">
-        <Link href="/" className="text-blue-600 hover:text-blue-800 mb-4 inline-block">
+        <Link href="/" className="text-blue-600 hover:text-blue-800 mb-4 inline-block" data-testid="reviews-back-link">
           ← Back to Dashboard
         </Link>
         <div className="flex justify-between items-end">
@@ -274,6 +274,7 @@ export default function ReviewModerationPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search by review, reviewer, reviewee, reason, reporter..."
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                data-testid="reviews-search-input"
               />
             </div>
             <div>
@@ -283,6 +284,7 @@ export default function ReviewModerationPage() {
                 value={reasonFilter}
                 onChange={(e) => setReasonFilter(e.target.value as ReasonFilter)}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                data-testid="reviews-reason-filter"
               >
                 <option value="all">All Reports</option>
                 <option value="spam">Spam</option>
@@ -298,6 +300,7 @@ export default function ReviewModerationPage() {
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                data-testid="reviews-status-filter"
               >
                 <option value="all">All Statuses</option>
                 <option value="pending_review">Pending Review</option>
@@ -313,6 +316,7 @@ export default function ReviewModerationPage() {
                 value={sortKey}
                 onChange={(e) => setSortKey(e.target.value as SortKey)}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                data-testid="reviews-sort-select"
               >
                 <option value="reports">Most Reports</option>
                 <option value="newest">Newest Review</option>
@@ -333,6 +337,7 @@ export default function ReviewModerationPage() {
           <button
             onClick={fetchReportedReviews}
             className="mt-3 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+            data-testid="btn-reviews-retry"
           >
             Retry
           </button>
@@ -432,6 +437,7 @@ export default function ReviewModerationPage() {
                             <button
                               onClick={() => setExpandedReview(expandedReview === group.id ? null : group.id)}
                               className="text-xs text-blue-600 hover:text-blue-800 underline"
+                              data-testid={`btn-review-details-${group.id}`}
                             >
                               {expandedReview === group.id ? 'Hide' : 'Show'} Details
                             </button>
@@ -485,6 +491,7 @@ export default function ReviewModerationPage() {
                               onClick={() => keepReport(group.review_id)}
                               className="text-green-600 hover:text-green-900 bg-green-50 px-3 py-1.5 rounded-md transition-colors text-xs"
                               title="Keep Review (Reject Reports)"
+                              data-testid={`btn-review-keep-${group.review_id}`}
                             >
                               Keep
                             </button>
@@ -492,6 +499,7 @@ export default function ReviewModerationPage() {
                               onClick={() => hideReview(group.review_id)}
                               className="text-red-600 hover:text-red-900 bg-red-50 px-3 py-1.5 rounded-md transition-colors text-xs"
                               title="Hide Review"
+                              data-testid={`btn-review-hide-${group.review_id}`}
                             >
                               Hide
                             </button>
@@ -568,6 +576,7 @@ export default function ReviewModerationPage() {
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
                     className="px-3 py-2 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                    data-testid="btn-reviews-prev"
                   >
                     Previous
                   </button>
@@ -578,6 +587,7 @@ export default function ReviewModerationPage() {
                     onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                     disabled={currentPage === totalPages}
                     className="px-3 py-2 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                    data-testid="btn-reviews-next"
                   >
                     Next
                   </button>

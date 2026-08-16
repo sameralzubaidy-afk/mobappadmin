@@ -173,6 +173,7 @@ export default function TradeActions({
             <button
               onClick={() => setShowCancelModal(true)}
               className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors"
+              data-testid="btn-force-cancel-trade"
             >
               Force Cancel Trade
             </button>
@@ -184,18 +185,21 @@ export default function TradeActions({
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 rows={3}
+                data-testid="force-cancel-reason-input"
               />
               <div className="flex gap-2">
                 <button
                   onClick={handleForceCancel}
                   disabled={loading}
                   className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 disabled:opacity-50"
+                  data-testid="btn-confirm-force-cancel"
                 >
                   {loading ? 'Processing...' : 'Confirm Force Cancel'}
                 </button>
                 <button
                   onClick={() => setShowCancelModal(false)}
                   className="bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300"
+                  data-testid="btn-force-cancel-modal-cancel"
                 >
                   Cancel
                 </button>
@@ -232,6 +236,7 @@ export default function TradeActions({
                     value={refundPrice}
                     onChange={(e) => setRefundPrice(Number(e.target.value))}
                     className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
+                    data-testid="refund-price-input"
                   />
                 </div>
                 <div>
@@ -243,6 +248,7 @@ export default function TradeActions({
                     value={refundFee}
                     onChange={(e) => setRefundFee(Number(e.target.value))}
                     className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
+                    data-testid="refund-fee-input"
                   />
                 </div>
                 <div>
@@ -254,6 +260,7 @@ export default function TradeActions({
                     value={refundTax}
                     onChange={(e) => setRefundTax(Number(e.target.value))}
                     className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
+                    data-testid="refund-tax-input"
                   />
                 </div>
               </div>
@@ -266,6 +273,7 @@ export default function TradeActions({
                 value={refundReason}
                 onChange={(e) => setRefundReason(e.target.value)}
                 rows={2}
+                data-testid="refund-reason-input"
               />
               <div className="flex gap-2">
                 <button
@@ -279,6 +287,7 @@ export default function TradeActions({
                 <button
                   onClick={() => setShowRefundModal(false)}
                   className="bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300"
+                  data-testid="btn-refund-modal-cancel"
                 >
                   Cancel
                 </button>

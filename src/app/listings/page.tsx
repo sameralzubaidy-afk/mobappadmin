@@ -38,6 +38,7 @@ export default function ListingsPage() {
         <div className="flex gap-4 mb-8">
           <button
             onClick={() => setActiveTab('search')}
+            data-testid="listings-tab-search"
             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
               activeTab === 'search'
                 ? 'bg-blue-600 text-white'
@@ -48,6 +49,7 @@ export default function ListingsPage() {
           </button>
           <button
             onClick={() => setActiveTab('analytics')}
+            data-testid="listings-tab-analytics"
             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
               activeTab === 'analytics'
                 ? 'bg-blue-600 text-white'

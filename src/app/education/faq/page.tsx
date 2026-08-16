@@ -81,6 +81,7 @@ export default function FAQPage() {
           <button
             onClick={() => setEditItem(null)}
             className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
+            data-testid="btn-faq-add"
           >
             <Plus size={16} />
             Add Question
@@ -115,6 +116,7 @@ export default function FAQPage() {
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
+              data-testid={`faq-tab-${tab}`}
               className={`px-5 py-2 rounded-md text-sm font-medium transition-colors capitalize ${
                 activeTab === tab
                   ? 'bg-white shadow-sm text-gray-900'

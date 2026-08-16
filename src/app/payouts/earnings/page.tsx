@@ -219,6 +219,7 @@ export default function AdminPayoutsPage() {
       key={payout.id}
       className="hover:bg-gray-50 cursor-pointer transition"
       onClick={() => setSelectedPayout(payout)}
+      data-testid={`payout-row-${payout.id}`}
     >
       <td className="px-4 py-3 text-sm">
         <div className="font-medium">{payout.seller_email || payout.user_id.slice(0, 8)}</div>
@@ -230,6 +231,7 @@ export default function AdminPayoutsPage() {
             href={`/trades/${payout.trade_id}`}
             className="text-blue-600 hover:underline"
             onClick={(e) => e.stopPropagation()}
+            data-testid={`payout-trade-link-${payout.id}`}
           >
             {payout.trade_id.slice(0, 8)}...
           </a>
@@ -264,6 +266,7 @@ export default function AdminPayoutsPage() {
               handleRetryPayout(payout.id);
             }}
             className="text-blue-600 hover:text-blue-800 font-medium"
+            data-testid={`btn-payout-retry-${payout.id}`}
           >
             Retry
           </button>
@@ -279,6 +282,7 @@ export default function AdminPayoutsPage() {
       <div
         className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
         onClick={() => setSelectedPayout(null)}
+        data-testid="payout-detail-modal"
       >
         <div
           className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto"
@@ -290,6 +294,7 @@ export default function AdminPayoutsPage() {
               <button
                 onClick={() => setSelectedPayout(null)}
                 className="text-gray-400 hover:text-gray-600"
+                data-testid="btn-payout-modal-close"
               >
                 ✕
               </button>
@@ -442,6 +447,7 @@ export default function AdminPayoutsPage() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                data-testid="payout-search-input"
               />
             </div>
 
@@ -449,6 +455,7 @@ export default function AdminPayoutsPage() {
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as PayoutStatus)}
               className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              data-testid="payout-status-filter"
             >
               <option value="all">All Status</option>
               <option value="requires_action">Action Required</option>
@@ -462,6 +469,7 @@ export default function AdminPayoutsPage() {
               onClick={loadPayouts}
               disabled={loading}
               className={`px-4 py-2 border rounded-lg flex items-center gap-2 ${loading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}
+              data-testid="btn-payout-refresh"
             >
               <svg
                 className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`}
@@ -482,6 +490,7 @@ export default function AdminPayoutsPage() {
             <button
               onClick={handleExportPayouts}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2"
+              data-testid="btn-payout-export"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path

@@ -131,6 +131,7 @@ export default function SupportMessagesPage() {
             onClick={fetchMessages}
             disabled={loading}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-opacity"
+            data-testid="btn-support-refresh"
             style={{
               background: 'var(--card-bg)',
               border: '1px solid var(--border-color)',
@@ -156,6 +157,7 @@ export default function SupportMessagesPage() {
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
+              data-testid={`support-filter-${s}`}
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium capitalize transition-colors"
               style={{
                 background: statusFilter === s ? 'var(--brand-primary)' : 'var(--card-bg)',
@@ -313,6 +315,7 @@ export default function SupportMessagesPage() {
                           <Link
                             href={`/support/${msg.id}`}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                            data-testid={`support-view-${msg.id}`}
                             style={{
                               background: 'var(--brand-primary)',
                               color: '#fff',
@@ -328,6 +331,7 @@ export default function SupportMessagesPage() {
                               onClick={(e) => markAsRead(msg.id, e)}
                               disabled={isMarking}
                               title="Mark as read"
+                              data-testid={`btn-support-mark-read-${msg.id}`}
                               className="inline-flex items-center justify-center w-7 h-7 rounded-lg transition-opacity"
                               style={{
                                 background: '#DCFCE7',
@@ -365,6 +369,7 @@ export default function SupportMessagesPage() {
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
                   className="px-3 py-1.5 rounded-lg text-sm font-medium transition-opacity"
+                  data-testid="btn-support-prev"
                   style={{
                     background: 'var(--card-bg)',
                     border: '1px solid var(--border-color)',
@@ -398,6 +403,7 @@ export default function SupportMessagesPage() {
                       <button
                         key={p}
                         onClick={() => setCurrentPage(p as number)}
+                        data-testid={`btn-support-page-${p}`}
                         className="w-8 h-8 rounded-lg text-sm font-medium"
                         style={{
                           background: currentPage === p ? 'var(--brand-primary)' : 'var(--card-bg)',
@@ -414,6 +420,7 @@ export default function SupportMessagesPage() {
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
                   className="px-3 py-1.5 rounded-lg text-sm font-medium transition-opacity"
+                  data-testid="btn-support-next"
                   style={{
                     background: 'var(--card-bg)',
                     border: '1px solid var(--border-color)',

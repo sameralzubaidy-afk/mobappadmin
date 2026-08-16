@@ -691,6 +691,7 @@ export default function ListingSearch() {
               value={filters.query}
               onChange={(e) => setFilters({ ...filters, query: e.target.value })}
               placeholder="e.g., Blue Backpack, Bicycle..."
+              data-testid="listings-search-input"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -705,6 +706,7 @@ export default function ListingSearch() {
               value={filters.sellerEmail}
               onChange={(e) => setFilters({ ...filters, sellerEmail: e.target.value })}
               placeholder="e.g., seller@example.com"
+              data-testid="listings-seller-email-input"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -717,6 +719,7 @@ export default function ListingSearch() {
             <select
               value={filters.status}
               onChange={(e) => setFilters({ ...filters, status: e.target.value as SearchFilters['status'] })}
+              data-testid="listings-status-select"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All</option>
@@ -739,6 +742,7 @@ export default function ListingSearch() {
             <select
               value={filters.category}
               onChange={(e) => setFilters({ ...filters, category: e.target.value })}
+              data-testid="listings-category-select"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All</option>
@@ -758,6 +762,7 @@ export default function ListingSearch() {
                 type="checkbox"
                 checked={filters.spEligibleOnly}
                 onChange={(e) => setFilters({ ...filters, spEligibleOnly: e.target.checked })}
+                data-testid="listings-sp-eligible-checkbox"
                 className="w-4 h-4 text-blue-600 rounded"
               />
               <span className="text-sm font-medium text-gray-700">SP-Eligible Only</span>
@@ -769,6 +774,7 @@ export default function ListingSearch() {
             <button
               onClick={() => handleSearch(true)}
               disabled={loading}
+              data-testid="btn-listings-search"
               className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 font-medium"
             >
               {loading ? 'Searching...' : 'Search'}
@@ -798,6 +804,7 @@ export default function ListingSearch() {
                   </p>
                   <button
                     onClick={() => setSelectedListingIds(new Set())}
+                    data-testid="btn-listings-clear-selection"
                     className="text-xs text-blue-700 hover:text-blue-900 underline"
                   >
                     Clear selection
@@ -822,6 +829,7 @@ export default function ListingSearch() {
                             checked={areAllVisibleSelected}
                             onChange={toggleSelectAllVisible}
                             aria-label="Select all listings on this page"
+                            data-testid="listings-select-all"
                             className="w-4 h-4 text-blue-600 rounded"
                           />
                         </th>
@@ -840,6 +848,7 @@ export default function ListingSearch() {
                       {listings.map((listing) => (
                         <tr
                           key={listing.id}
+                          data-testid={`listings-row-${listing.id}`}
                           className={`border-b hover:bg-gray-50 ${selectedListingIds.has(listing.id) ? 'bg-blue-50/40' : ''}`}
                           onClick={() => handleSelectListing(listing)}
                         >
@@ -850,6 +859,7 @@ export default function ListingSearch() {
                               onChange={() => toggleListingSelection(listing.id)}
                               onClick={(e) => e.stopPropagation()}
                               aria-label={`Select ${listing.title}`}
+                              data-testid={`listings-row-${listing.id}-select`}
                               className="w-4 h-4 text-blue-600 rounded"
                             />
                           </td>
@@ -906,6 +916,7 @@ export default function ListingSearch() {
                             <div className="flex flex-col gap-1">
                               <Link
                                 href={`/items/${listing.id}`}
+                                data-testid={`listings-view-${listing.id}`}
                                 className="text-blue-600 hover:text-blue-800 font-medium"
                               >
                                 View
@@ -915,6 +926,7 @@ export default function ListingSearch() {
                                   e.stopPropagation();
                                   handleSelectListing(listing);
                                 }}
+                                data-testid={`btn-listings-actions-${listing.id}`}
                                 className="text-emerald-600 hover:text-emerald-800 font-medium text-left"
                               >
                                 Actions
@@ -937,6 +949,7 @@ export default function ListingSearch() {
                       <button
                         onClick={() => setFilters({ ...filters, page: filters.page - 1 })}
                         disabled={filters.page === 1}
+                        data-testid="btn-listings-prev"
                         className="px-3 py-1 border rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
                       >
                         ← Previous
@@ -944,6 +957,7 @@ export default function ListingSearch() {
                       <button
                         onClick={() => setFilters({ ...filters, page: filters.page + 1 })}
                         disabled={filters.page >= Math.ceil(totalCount / ITEMS_PER_PAGE)}
+                        data-testid="btn-listings-next"
                         className="px-3 py-1 border rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
                       >
                         Next →
@@ -958,7 +972,7 @@ export default function ListingSearch() {
 
         {/* Selected Listing Details & Actions (Popup Modal) */}
         {selectedListing && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" data-testid="listings-details-modal">
             <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6 relative">
               <button
                 onClick={() => {
@@ -968,6 +982,7 @@ export default function ListingSearch() {
                 }}
                 className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 text-xl"
                 aria-label="Close listing details"
+                data-testid="listings-modal-close"
               >
                 ×
               </button>
@@ -1168,6 +1183,7 @@ export default function ListingSearch() {
                 {selectedListing.status === 'pending' && (
                   <button
                     onClick={() => setAdminAction('approve')}
+                    data-testid={`btn-approve-${selectedListing.id}`}
                     className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm"
                   >
                     ✅ Approve Listing
@@ -1176,6 +1192,7 @@ export default function ListingSearch() {
                 {(selectedListing.status === 'pending' || selectedListing.status === 'flagged') && (
                   <button
                     onClick={() => setAdminAction('request_edits')}
+                    data-testid={`btn-request-edits-${selectedListing.id}`}
                     className="w-full px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium text-sm"
                   >
                     ✍️ Request Edits
@@ -1184,6 +1201,7 @@ export default function ListingSearch() {
                 {(selectedListing.status === 'pending' || selectedListing.status === 'flagged') && (
                   <button
                     onClick={() => setAdminAction('reject')}
+                    data-testid={`btn-reject-${selectedListing.id}`}
                     className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium text-sm"
                   >
                     ⛔ Reject Listing
@@ -1192,6 +1210,7 @@ export default function ListingSearch() {
                 {selectedListing.status !== 'deleted' && (
                   <button
                     onClick={() => setAdminAction('pause')}
+                    data-testid={`btn-pause-${selectedListing.id}`}
                     className="w-full px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 font-medium text-sm"
                   >
                     ⏸ Pause Listing
@@ -1200,6 +1219,7 @@ export default function ListingSearch() {
                 {selectedListing.status !== 'deleted' && (
                   <button
                     onClick={() => setAdminAction('force_delete')}
+                    data-testid={`btn-force-delete-${selectedListing.id}`}
                     className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium text-sm"
                   >
                     🗑 Force Delete
@@ -1207,6 +1227,7 @@ export default function ListingSearch() {
                 )}
                 <button
                   onClick={() => setSelectedListing(null)}
+                  data-testid="btn-listings-close"
                   className="w-full px-4 py-2 bg-gray-300 text-gray-900 rounded-lg hover:bg-gray-400 font-medium text-sm"
                 >
                   Close
@@ -1236,6 +1257,7 @@ export default function ListingSearch() {
                             ? 'Provide clear rejection reason for seller...'
                             : 'Enter reason for admin action...'
                     }
+                    data-testid="listings-reason-input"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                     rows={3}
                   />
@@ -1262,6 +1284,7 @@ export default function ListingSearch() {
                         adminAction === 'reject') &&
                         !actionReason.trim())
                     }
+                    data-testid="btn-confirm-action"
                     className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-400 font-medium text-sm"
                   >
                     {actionLoading
@@ -1284,6 +1307,7 @@ export default function ListingSearch() {
                       setActionReason('');
                     }}
                     disabled={actionLoading}
+                    data-testid="btn-cancel-action"
                     className="w-full px-4 py-2 bg-gray-300 text-gray-900 rounded-lg hover:bg-gray-400 disabled:bg-gray-400 font-medium text-sm"
                   >
                     Cancel

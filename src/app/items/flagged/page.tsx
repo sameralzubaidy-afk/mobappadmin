@@ -286,6 +286,7 @@ export default function FlaggedItemsPage() {
       <div className="flex gap-2 mb-6">
         {(['all', 'flagged', 'needs_edits', 'rejected'] as const).map((f) => (
           <button
+            data-testid={`flagged-filter-${f}`}
             key={f}
             onClick={() => setFilter(f)}
             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
@@ -461,6 +462,7 @@ export default function FlaggedItemsPage() {
               <textarea
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}
+                data-testid="flagged-rejection-reason-input"
                 rows={3}
                 className="w-full border border-gray-300 rounded-lg p-2"
                 placeholder="Provide clear moderation feedback for seller..."

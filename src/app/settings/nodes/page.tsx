@@ -242,6 +242,7 @@ export default function NodeSettingsPage() {
             min="1"
             max="100"
             disabled={saving}
+            data-testid="node-settings-default-radius-input"
           />
           <p className="text-gray-500 text-sm mt-1">
             Default radius for item searches within nodes
@@ -273,6 +274,7 @@ export default function NodeSettingsPage() {
             min="1"
             max="200"
             disabled={saving}
+            data-testid="node-settings-max-assignment-input"
           />
           <p className="text-gray-500 text-sm mt-1">
             Maximum distance to assign user to a node. Warn if exceeded.
@@ -306,6 +308,7 @@ export default function NodeSettingsPage() {
             min="1"
             max="200"
             disabled={saving}
+            data-testid="node-settings-distance-warning-input"
           />
           <p className="text-gray-500 text-sm mt-1">
             Log warning to Sentry if nearest node is this far away
@@ -335,6 +338,7 @@ export default function NodeSettingsPage() {
               }
               className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               disabled={saving}
+              data-testid="node-settings-allow-user-radius-adjustment"
             />
             <label className="ml-2 block text-sm font-medium text-gray-900">
               Allow users to adjust search radius
@@ -363,6 +367,7 @@ export default function NodeSettingsPage() {
                   min="1"
                   max="100"
                   disabled={saving}
+                  data-testid="node-settings-min-user-radius-input"
                 />
                 {errors.min_user_radius_miles && (
                   <p className="text-red-600 text-sm mt-1">
@@ -391,6 +396,7 @@ export default function NodeSettingsPage() {
                   min="1"
                   max="100"
                   disabled={saving}
+                  data-testid="node-settings-max-user-radius-input"
                 />
                 {errors.max_user_radius_miles && (
                   <p className="text-red-600 text-sm mt-1">
@@ -446,6 +452,7 @@ export default function NodeSettingsPage() {
         <div className="flex justify-end pt-4 border-t">
           <button
             onClick={handleSave}
+            data-testid="btn-save-node-settings"
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={saving}
           >

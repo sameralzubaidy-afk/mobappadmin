@@ -209,7 +209,7 @@ export default function NodeFormModal({ node, onClose }: NodeFormModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" data-testid="node-form-modal">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-gray-200 sticky top-0 bg-white">
           <h2 className="text-2xl font-bold text-gray-900">
@@ -238,6 +238,7 @@ export default function NodeFormModal({ node, onClose }: NodeFormModalProps) {
               } rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
               placeholder="e.g., Norwalk Central"
               disabled={loading}
+              data-testid="node-form-name"
             />
             {errors.name && <p className="text-red-600 text-sm mt-1">{errors.name}</p>}
           </div>
@@ -257,6 +258,7 @@ export default function NodeFormModal({ node, onClose }: NodeFormModalProps) {
               placeholder="06850"
               maxLength={5}
               disabled={loading}
+              data-testid="node-form-zip"
             />
             {lookingUpZip && <p className="text-blue-600 text-sm mt-1">🔍 Looking up ZIP code...</p>}
             {errors.zip_code && <p className="text-red-600 text-sm mt-1">{errors.zip_code}</p>}
@@ -281,6 +283,7 @@ export default function NodeFormModal({ node, onClose }: NodeFormModalProps) {
                 } rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
                 placeholder="Norwalk"
                 disabled={loading}
+                data-testid="node-form-city"
               />
               {errors.city && <p className="text-red-600 text-sm mt-1">{errors.city}</p>}
             </div>
@@ -301,6 +304,7 @@ export default function NodeFormModal({ node, onClose }: NodeFormModalProps) {
                 placeholder="CT"
                 maxLength={2}
                 disabled={loading}
+                data-testid="node-form-state"
               />
               {errors.state && <p className="text-red-600 text-sm mt-1">{errors.state}</p>}
             </div>
@@ -325,6 +329,7 @@ export default function NodeFormModal({ node, onClose }: NodeFormModalProps) {
                 } rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
                 placeholder="41.1177"
                 disabled={loading}
+                data-testid="node-form-latitude"
               />
             </div>
             <div>
@@ -344,6 +349,7 @@ export default function NodeFormModal({ node, onClose }: NodeFormModalProps) {
                 } rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
                 placeholder="-73.4079"
                 disabled={loading}
+                data-testid="node-form-longitude"
               />
             </div>
           </div>
@@ -368,6 +374,7 @@ export default function NodeFormModal({ node, onClose }: NodeFormModalProps) {
               min="1"
               max="100"
               disabled={loading}
+              data-testid="node-form-radius"
             />
             <p className="text-gray-500 text-xs mt-1">Default search radius for items in this node (1-100 miles)</p>
             {errors.radius_miles && <p className="text-red-600 text-sm mt-1">{errors.radius_miles}</p>}
@@ -385,6 +392,7 @@ export default function NodeFormModal({ node, onClose }: NodeFormModalProps) {
               rows={3}
               placeholder="e.g., Central Norwalk area including downtown and East Norwalk"
               disabled={loading}
+              data-testid="node-form-description"
             />
           </div>
 
@@ -397,6 +405,7 @@ export default function NodeFormModal({ node, onClose }: NodeFormModalProps) {
               onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
               className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               disabled={loading}
+              data-testid="node-form-is-active"
             />
             <label htmlFor="is_active" className="block text-sm text-gray-900 cursor-pointer">
               <span className="font-medium">Active Node</span>
@@ -413,6 +422,7 @@ export default function NodeFormModal({ node, onClose }: NodeFormModalProps) {
               onClick={onClose}
               className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={loading}
+              data-testid="btn-node-form-cancel"
             >
               Cancel
             </button>
@@ -420,6 +430,7 @@ export default function NodeFormModal({ node, onClose }: NodeFormModalProps) {
               type="submit"
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={loading}
+              data-testid="btn-node-form-submit"
             >
               {loading ? 'Saving...' : node ? 'Update Node' : 'Create Node'}
             </button>

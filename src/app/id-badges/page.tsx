@@ -137,6 +137,7 @@ export default function IDBadgeQueuePage() {
           value={searchQuery}
           onChange={(e) => handleSearch(e.target.value)}
           className="flex-1 px-4 py-2 border rounded"
+          data-testid="id-badge-search-input"
         />
       </div>
 
@@ -145,6 +146,7 @@ export default function IDBadgeQueuePage() {
           <button
             key={f}
             onClick={() => setFilter(f)}
+            data-testid={`id-badge-filter-${f}`}
             className={`px-4 py-2 rounded font-medium ${
               filter === f
                 ? 'bg-blue-600 text-white'
@@ -211,6 +213,7 @@ export default function IDBadgeQueuePage() {
                       <Link
                         href={`/id-badges/${req.id}/review`}
                         className="text-blue-600 hover:underline"
+                        data-testid={`id-badge-review-${req.id}`}
                       >
                         Review
                       </Link>
@@ -218,6 +221,7 @@ export default function IDBadgeQueuePage() {
                       <Link
                         href={`/id-badges/${req.id}/details`}
                         className="text-gray-600 hover:underline"
+                        data-testid={`id-badge-view-${req.id}`}
                       >
                         View
                       </Link>

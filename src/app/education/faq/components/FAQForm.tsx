@@ -84,6 +84,7 @@ export function FAQForm({ item, categories, nextSortOrder, onClose, onSuccess, o
           <button
             onClick={onClose}
             className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+            data-testid="btn-faq-form-close"
           >
             <X size={18} />
           </button>
@@ -101,6 +102,7 @@ export function FAQForm({ item, categories, nextSortOrder, onClose, onSuccess, o
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
                 className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                data-testid="faq-form-category"
               >
                 {categories.map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
@@ -121,6 +123,7 @@ export function FAQForm({ item, categories, nextSortOrder, onClose, onSuccess, o
                 placeholder="e.g. How do I earn Swap Points?"
                 maxLength={500}
                 className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                data-testid="faq-form-question"
               />
               <div className="flex justify-between mt-1">
                 {errors.question ? (
@@ -142,6 +145,7 @@ export function FAQForm({ item, categories, nextSortOrder, onClose, onSuccess, o
                 maxLength={3000}
                 rows={6}
                 className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                data-testid="faq-form-answer"
               />
               <div className="flex justify-between mt-1">
                 {errors.answer ? (
@@ -162,6 +166,7 @@ export function FAQForm({ item, categories, nextSortOrder, onClose, onSuccess, o
                     key={s}
                     type="button"
                     onClick={() => setStatus(s)}
+                    data-testid={`faq-form-status-${s}`}
                     className={`flex-1 py-2.5 rounded-lg border text-sm font-medium transition-colors capitalize ${
                       status === s
                         ? s === 'published'
@@ -187,6 +192,7 @@ export function FAQForm({ item, categories, nextSortOrder, onClose, onSuccess, o
               onClick={onClose}
               disabled={submitting}
               className="px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              data-testid="btn-faq-form-cancel"
             >
               Cancel
             </button>
@@ -194,6 +200,7 @@ export function FAQForm({ item, categories, nextSortOrder, onClose, onSuccess, o
               type="submit"
               disabled={submitting}
               className="px-5 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+              data-testid="btn-faq-form-submit"
             >
               {submitting ? 'Saving…' : isEdit ? 'Save Changes' : 'Create FAQ'}
             </button>

@@ -159,6 +159,7 @@ export function BadgeEditor({ badge, onClose, onSuccess }: BadgeEditorProps) {
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-medium text-gray-900">Edit Badge</h3>
           <button
+            data-testid="badge-editor-close"
             onClick={onClose}
             className="text-gray-400 hover:text-gray-500"
             disabled={uploading || saving}
@@ -214,6 +215,7 @@ export function BadgeEditor({ badge, onClose, onSuccess }: BadgeEditorProps) {
                 />
                 <label
                   htmlFor="icon-upload"
+                  data-testid="badge-editor-icon-upload"
                   className={`cursor-pointer inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none ${
                     uploading || saving ? 'opacity-50 cursor-not-allowed' : ''
                   }`}
@@ -237,6 +239,7 @@ export function BadgeEditor({ badge, onClose, onSuccess }: BadgeEditorProps) {
                 Name
               </label>
               <input
+                data-testid="badge-editor-name"
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -251,6 +254,7 @@ export function BadgeEditor({ badge, onClose, onSuccess }: BadgeEditorProps) {
                 Description
               </label>
               <textarea
+                data-testid="badge-editor-description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 rows={3}
@@ -264,6 +268,7 @@ export function BadgeEditor({ badge, onClose, onSuccess }: BadgeEditorProps) {
                 Threshold
               </label>
               <input
+                data-testid="badge-editor-threshold"
                 type="number"
                 value={formData.threshold}
                 onChange={(e) =>
@@ -280,6 +285,7 @@ export function BadgeEditor({ badge, onClose, onSuccess }: BadgeEditorProps) {
                 Sort Order
               </label>
               <input
+                data-testid="badge-editor-sort-order"
                 type="number"
                 value={formData.sort_order}
                 onChange={(e) =>
@@ -307,6 +313,7 @@ export function BadgeEditor({ badge, onClose, onSuccess }: BadgeEditorProps) {
           {/* Actions */}
           <div className="mt-6 flex justify-end space-x-3">
             <button
+              data-testid="badge-editor-cancel"
               type="button"
               onClick={onClose}
               className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
@@ -315,6 +322,7 @@ export function BadgeEditor({ badge, onClose, onSuccess }: BadgeEditorProps) {
               Cancel
             </button>
             <button
+              data-testid="badge-editor-save"
               type="submit"
               className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
               disabled={uploading || saving}
