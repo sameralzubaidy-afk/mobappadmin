@@ -121,31 +121,6 @@ const KEY_PAGE_LINKS: Record<
     message:
       "Trade timing settings are also managed on the Trade Timing page.",
   },
-  pickup_window_hours: {
-    href: "/settings/trade-timing",
-    label: "Open Trade Timing Settings",
-    message: "Pickup countdown is also managed on the Trade Timing page.",
-  },
-  payout_buffer_days: {
-    href: "/settings/trade-timing",
-    label: "Open Trade Timing Settings",
-    message: "Payout buffering is also managed on the Trade Timing page.",
-  },
-  platform_fee_buyer_fixed_cents: {
-    href: "/settings/trade-timing",
-    label: "Open Trade Timing Settings",
-    message: "Buyer fee parameters are also managed on the Trade Timing page.",
-  },
-  platform_fee_buyer_percentage: {
-    href: "/settings/trade-timing",
-    label: "Open Trade Timing Settings",
-    message: "Buyer fee parameters are also managed on the Trade Timing page.",
-  },
-  charge_one_fee_per_bundle: {
-    href: "/settings/trade-timing",
-    label: "Open Trade Timing Settings",
-    message: "The bundle fee toggle is also managed on the Trade Timing page.",
-  },
   // Node settings (Config → Feature Flags ↔ /settings/nodes)
   default_radius_miles: {
     href: "/settings/nodes",
@@ -178,32 +153,6 @@ const KEY_PAGE_LINKS: Record<
     message: "Node settings are also managed on the Node Settings page.",
   },
 };
-
-// SINGLE-SOURCE (2026-08-09): keys that /settings/trade-timing renders as editable
-// fields. The /config hub still lists them via cross-link banners but never renders
-// an editable duplicate — so two admin surfaces with different fallback defaults
-// can never silently flip the same admin_config row.
-const TRADE_TIMING_OWNED_KEYS = new Set([
-  // Transaction / platform fees (Trade Timing → Transaction Fees)
-  "transaction_fee_subscriber_cents",
-  "transaction_fee_non_subscriber_cents",
-  "platform_fee_seller_percentage",
-  "platform_fee_seller_discount_percentage_kids_club_plus",
-  "platform_fee_buyer_fixed_cents",
-  "platform_fee_buyer_percentage",
-  "charge_one_fee_per_bundle",
-  // R1 — Tiered Buyer-Fee Engine (Trade Timing → Tiered Buyer Fee)
-  "buyer_fee_active_member_cents",
-  "buyer_fee_first_trade_cents",
-  "buyer_fee_subsequent_percentage",
-  "buyer_fee_subsequent_fixed_cents",
-  "buyer_fee_subsequent_max_cents",
-  "buyer_fee_label",
-  // Legacy fee keys (Trade Timing → Transaction Fees → Legacy fee keys)
-  "transaction_fee_member_cents",
-  "transaction_fee_non_member_cents",
-  "platform_fee_seller_discount_percentage_freemium",
-]);
 
 export default function ConfigPage() {
   const [config, setConfig] = useState<AdminConfigItem[]>([]);
@@ -401,15 +350,7 @@ export default function ConfigPage() {
       cpsc_match_threshold:
         "Confidence threshold (0.0 to 1.0) for automatic item flagging. Items with similarity score >= this value will be flagged for review. Recommended: 0.5 (50%). Lower values increase sensitivity (more false positives).",
       charge_one_fee_per_bundle:
-        "When enabled, bundles charge the platform fee once instead of per item. Single-item trades are unaffected. Applies to both free-tier and subscriber fixed fees. Also managed on Trade Timing → Transaction Fees.",
-      pickup_window_hours:
-        "Pickup countdown window (hours): how long a buyer has to confirm pickup/meetup once a trade is ready. Shared dependency for pickup-deadline requirements.",
-      payout_buffer_days:
-        "Payout buffer (days): how long a completed trade payout sits as a buffer before release to the seller (0 = immediate). Shared dependency for payout requirements.",
-      platform_fee_buyer_fixed_cents:
-        "Fixed buyer platform fee in cents (e.g. 25 = $0.25). Also managed on Trade Timing → Transaction Fees.",
-      platform_fee_buyer_percentage:
-        "Buyer platform fee as a % of item price (e.g. 2.5 = 2.5%). Also managed on Trade Timing → Transaction Fees.",
+        "When enabled, bundles charge the platform fee once instead of per item. Single-item trades are unaffected. Applies to both free-tier and subscriber fixed fees.",
     };
     return descriptions[key] || "";
   };
@@ -442,8 +383,8 @@ export default function ConfigPage() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <h1 className="text-[32px] font-bold leading-10 mb-8" style={{ letterSpacing: '-0.5px' }}>System Configuration</h1>
-      <p className="text-sm mb-8" style={{ color: 'var(--text-secondary)' }}>
+      <h1 className="text-3xl font-bold mb-2">System Configuration</h1>
+      <p className="text-gray-600 mb-8">
         Manage system-wide settings and rate limits
       </p>
 
@@ -503,7 +444,6 @@ export default function ConfigPage() {
                 }
               }}
               className="px-3 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700"
-              data-testid="btn-config-copy-setup-snippet"
             >
               Copy setup snippet
             </button>
@@ -559,11 +499,6 @@ export default function ConfigPage() {
             }
           });
           const relatedPages = Array.from(relatedByHref.values());
-          // Editable list = current tab minus the keys owned by Trade Timing
-          // (they're edited only there; /config keeps the cross-link banner).
-          const visibleItems = (groupedConfig[currentTab] || []).filter(
-            (item) => item && !TRADE_TIMING_OWNED_KEYS.has(item.key),
-          );
 
           return (
             <div className="flex flex-col md:flex-row min-h-[600px]">
@@ -574,7 +509,6 @@ export default function ConfigPage() {
                     <button
                       key={cat}
                       onClick={() => setActiveTab(cat)}
-                      data-testid={`config-tab-${cat}`}
                       className={`text-left whitespace-nowrap md:whitespace-normal px-4 py-3 font-medium text-sm transition-colors border-b-2 md:border-b-0 md:border-l-4 ${
                         currentTab === cat
                           ? "border-blue-600 bg-blue-50/80 text-blue-700"
@@ -590,12 +524,12 @@ export default function ConfigPage() {
               {/* Tab Content */}
               {currentTab && groupedConfig[currentTab] && (
                 <div className="flex-1 divide-y divide-gray-100 bg-white">
-                  <div className="px-6 py-4 bg-gray-50/50">
+                  <div className="px-6 py-4 bg-gradient-to-r from-blue-50/50 to-transparent">
                     <h3 className="text-xl font-semibold text-gray-900 capitalize">
                       {currentTab.replace(/_/g, " ")}
                     </h3>
                     <p className="text-sm text-gray-500 mt-1">
-                      {visibleItems.length} settings
+                      {groupedConfig[currentTab].length} settings
                     </p>
                   </div>
 
@@ -617,7 +551,7 @@ export default function ConfigPage() {
                     </div>
                   )}
 
-                  {visibleItems.map((item) => {
+                  {groupedConfig[currentTab].map((item) => {
                     if (!item || !item.key) return null;
                     const displayValue = getDisplayValue(item);
                     const isBoolean = isBooleanConfig(item);
@@ -653,7 +587,6 @@ export default function ConfigPage() {
                                     }
                                     disabled={saving || canWrite === false}
                                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 rounded"
-                                    data-testid={`ref-config-${item.key}`}
                                   />
                                   <span className="text-sm font-medium text-gray-800">
                                     {displayValue === "true"
@@ -673,7 +606,6 @@ export default function ConfigPage() {
                                   }
                                   className="flex-1 min-w-[200px] max-w-md px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                                   disabled={saving || canWrite === false}
-                                  data-testid={`ref-config-${item.key}`}
                                 />
                               )}
                               <button
@@ -683,7 +615,6 @@ export default function ConfigPage() {
                                   displayValue === String(item.value ?? "") ||
                                   canWrite === false
                                 }
-                                data-testid={`btn-save-${item.key}`}
                                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium text-sm"
                               >
                                 {saving
@@ -768,12 +699,6 @@ function SMSRateLimitStats() {
     try {
       const res = await fetch(`/api/admin/sms-stats?ts=${Date.now()}`, {
         cache: "no-store",
-        // BP-49: /api/admin/* routes authenticate via the x-admin-secret header
-        // (no middleware injects it). Without it the API returns 401
-        // "No valid authentication provided" and the stats silently show zeros.
-        headers: {
-          "x-admin-secret": process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || "",
-        },
       });
       const json = await res.json();
       if (json.error) throw new Error(json.error);
@@ -813,7 +738,6 @@ function SMSRateLimitStats() {
         <button
           onClick={loadStatsFromApi}
           className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-          data-testid="btn-config-sms-stats-refresh"
         >
           Refresh
         </button>
@@ -836,14 +760,14 @@ function SMSRateLimitStats() {
           <p className="text-xs text-green-600 mt-1">SMS sent this hour</p>
         </div>
 
-        <div className="bg-gray-50 rounded-lg p-4">
-          <p className="text-sm text-gray-600 font-medium mb-1">
+        <div className="bg-purple-50 rounded-lg p-4">
+          <p className="text-sm text-purple-600 font-medium mb-1">
             Unique Phones
           </p>
-          <p className="text-3xl font-bold text-gray-900">
+          <p className="text-3xl font-bold text-purple-900">
             {stats?.uniquePhonesThisHour || 0}
           </p>
-          <p className="text-xs text-gray-600 mt-1">This hour</p>
+          <p className="text-xs text-purple-600 mt-1">This hour</p>
         </div>
 
         <div className="bg-red-50 rounded-lg p-4">

@@ -158,8 +158,8 @@ export default function CartSettingsPage() {
 
   return (
     <div className="max-w-2xl mx-auto p-8">
-      <h1 className="text-[32px] font-bold leading-10 text-gray-900 mb-2" style={{ letterSpacing: '-0.5px' }}>Cart Settings</h1>
-      <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
+      <h1 className="text-2xl font-bold text-gray-900 mb-2">Cart Settings</h1>
+      <p className="text-sm text-gray-500 mb-4">
         Configure cart rules enforced across iOS and Android apps.
         Changes take effect immediately (fetched from admin_config at checkout).
       </p>
