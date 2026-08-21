@@ -12,6 +12,7 @@ const ADMIN_UI_SECRET = process.env.ADMIN_UI_SECRET;
 interface StatusBody {
   status: string;
   rejection_reason?: string;
+  admin_user_id?: string;
 }
 
 export async function POST(
@@ -50,6 +51,54 @@ export async function POST(
     const validation = validateModerationStatusInput(status, rejection_reason);
     if (!validation.ok) {
       return NextResponse.json({ error: validation.error }, { status: 400 });
+    }
+
+    // APPROVE (flagged/rejected/needs_edits -> available) must go through the
+    // complete approval RPC `admin_approve_flagged_listing`. A plain table
+    // update used to skip approved_at/approved_by, the admin_activity_log audit
+    // trail, and the seller "Listing Approved" notification. The RPC keeps the
+    // human-override of the R8 AI-moderation gate (a flagged image would
+    // otherwise hard-block approval) and is scoped to the review queue only.
+    if (validation.status === "available") {
+      const adminUserId = body.admin_user_id;
+      if (!adminUserId) {
+        return NextResponse.json(
+          { error: "admin_user_id is required to approve an item" },
+          { status: 400 },
+        );
+      }
+
+      const { data: rpcData, error: rpcError } = await supabase.rpc(
+        "admin_approve_flagged_listing",
+        {
+          p_listing_id: itemId,
+          p_admin_user_id: adminUserId,
+          p_reason: validation.reason,
+        },
+      );
+
+      if (rpcError) {
+        return NextResponse.json(
+          { error: `Failed to approve item: ${rpcError.message}` },
+          { status: 500 },
+        );
+      }
+
+      if (!rpcData || !rpcData.success) {
+        return NextResponse.json(
+          { error: rpcData?.error || "Failed to approve item" },
+          { status: 409 },
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          id: itemId,
+          status: "available",
+          ...(rpcData as Record<string, unknown>),
+        },
+      });
     }
 
     const { data: existingItem, error: existingItemError } = await supabase

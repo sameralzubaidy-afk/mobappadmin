@@ -168,13 +168,21 @@ export default function FlaggedItemsPage() {
 
     try {
       setSubmitting(true);
+      // Identify the acting admin so approval metadata (approved_by) and the
+      // audit log record who approved. Mirrors ListingSearch.handleApproveListing.
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        alert('Failed to get admin user ID. Please sign in again.');
+        return;
+      }
+
       const res = await fetch(`/api/admin/items/${itemId}/status`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'x-admin-secret': adminSecret,
         },
-        body: JSON.stringify({ status: 'available' }),
+        body: JSON.stringify({ status: 'available', admin_user_id: user.id }),
       });
 
       const json = await readApiResponse(res);

@@ -20,6 +20,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { createClient } from '@supabase/supabase-js';
 import {
   Flag,
   Scale,
@@ -148,6 +149,13 @@ const SOURCE_ORDER = [
 ];
 
 const adminSecret = process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '';
+
+// Used only to identify the acting admin (supabase.auth.getUser()) so approval
+// metadata / audit rows record who approved. Mirrors ListingSearch + /items/flagged.
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 interface ActionCenterProps {
   /**
@@ -306,7 +314,12 @@ export default function ActionCenterClient({ variant = 'full', maxCards }: Actio
     try {
       if (action === 'approve') {
         if (source === 'flagged_items') {
-          await postJson(`/api/admin/items/${row.id}/status`, { status: 'available' });
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) {
+            setToast({ kind: 'error', text: 'Could not identify the current admin. Please sign in again.' });
+            return;
+          }
+          await postJson(`/api/admin/items/${row.id}/status`, { status: 'available', admin_user_id: user.id });
         } else if (source === 'id_badge_requests') {
           await postJson(`/api/admin/id-badges/${row.id}/decide`, { decision: 'approve' });
         }
