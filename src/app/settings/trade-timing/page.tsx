@@ -15,12 +15,28 @@ import {
 import SettingsLinkBanner from '@/components/settings/SettingsLinkBanner';
 import LastUpdatedLabel from '@/components/settings/LastUpdatedLabel';
 
-const DEFAULT_CONFIG: TradeTimingConfig = {
+// Keys this page manages (renders + reads/writes), scoped so DEFAULT_CONFIG
+// stays a complete typed object and save/load only ever touch the rendered
+// subset — the rest of TradeTimingConfig is managed on its own surfaces.
+type ManagedTradeTimingKey =
+  | 'offer_timeout_hours'
+  | 'offer_notif_1_hours_before'
+  | 'offer_notif_2_hours_before'
+  | 'auto_complete_hours'
+  | 'auto_complete_notif_1_hours_before'
+  | 'auto_complete_notif_2_hours_before'
+  | 'pending_sp_release_days'
+  | 'transaction_fee_subscriber_cents'
+  | 'transaction_fee_non_subscriber_cents'
+  | 'max_pending_offers_per_seller';
+
+const DEFAULT_CONFIG: Pick<TradeTimingConfig, ManagedTradeTimingKey> = {
   offer_timeout_hours: 48,
   offer_notif_1_hours_before: 24,
   offer_notif_2_hours_before: 6,
   auto_complete_hours: 72,
-  auto_complete_notif_hours_before: 24,
+  auto_complete_notif_1_hours_before: 24,
+  auto_complete_notif_2_hours_before: 2,
   pending_sp_release_days: 3,
   transaction_fee_subscriber_cents: 150,
   transaction_fee_non_subscriber_cents: 250,
@@ -32,7 +48,7 @@ export default function TradeTimingSettingsPage() {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-  const [settings, setSettings] = useState<TradeTimingConfig>(DEFAULT_CONFIG);
+  const [settings, setSettings] = useState<Pick<TradeTimingConfig, ManagedTradeTimingKey>>(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -94,8 +110,14 @@ export default function TradeTimingSettingsPage() {
     if (settings.auto_complete_hours < 1) {
       e.auto_complete_hours = 'Must be at least 1 hour';
     }
-    if (settings.auto_complete_notif_hours_before >= settings.auto_complete_hours) {
-      e.auto_complete_notif_hours_before = `Must be less than auto-complete window (${settings.auto_complete_hours}h)`;
+    if (settings.auto_complete_notif_1_hours_before >= settings.auto_complete_hours) {
+      e.auto_complete_notif_1_hours_before = `Must be less than auto-complete window (${settings.auto_complete_hours}h)`;
+    }
+    if (settings.auto_complete_notif_2_hours_before < 1) {
+      e.auto_complete_notif_2_hours_before = 'Must be at least 1 hour';
+    }
+    if (settings.auto_complete_notif_2_hours_before >= settings.auto_complete_notif_1_hours_before) {
+      e.auto_complete_notif_2_hours_before = `Must be less than first auto-complete reminder (${settings.auto_complete_notif_1_hours_before}h)`;
     }
     if (settings.pending_sp_release_days < 1) {
       e.pending_sp_release_days = 'Must be at least 1 day';
@@ -165,7 +187,7 @@ export default function TradeTimingSettingsPage() {
   };
 
   const numField = (
-    key: keyof TradeTimingConfig,
+    key: ManagedTradeTimingKey,
     label: string,
     description: string,
     unit: string,
@@ -292,9 +314,15 @@ export default function TradeTimingSettingsPage() {
             'hours'
           )}
           {numField(
-            'auto_complete_notif_hours_before',
-            'Auto-Complete Reminder',
-            'Send reminder this many hours before auto-complete fires (must be < window).',
+            'auto_complete_notif_1_hours_before',
+            'First Auto-Complete Reminder',
+            'Send first reminder this many hours before auto-complete fires (must be < window).',
+            'hours before auto-complete'
+          )}
+          {numField(
+            'auto_complete_notif_2_hours_before',
+            'Final Auto-Complete Reminder',
+            'Send final reminder before auto-complete fires (must be < first reminder).',
             'hours before auto-complete'
           )}
         </section>

@@ -91,7 +91,13 @@ const KEY_PAGE_LINKS: Record<
     message:
       "Trade timing settings are also managed on the Trade Timing page.",
   },
-  auto_complete_notif_hours_before: {
+  auto_complete_notif_1_hours_before: {
+    href: "/settings/trade-timing",
+    label: "Open Trade Timing Settings",
+    message:
+      "Trade timing settings are also managed on the Trade Timing page.",
+  },
+  auto_complete_notif_2_hours_before: {
     href: "/settings/trade-timing",
     label: "Open Trade Timing Settings",
     message:
