@@ -354,6 +354,34 @@ export default function ListingSearch() {
     }
   };
 
+  // Latest-filters ref so post-action auto-refreshes read the CURRENT filter
+  // state instead of a stale closure from when the action started. Fixes the
+  // approve→status-filter race where the 100ms refresh re-ran the pre-action
+  // (e.g. "pending") filter and clobbered a filter change made in the meantime.
+  const latestFiltersRef = useRef(filters);
+  useEffect(() => {
+    latestFiltersRef.current = filters;
+  }, [filters]);
+
+  // Latest-handleSearch ref so the post-action timeout never invokes a stale
+  // closure. Assigned during render (read-only from the timeout handler) per the
+  // React "latest value" ref pattern — avoids an effect keyed on `handleSearch`,
+  // which is recreated every render and would otherwise trip exhaustive-deps.
+  const handleSearchRef = useRef(handleSearch);
+  handleSearchRef.current = handleSearch;
+
+  // Refresh the queue after a mutation (approve/delete/pause/reject), honoring
+  // the CURRENT filter selection rather than blindly re-running the pre-action
+  // filter. When the page is already 1, the `filters.page` effect won't fire,
+  // so re-run the search explicitly (via the refs, so it sees the latest state).
+  const refreshListingsAfterAction = () => {
+    const current = latestFiltersRef.current;
+    setFilters({ ...current, page: 1 });
+    if (current.page === 1) {
+      handleSearchRef.current(true);
+    }
+  };
+
   const toggleListingSelection = (listingId: string) => {
     setSelectedListingIds((prev) => {
       const next = new Set(prev);
@@ -420,9 +448,9 @@ export default function ListingSearch() {
       setAdminAction(null);
       setActionReason('');
       
-      // Refresh search results
-      setFilters(prev => ({ ...prev, page: 1 }));
-      setTimeout(() => handleSearch(), 100);
+      // Refresh search results — read the LATEST filters (not the stale closure)
+      // so a filter change made while the action modal was open isn't clobbered.
+      setTimeout(refreshListingsAfterAction, 100);
     } catch (err) {
       console.error('[ListingSearch] Force delete exception:', err);
       alert(`Error deleting listing: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -465,9 +493,9 @@ export default function ListingSearch() {
       setAdminAction(null);
       setActionReason('');
       
-      // Refresh search results
-      setFilters(prev => ({ ...prev, page: 1 }));
-      setTimeout(() => handleSearch(), 100);
+      // Refresh search results — read the LATEST filters (not the stale closure)
+      // so a filter change made while the action modal was open isn't clobbered.
+      setTimeout(refreshListingsAfterAction, 100);
     } catch (err) {
       console.error('[ListingSearch] Pause exception:', err);
       alert(`Error pausing listing: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -531,9 +559,9 @@ export default function ListingSearch() {
       setActionReason('');
       setApprovalMessage('');
       
-      // Refresh search results
-      setFilters(prev => ({ ...prev, page: 1 }));
-      setTimeout(() => handleSearch(), 100);
+      // Refresh search results — read the LATEST filters (not the stale closure)
+      // so a filter change made while the action modal was open isn't clobbered.
+      setTimeout(refreshListingsAfterAction, 100);
     } catch (err) {
       console.error('[ListingSearch] Approval exception:', err);
       alert(`Error approving listing: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -661,8 +689,9 @@ export default function ListingSearch() {
       setAdminAction(null);
       setActionReason('');
 
-      setFilters((prev) => ({ ...prev, page: 1 }));
-      setTimeout(() => handleSearch(), 100);
+      // Refresh search results — read the LATEST filters (not the stale closure)
+      // so a filter change made while the action modal was open isn't clobbered.
+      setTimeout(refreshListingsAfterAction, 100);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       console.error('[ListingSearch] Moderation status update error:', err);
