@@ -52,6 +52,19 @@ export default function NodesPage() {
   const [kpisLoading, setKpisLoading] = useState(true);
   const [kpisError, setKpisError] = useState<string | null>(null);
 
+  // Live membership (authoritative): admin_node_kpis.users is a live
+  // COUNT(profiles) per node (migration 20260809000005). The stored
+  // nodes.member_count is a legacy client-maintained counter that has drifted
+  // (historical assignments were never backfilled; ZIP reassignment and deletes
+  // never decrement it). We prefer the live count and only fall back to the
+  // stored value until the KPIs load. See QA group-F/G cross-cutting finding.
+  const membersByNodeId = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const n of nodes) map[n.id] = n.member_count;
+    for (const kpi of kpis) map[kpi.node_id] = kpi.users;
+    return map;
+  }, [nodes, kpis]);
+
   // N6 — load per-node KPIs from the server route (RPC is service-role only).
   const loadKpis = useCallback(async () => {
     try {
@@ -117,9 +130,11 @@ export default function NodesPage() {
   // NODE-002: Handle node activation/deactivation toggle
   const handleToggleActive = async (node: GeographicNode) => {
     const action = node.is_active ? 'deactivate' : 'activate';
+    // Live member count so the warning reflects real membership, not the stale counter.
+    const memberCount = membersByNodeId[node.id] ?? node.member_count;
     const warningMessage =
-      node.is_active && node.member_count > 0
-        ? `\n\nWarning: This node has ${node.member_count} active members. They will remain assigned but new users cannot join this node.`
+      node.is_active && memberCount > 0
+        ? `\n\nWarning: This node has ${memberCount} active members. They will remain assigned but new users cannot join this node.`
         : '';
 
     if (
@@ -185,10 +200,10 @@ export default function NodesPage() {
     );
   }
 
-  // Calculate stats dynamically
+  // Calculate stats dynamically (Total Members uses live membership)
   const totalNodes = nodes.length;
   const activeNodes = nodes.filter((n) => n.is_active).length;
-  const totalMembers = nodes.reduce((sum, n) => sum + n.member_count, 0);
+  const totalMembers = nodes.reduce((sum, n) => sum + (membersByNodeId[n.id] ?? 0), 0);
 
   return (
     <div className="p-8 bg-gray-50 min-h-screen">
@@ -353,8 +368,11 @@ export default function NodesPage() {
                       {node.radius_miles} mi
                     </td>
                     <td className="px-6 py-4 text-sm">
-                      <span className="font-semibold text-gray-900">
-                        {node.member_count}
+                      <span
+                        className="font-semibold text-gray-900"
+                        title="Live member count (from profiles)"
+                      >
+                        {membersByNodeId[node.id] ?? node.member_count}
                       </span>
                     </td>
                     <td className="px-6 py-4">
