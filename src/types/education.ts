@@ -136,7 +136,9 @@ export interface BonusCategory {
 }
 
 /**
- * Analytics event type enum — matches DB CHECK constraint exactly
+ * Analytics event type enum — the event types the app can emit. The DB CHECK
+ * constraint `chk_education_analytics_event_type` is a SUPERSET (it also accepts
+ * legacy section_collapse / prompt_* values) so every value here persists.
  */
 export type EducationAnalyticsEventType =
   | 'onboarding_start'
