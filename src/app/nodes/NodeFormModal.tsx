@@ -179,7 +179,6 @@ export default function NodeFormModal({ node, onClose }: NodeFormModalProps) {
             radius_miles: formData.radius_miles,
             description: formData.description.trim() || null,
             is_active: formData.is_active,
-            member_count: 0,
             status: formData.is_active ? 'active' : 'inactive', // Set status based on is_active
           })
           .select()

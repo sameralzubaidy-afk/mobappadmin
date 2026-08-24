@@ -11,7 +11,6 @@ export interface GeographicNode {
   radius_miles: number;
   description?: string | null;
   is_active: boolean;
-  member_count: number;
   created_at: string;
   updated_at?: string;
 }

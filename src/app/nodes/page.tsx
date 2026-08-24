@@ -53,17 +53,15 @@ export default function NodesPage() {
   const [kpisError, setKpisError] = useState<string | null>(null);
 
   // Live membership (authoritative): admin_node_kpis.users is a live
-  // COUNT(profiles) per node (migration 20260809000005). The stored
-  // nodes.member_count is a legacy client-maintained counter that has drifted
-  // (historical assignments were never backfilled; ZIP reassignment and deletes
-  // never decrement it). We prefer the live count and only fall back to the
-  // stored value until the KPIs load. See QA group-F/G cross-cutting finding.
+  // COUNT(profiles) per node (migration 20260809000005). The legacy stored
+  // nodes.member_count column + increment/decrement RPCs were deprecated
+  // (client-maintained, never backfilled, no decrement path) — see
+  // docs/flow-registry FLOW-03 and migration 20260823000002.
   const membersByNodeId = useMemo(() => {
     const map: Record<string, number> = {};
-    for (const n of nodes) map[n.id] = n.member_count;
     for (const kpi of kpis) map[kpi.node_id] = kpi.users;
     return map;
-  }, [nodes, kpis]);
+  }, [kpis]);
 
   // N6 — load per-node KPIs from the server route (RPC is service-role only).
   const loadKpis = useCallback(async () => {
@@ -130,8 +128,8 @@ export default function NodesPage() {
   // NODE-002: Handle node activation/deactivation toggle
   const handleToggleActive = async (node: GeographicNode) => {
     const action = node.is_active ? 'deactivate' : 'activate';
-    // Live member count so the warning reflects real membership, not the stale counter.
-    const memberCount = membersByNodeId[node.id] ?? node.member_count;
+    // Live member count so the warning reflects real membership.
+    const memberCount = membersByNodeId[node.id] ?? 0;
     const warningMessage =
       node.is_active && memberCount > 0
         ? `\n\nWarning: This node has ${memberCount} active members. They will remain assigned but new users cannot join this node.`
@@ -171,7 +169,7 @@ export default function NodesPage() {
             entity_id: node.id,
             changes: {
               node_name: node.name,
-              member_count: node.member_count,
+              member_count: membersByNodeId[node.id] ?? 0,
               previous_status: node.is_active,
               new_status: !node.is_active,
             },
@@ -372,7 +370,7 @@ export default function NodesPage() {
                         className="font-semibold text-gray-900"
                         title="Live member count (from profiles)"
                       >
-                        {membersByNodeId[node.id] ?? node.member_count}
+                        {membersByNodeId[node.id] ?? 0}
                       </span>
                     </td>
                     <td className="px-6 py-4">

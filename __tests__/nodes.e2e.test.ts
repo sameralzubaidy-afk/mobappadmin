@@ -1,15 +1,84 @@
-// filepath: p2p-kids-admin/src/app/nodes/__tests__/nodes.e2e.test.ts
-// E2E tests for NODE-001 and NODE-002 tasks
+// filepath: p2p-kids-admin/__tests__/nodes.e2e.test.ts
+// E2E tests for NODE-001 and NODE-002 tasks (Playwright).
+//
+// Run via `npm run test:playwright` from p2p-kids-admin/. Authenticated admin
+// specs are gated on PLAYWRIGHT_ADMIN_E2E=true and read credentials from
+// ADMIN_E2E_EMAIL / ADMIN_E2E_PASSWORD (fallback PLAYWRIGHT_ADMIN_*), loaded
+// from .env.local — same convention as the sibling admin e2e specs.
+//
+// NOTE (admin-role requirement): node-management WRITES (create/edit/toggle)
+// are gated by RLS on `nodes` to `users.role='admin'` (policy
+// `nodes_admin_manage`), so this spec must be run with an admin-role account.
+// On staging the only such account is samer@samer.com — e.g.
+//   ADMIN_E2E_EMAIL=samer@samer.com ADMIN_E2E_PASSWORD=samer \
+//   PLAYWRIGHT_ADMIN_E2E=true npx playwright test nodes.e2e.test.ts
+// With a non-admin account, create/edit fail (RLS blocks the write) and the
+// list only shows active nodes (policy `nodes_public_active`).
 
-import { test, expect } from '@playwright/test';
+import * as path from 'path';
+import * as dotenv from 'dotenv';
+import { test, expect, Page } from '@playwright/test';
+
+dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3001';
+const PLAYWRIGHT_ADMIN_E2E = process.env.PLAYWRIGHT_ADMIN_E2E === 'true';
+const ADMIN_EMAIL = process.env.ADMIN_E2E_EMAIL || process.env.PLAYWRIGHT_ADMIN_EMAIL || '';
+const ADMIN_PASSWORD = process.env.ADMIN_E2E_PASSWORD || process.env.PLAYWRIGHT_ADMIN_PASSWORD || '';
+
+// ── shared login helper (mirrors sibling admin e2e specs) ───────────────────
+async function ensureAdminSession(page: Page): Promise<void> {
+  await page.goto(`${BASE_URL}/nodes`);
+
+  // The admin app guards pages CLIENT-SIDE (ProtectedLayout calls
+  // supabase.auth.getUser() on mount and router.push('/auth/login') when there
+  // is no session). page.goto() resolves before that async redirect fires, so
+  // WAIT for the redirect decision instead of checking the URL immediately.
+  let onLoginPage = true;
+  try {
+    await page.waitForURL('**/auth/login**', { timeout: 10_000 });
+  } catch {
+    onLoginPage = false; // never redirected → already authenticated
+  }
+
+  if (onLoginPage) {
+    if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+      test.skip(
+        true,
+        'Set ADMIN_E2E_EMAIL/ADMIN_E2E_PASSWORD (or PLAYWRIGHT_ADMIN_*) for authenticated E2E runs.'
+      );
+    }
+    await page
+      .locator('input[type="email"], input[name="email"]')
+      .first()
+      .fill(ADMIN_EMAIL);
+    await page
+      .locator('input[type="password"], input[name="password"]')
+      .first()
+      .fill(ADMIN_PASSWORD);
+    await page
+      .locator(
+        'button[type="submit"], button:has-text("Sign in"), button:has-text("Login")'
+      )
+      .first()
+      .click();
+
+    // A successful login navigates away from /auth/login. Wait for it (this
+    // surfaces bad credentials as a clear timeout instead of a silent skip).
+    // Avoid waitForLoadState('networkidle'): on a Next.js dev server it can
+    // hang on HMR websocket traffic.
+    await page.waitForURL((url) => !url.pathname.startsWith('/auth/login'), {
+      timeout: 20_000,
+    });
+    await page.goto(`${BASE_URL}/nodes`);
+  }
+}
 
 test.describe('Node Management (NODE-001 & NODE-002)', () => {
+  test.skip(!PLAYWRIGHT_ADMIN_E2E, 'Set PLAYWRIGHT_ADMIN_E2E=true to run admin Playwright tests.');
+
   test.beforeEach(async ({ page }) => {
-    // Login first if authentication is required
-    await page.goto(`${BASE_URL}/nodes`);
-    // TODO: Add login logic if needed based on your auth setup
+    await ensureAdminSession(page);
   });
 
   test.describe('NODE-001: Create Admin UI for Nodes', () => {
@@ -28,14 +97,15 @@ test.describe('Node Management (NODE-001 & NODE-002)', () => {
     test('should show nodes table with columns', async ({ page }) => {
       await page.goto(`${BASE_URL}/nodes`);
       
-      // Check table headers
-      await expect(page.locator('text=Node Name')).toBeVisible();
-      await expect(page.locator('text=Location')).toBeVisible();
-      await expect(page.locator('text=Coordinates')).toBeVisible();
-      await expect(page.locator('text=Radius')).toBeVisible();
-      await expect(page.locator('text=Members')).toBeVisible();
-      await expect(page.locator('text=Status')).toBeVisible();
-      await expect(page.locator('text=Actions')).toBeVisible();
+      // Check table headers (scoped to th — `text=Members` would also match
+      // the "Total Members" stats card and trip strict mode).
+      await expect(page.locator('th:has-text("Node Name")')).toBeVisible();
+      await expect(page.locator('th:has-text("Location")')).toBeVisible();
+      await expect(page.locator('th:has-text("Coordinates")')).toBeVisible();
+      await expect(page.locator('th:has-text("Radius")')).toBeVisible();
+      await expect(page.locator('th:has-text("Members")')).toBeVisible();
+      await expect(page.locator('th:has-text("Status")')).toBeVisible();
+      await expect(page.locator('th:has-text("Actions")')).toBeVisible();
     });
 
     test('should open add node form when clicking + Add Node button', async ({ page }) => {
@@ -102,37 +172,52 @@ test.describe('Node Management (NODE-001 & NODE-002)', () => {
 
     test('should create a new node successfully', async ({ page }) => {
       await page.goto(`${BASE_URL}/nodes`);
-      
+
       const testNodeName = `Test Node ${Date.now()}`;
-      
+
       // Click Add Node
       await page.click('button:has-text("+ Add Node")');
-      
+
+      // Wait for the modal to actually open (the click can race React hydration
+      // in the dev server and silently no-op).
+      await expect(page.locator('h2:has-text("Add New Node")')).toBeVisible({ timeout: 10_000 });
+
       // Fill form with test data
       await page.fill('input[placeholder="e.g., Norwalk Central"]', testNodeName);
       await page.fill('input[placeholder="06850"]', '06850');
-      
-      // Wait for ZIP lookup
-      await page.waitForTimeout(2000);
-      
+
+      // Wait for the ZIP auto-lookup to populate coordinates — the form blocks
+      // creation without valid coordinates (city/state/lat/lng), and a fixed
+      // sleep races the async external lookup. The lat input's initial value is
+      // "0", so wait for a non-zero value (not just non-empty).
+      await expect(page.locator('input[placeholder="41.1177"]')).not.toHaveValue(
+        /^(0|)$/,
+        { timeout: 15_000 }
+      );
+
       // Set radius
       await page.fill('input[placeholder="10"]', '15');
-      
+
       // Add description
       await page.fill(
         'textarea[placeholder*="Central Norwalk area"]',
         'Test node description'
       );
-      
+
       // Submit form
       await page.click('button:has-text("Create Node")');
-      
+
       // Wait for success message
       await page.waitForTimeout(1000);
-      
-      // Node should appear in table (reload page to verify persistence)
+
+      // Node should appear in table (reload page to verify persistence). Scope
+      // to the nodes table — the node also appears in the per-node KPI table,
+      // so an unscoped text match is ambiguous.
       await page.reload();
-      await expect(page.locator(`text=${testNodeName}`)).toBeVisible();
+      const nodesTable = page.locator('table', { hasText: 'Members' });
+      await expect(
+        nodesTable.locator('tbody tr', { hasText: testNodeName }).first()
+      ).toBeVisible({ timeout: 15_000 });
     });
 
     test('should edit an existing node', async ({ page }) => {
@@ -310,9 +395,9 @@ test.describe('Node Management (NODE-001 & NODE-002)', () => {
       const rows = page.locator('tbody tr');
       const rowCount = await rows.count();
       
-      // Get total nodes from stats card
+      // Get total nodes from stats card (value is the second div in the card)
       const totalNodesCard = page.locator('text=Total Nodes').locator('..');
-      const totalNodesText = await totalNodesCard.locator('text').nth(1).textContent();
+      const totalNodesText = await totalNodesCard.locator('div').nth(1).textContent();
       const totalNodes = parseInt(totalNodesText || '0');
       
       expect(totalNodes).toBeGreaterThanOrEqual(0);
@@ -320,14 +405,20 @@ test.describe('Node Management (NODE-001 & NODE-002)', () => {
 
     test('active nodes count should match active status badges', async ({ page }) => {
       await page.goto(`${BASE_URL}/nodes`);
-      
-      // Count active badges
-      const activeBadges = page.locator('span:has-text("Active")');
+
+      // Wait for the nodes table to render before reading badges + the card so
+      // both reflect the same loaded state.
+      const nodesTable = page.locator('table', { hasText: 'Members' });
+      await expect(nodesTable.locator('tbody tr').first()).toBeVisible({ timeout: 15_000 });
+
+      // Count active badges — exact match so it does not also match the
+      // "Inactive" badge (has-text is case-insensitive and substring-matches).
+      const activeBadges = page.locator('span', { hasText: /^Active$/ });
       const activeCount = await activeBadges.count();
       
-      // Get active nodes from stats
+      // Get active nodes from stats (value is the second div in the card)
       const activeNodesCard = page.locator('text=Active Nodes').locator('..');
-      const activeNodesText = await activeNodesCard.locator('text').nth(1).textContent();
+      const activeNodesText = await activeNodesCard.locator('div').nth(1).textContent();
       const activeNodesDisplayed = parseInt(activeNodesText || '0');
       
       expect(activeNodesDisplayed).toBe(activeCount);
@@ -335,20 +426,30 @@ test.describe('Node Management (NODE-001 & NODE-002)', () => {
 
     test('total members should sum all member counts', async ({ page }) => {
       await page.goto(`${BASE_URL}/nodes`);
-      
-      // Sum member counts from table
+
+      // The Members column and the Total Members card both derive from
+      // admin_node_kpis — wait for the per-node KPI table to render so both
+      // reads are consistent (avoids summing 0 before the live counts load).
+      await expect(page.locator('table').first().locator('tbody tr').first()).toBeVisible({
+        timeout: 15_000,
+      });
+
+      // Sum member counts from the NODES table only. The page renders two
+      // tables (Per-Node KPIs + nodes); an unscoped `tbody tr td:nth-child(5)`
+      // would also sum the KPI table's "Completed" column and double-count.
       let totalMembers = 0;
-      const memberCells = page.locator('tbody tr td:nth-child(5)');
+      const nodesTable = page.locator('table', { hasText: 'Members' });
+      const memberCells = nodesTable.locator('tbody tr td:nth-child(5)');
       const cellCount = await memberCells.count();
-      
+
       for (let i = 0; i < cellCount; i++) {
         const text = await memberCells.nth(i).textContent();
         totalMembers += parseInt(text || '0');
       }
-      
-      // Get total from stats
+
+      // Get total from stats (value is the second div in the card)
       const membersCard = page.locator('text=Total Members').locator('..');
-      const membersText = await membersCard.locator('text').nth(1).textContent();
+      const membersText = await membersCard.locator('div').nth(1).textContent();
       const membersDisplayed = parseInt(membersText || '0');
       
       expect(membersDisplayed).toBe(totalMembers);
