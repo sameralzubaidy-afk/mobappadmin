@@ -22,6 +22,7 @@ interface SupportMessage {
     name: string | null;
     email: string | null;
     phone: string | null;
+    is_guest?: boolean;
   } | null;
 }
 
@@ -61,7 +62,10 @@ export default function SupportMessagesPage() {
     try {
       setLoading(true);
       const params = statusFilter !== 'all' ? `?status=${statusFilter}` : '';
-      const res = await fetch(`/api/support${params}`, { cache: 'no-store' });
+      const res = await fetch(`/api/support${params}`, {
+        cache: 'no-store',
+        headers: { 'x-admin-secret': process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '' },
+      });
       if (!res.ok) throw new Error('Failed to fetch support messages');
       const data: SupportMessage[] = await res.json();
       setMessages(data);
@@ -86,7 +90,10 @@ export default function SupportMessagesPage() {
     e.stopPropagation();
     try {
       setMarkingRead(id);
-      const res = await fetch(`/api/support/${id}/read`, { method: 'POST' });
+      const res = await fetch(`/api/support/${id}/read`, {
+        method: 'POST',
+        headers: { 'x-admin-secret': process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '' },
+      });
       if (!res.ok) throw new Error('Failed to mark as read');
       setMessages((prev) =>
         prev.map((m) => (m.id === id ? { ...m, status: 'read' } : m))
@@ -270,9 +277,18 @@ export default function SupportMessagesPage() {
 
                       {/* User */}
                       <td className="px-4 py-3">
-                        <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
-                          {msg.profiles?.name ?? <span style={{ color: 'var(--text-secondary)' }}>—</span>}
-                        </span>
+                        {msg.profiles?.is_guest ? (
+                          <span
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+                            style={{ background: '#F3E8FF', color: '#6B21A8' }}
+                          >
+                            Guest
+                          </span>
+                        ) : (
+                          <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
+                            {msg.profiles?.name ?? <span style={{ color: 'var(--text-secondary)' }}>—</span>}
+                          </span>
+                        )}
                       </td>
 
                       {/* Email */}

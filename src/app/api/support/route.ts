@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     // Step 1: Fetch support messages
     let msgQuery = supabase
       .from('support_messages')
-      .select('id, user_id, subject, message, status, created_at, updated_at')
+      .select('id, user_id, contact_email, contact_phone, subject, message, status, created_at, updated_at')
       .order('created_at', { ascending: false });
 
     if (status === 'unread' || status === 'read') {
@@ -52,7 +52,8 @@ export async function GET(request: NextRequest) {
 
     // Step 2: Fetch profiles for those user_ids
     // (support_messages.user_id → auth.users.id, profiles.user_id → auth.users.id — no direct FK)
-    const userIds = [...new Set(messages.map((m) => m.user_id))];
+    // Guests (user_id NULL) are enriched from contact_email/contact_phone instead.
+    const userIds = [...new Set(messages.map((m) => m.user_id).filter(Boolean))];
     const { data: profiles } = await supabase
       .from('profiles')
       .select('user_id, name, email, phone')
@@ -62,10 +63,13 @@ export async function GET(request: NextRequest) {
       (profiles ?? []).map((p) => [p.user_id, p])
     );
 
-    // Step 3: Enrich messages with profile data
+    // Step 3: Enrich messages with profile data.
+    // Guest rows (user_id NULL) carry their reply email/phone on the row itself.
     const enriched = messages.map((m) => ({
       ...m,
-      profiles: profileMap[m.user_id] ?? { name: null, email: null, phone: null },
+      profiles: m.user_id
+        ? profileMap[m.user_id] ?? { name: null, email: null, phone: null }
+        : { name: 'Guest', email: m.contact_email, phone: m.contact_phone, is_guest: true },
     }));
 
     return NextResponse.json(enriched);
