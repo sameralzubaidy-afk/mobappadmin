@@ -242,8 +242,11 @@ LIMIT 50;`}</pre>
         </div>
 
         {/* Trade details modal */}
+        {/* DEV-TASK-49 (UX): z-50 so this overlay always sits above the fixed
+            sidebar (z-30) — without it, the sidebar intercepts clicks on this
+            modal in narrow viewports. */}
         {showTradeModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
             <div className="bg-white max-w-2xl w-full p-6 rounded shadow">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="font-semibold">Trade Details</h3>
@@ -280,8 +283,10 @@ LIMIT 50;`}</pre>
         )}
 
         {/* Add Note Modal */}
+        {/* DEV-TASK-49 (UX): z-50 above the fixed sidebar (z-30) — same as
+            every other admin overlay. */}
         {showNoteModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center" data-testid="monitor-note-modal">
+          <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50" data-testid="monitor-note-modal">
             <div className="bg-white max-w-md w-full p-6 rounded shadow">
               <h3 className="font-semibold mb-4">Add Admin Note</h3>
               <textarea

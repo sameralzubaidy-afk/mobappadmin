@@ -87,19 +87,36 @@ export async function POST(req: NextRequest) {
       });
 
     } else if (action === 'resolve_complete') {
-      // Resolve dispute + mark trade as completed
+      // Resolve dispute (overlay columns only — the money/completion side is
+      // delegated to complete_trade_v2 below so payout math is NOT duplicated;
+      // DEV-TASK-48: previously this branch wrote status='completed' directly and
+      // left payout_amount_cents NULL, so initiate-payout processed $0).
       const { error: updateErr } = await supabase
         .from('trades')
         .update({
           dispute_status:      'resolved',
           dispute_resolution:  'resolved_seller',
           dispute_resolved_at: now,
-          status:              'completed',
-          completed_at:        now,
           updated_at:          now,
         })
         .eq('id', tradeId);
       if (updateErr) throw updateErr;
+
+      // Delegate to the canonical completion money path (same as normal buyer
+      // completion): sets status='completed' + completed_at, marks the item sold,
+      // computes payout_amount_cents = GREATEST(0, cash − seller_fee) and creates
+      // the seller_payouts row via create_seller_payout_on_trade_completion.
+      const { data: completion, error: completionErr } = await supabase.rpc('complete_trade_v2', {
+        p_trade_id: tradeId,
+        p_user_id:  trade.buyer_id,
+      });
+      if (completionErr) {
+        console.error('[dispute-action] complete_trade_v2 failed for trade', tradeId, completionErr);
+        throw completionErr;
+      }
+      if (completion && completion.success === false) {
+        throw new Error(`complete_trade_v2 failed: ${completion.error ?? 'unknown error'}`);
+      }
 
       // Log trade_completed event
       await supabase.from('trade_events').insert({

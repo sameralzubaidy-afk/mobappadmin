@@ -267,6 +267,11 @@ export function Sidebar({ collapsed, onToggle, adminKey }: SidebarProps) {
     );
   };
 
+  // DEV-TASK-49 (UX): z-index convention for the admin shell —
+  //   TopNavbar = z-20, Sidebar = z-30, modal/detail overlays = z-50 (or higher),
+  //   CommandPalette = z-[1000].
+  // Any new fixed overlay MUST use z-50+ so it can never render behind this
+  // interactive sidebar (an overlay below z-30 is intercepted by the sidebar).
   return (
     <aside
       className="fixed top-0 left-0 h-screen flex flex-col z-30 transition-all duration-300"
