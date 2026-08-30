@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import type { SpWalletActionRequest } from '@/types/sp-wallet';
+import { getActingAdminId } from '@/lib/adminAuth';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -24,6 +25,11 @@ export async function POST(request: NextRequest) {
   if (!adminSecret || adminSecret !== ADMIN_UI_SECRET) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  // DEV-TASK-62 (QA Task 8, Item 1): recover the acting admin's identity from
+  // the client's Bearer JWT so sp_ledger.admin_id + admin_audit_logs.actor_id
+  // record WHO adjusted the wallet. NULL fallback when no valid session.
+  const actorId = await getActingAdminId(request);
 
   let body: SpWalletActionRequest;
   try {
@@ -54,7 +60,7 @@ export async function POST(request: NextRequest) {
         p_amount:      amount,
         p_reason:      reason.trim(),
         p_admin_notes: notes ?? null,
-        p_actor_id:    null,
+        p_actor_id:    actorId,
       });
 
       if (error) {
@@ -80,7 +86,7 @@ export async function POST(request: NextRequest) {
         p_user_id:     user_id,
         p_new_status:  new_status,
         p_admin_notes: notes ?? null,
-        p_actor_id:    null,
+        p_actor_id:    actorId,
       });
 
       if (error) {

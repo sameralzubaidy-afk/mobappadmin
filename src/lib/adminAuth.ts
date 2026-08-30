@@ -112,6 +112,43 @@ export async function verifyAdminAuth(
   return { authorized: false, error: 'No valid authentication provided' };
 }
 
+/**
+ * Resolve the ACTING ADMIN's user id from a request's `Authorization: Bearer`
+ * JWT, if present. Identity-only — this does NOT authorize (callers already
+ * gate on `x-admin-secret` or `verifyAdminAuth`); it only recovers who is
+ * acting so money-affecting admin actions can record the real actor.
+ *
+ * DEV-TASK-62 (QA Task 8, Item 1): admin SP adjustments and dispute actions
+ * were recording NULL actors because their routes only knew the shared secret.
+ * This mirrors verifyAdminAuth's method-2 JWT resolution. Returns null when no
+ * token is present or the token is invalid, so routes fall back to an
+ * unrecorded actor (NULL) rather than failing the action. Never returns the
+ * 'admin-secret' literal — only a real auth.users UUID.
+ */
+export async function getActingAdminId(
+  req: NextRequest | Request
+): Promise<string | null> {
+  const authorization = req.headers.get('authorization');
+  if (!authorization?.toLowerCase().startsWith('bearer ')) return null;
+  const token = authorization.substring(7).trim();
+  if (!token) return null;
+
+  const cfg = getSupabaseConfig();
+  if (!cfg) return null;
+
+  const supabase = createClient(cfg.url, cfg.anonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+  if (error || !user) return null;
+  return user.id;
+}
+
 // Constant-time string comparison to avoid timing side-channels on the secret.
 function constantTimeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;

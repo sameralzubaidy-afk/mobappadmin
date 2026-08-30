@@ -5,6 +5,13 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { createClient } from '@supabase/supabase-js';
+
+// Anon client used ONLY to identify the acting admin. Mirrors TradeActions.tsx.
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+);
 
 type ResolveAction = 'mark_under_review' | 'resolve_complete' | 'resolve_refund';
 
@@ -65,11 +72,16 @@ export default function DisputeDetailPage() {
     setError(null);
     try {
       const adminSecret = process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '';
+      // DEV-TASK-62 (Item 1): send the admin's JWT so the route records WHO acted.
+      const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch('/api/admin/trades/dispute-action', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'x-admin-secret': adminSecret,
+          ...(session?.access_token
+            ? { Authorization: `Bearer ${session.access_token}` }
+            : {}),
         },
         body: JSON.stringify({ tradeId, action }),
       });

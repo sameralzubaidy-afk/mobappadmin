@@ -20,6 +20,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getActingAdminId } from '@/lib/adminAuth';
 
 type DisputeAction = 'mark_under_review' | 'resolve_complete' | 'resolve_refund';
 
@@ -30,6 +31,12 @@ export async function POST(req: NextRequest) {
     if (!expectedSecret || adminSecret !== expectedSecret) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    // DEV-TASK-62 (QA Task 8, Item 1): recover the acting admin from the
+    // client's Bearer JWT so trades.dispute_resolved_by, trade_events.actor_id
+    // and the new admin_audit_logs row record WHO resolved the dispute. NULL
+    // fallback when no valid session (actor remains unrecorded).
+    const actorId = await getActingAdminId(req);
 
     const body = await req.json();
     const { tradeId, action } = body as { tradeId?: string; action?: DisputeAction };
@@ -82,8 +89,18 @@ export async function POST(req: NextRequest) {
       await supabase.from('trade_events').insert({
         trade_id: tradeId,
         event_type: 'trade_disputed',
-        actor_id: null,
-        metadata: { action: 'marked_under_review', resolved_by: 'admin' },
+        actor_id: actorId,
+        metadata: { action: 'marked_under_review', resolved_by: actorId ?? 'admin' },
+      });
+
+      // DEV-TASK-62 (Item 1): record the acting admin in the audit trail.
+      await supabase.from('admin_audit_logs').insert({
+        actor_id: actorId,
+        action_type: 'dispute_marked_under_review',
+        entity_type: 'trade',
+        entity_id: tradeId,
+        payload: { action: 'mark_under_review', previous_status: 'reported' },
+        reason: null,
       });
 
     } else if (action === 'resolve_complete') {
@@ -97,6 +114,7 @@ export async function POST(req: NextRequest) {
           dispute_status:      'resolved',
           dispute_resolution:  'resolved_seller',
           dispute_resolved_at: now,
+          dispute_resolved_by: actorId,   // DEV-TASK-62 (Item 1): who resolved it
           updated_at:          now,
         })
         .eq('id', tradeId);
@@ -122,8 +140,18 @@ export async function POST(req: NextRequest) {
       await supabase.from('trade_events').insert({
         trade_id: tradeId,
         event_type: 'trade_completed',
-        actor_id: null,
-        metadata: { resolution: 'resolved_seller', resolved_by: 'admin' },
+        actor_id: actorId,
+        metadata: { resolution: 'resolved_seller', resolved_by: actorId ?? 'admin' },
+      });
+
+      // DEV-TASK-62 (Item 1): audit the resolution + who did it.
+      await supabase.from('admin_audit_logs').insert({
+        actor_id: actorId,
+        action_type: 'dispute_resolved',
+        entity_type: 'trade',
+        entity_id: tradeId,
+        payload: { action: 'resolve_complete', resolution: 'resolved_seller' },
+        reason: null,
       });
 
       // Notify buyer + seller via create_trade_notification RPC (non-blocking)
@@ -297,6 +325,16 @@ export async function POST(req: NextRequest) {
           })
           .eq('id', tradeId);
 
+        // DEV-TASK-62 (Item 1): audit the FAILED refund attempt + who attempted it.
+        await supabase.from('admin_audit_logs').insert({
+          actor_id: actorId,
+          action_type: 'dispute_refund_failed',
+          entity_type: 'trade',
+          entity_id: tradeId,
+          payload: { action: 'resolve_refund', error: stripeRefundError },
+          reason: `Stripe refund failed: ${stripeRefundError}`,
+        });
+
         await supabase.rpc('create_trade_notification', {
           p_user_id: trade.buyer_id, p_notification_type: 'trade_disputed',
           p_title: 'Refund Requires Attention',
@@ -337,6 +375,7 @@ export async function POST(req: NextRequest) {
           dispute_status:      'resolved',
           dispute_resolution:  'resolved_buyer',
           dispute_resolved_at: now,
+          dispute_resolved_by: actorId,   // DEV-TASK-62 (Item 1): who resolved it
           status:              'cancelled',
           cancellation_reason: 'dispute_resolved_refund',
           cancelled_at:        now,
@@ -359,14 +398,29 @@ export async function POST(req: NextRequest) {
       await supabase.from('trade_events').insert({
         trade_id: tradeId,
         event_type: 'offer_cancelled',
-        actor_id: null,
+        actor_id: actorId,
         metadata: {
           resolution: 'resolved_buyer',
           refund_rpc_ok: rpcSucceeded,
           stripe_refund_id: stripeRefundId,
           stripe_refund_status: stripeRefundStatus,
-          resolved_by: 'admin',
+          resolved_by: actorId ?? 'admin',
         },
+      });
+
+      // DEV-TASK-62 (Item 1): audit the refund-resolution + who did it.
+      await supabase.from('admin_audit_logs').insert({
+        actor_id: actorId,
+        action_type: 'dispute_resolved',
+        entity_type: 'trade',
+        entity_id: tradeId,
+        payload: {
+          action: 'resolve_refund',
+          resolution: 'resolved_buyer',
+          stripe_refund_id: stripeRefundId,
+          stripe_refund_status: stripeRefundStatus,
+        },
+        reason: null,
       });
 
       // ── TAX-REFUND-INTEGRITY: Step 7 — Notify (only after Stripe confirmed) ─

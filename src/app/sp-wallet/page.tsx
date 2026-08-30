@@ -3,6 +3,7 @@
 // Module: MODULE-12-ADMIN-V2 / TASK ADMIN-V2-003
 
 import { useState, useEffect, FormEvent } from 'react';
+import { createClient } from '@supabase/supabase-js';
 import type {
   SpWalletDetail,
   SpEconomyMetrics,
@@ -20,6 +21,26 @@ const authHeaders = {
   'Content-Type': 'application/json',
   'x-admin-secret': adminSecret,
 };
+
+// Anon client used ONLY to identify the acting admin (supabase.auth.getUser /
+// getSession). No service-role key in the browser. Mirrors TradeActions.tsx.
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+);
+
+// DEV-TASK-62 (QA Task 8, Item 1): attach the admin's JWT to mutation calls so
+// the server route can record who acted (sp_ledger.admin_id /
+// admin_audit_logs.actor_id). NULL fallback when no session.
+async function authHeadersWithBearer(): Promise<Record<string, string>> {
+  const { data: { session } } = await supabase.auth.getSession();
+  return {
+    ...authHeaders,
+    ...(session?.access_token
+      ? { Authorization: `Bearer ${session.access_token}` }
+      : {}),
+  };
+}
 
 function formatSP(val: number) {
   return val.toLocaleString();
@@ -148,7 +169,7 @@ export default function SpWalletAdminPage() {
     try {
       const res = await fetch(buildUrl('/api/admin/sp-wallet/actions'), {
         method: 'POST',
-        headers: authHeaders,
+        headers: await authHeadersWithBearer(),
         body: JSON.stringify({
           action: 'adjust',
           user_id: walletDetail.wallet.user_id,
@@ -184,7 +205,7 @@ export default function SpWalletAdminPage() {
     try {
       const res = await fetch(buildUrl('/api/admin/sp-wallet/actions'), {
         method: 'POST',
-        headers: authHeaders,
+        headers: await authHeadersWithBearer(),
         body: JSON.stringify({
           action: 'toggle_status',
           user_id: walletDetail.wallet.user_id,

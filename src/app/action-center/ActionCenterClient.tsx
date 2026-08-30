@@ -187,9 +187,17 @@ function formatMoney(cents: number | null | undefined): string {
 }
 
 async function postJson(url: string, body: unknown) {
+  // DEV-TASK-62 (Item 1): attach the admin's JWT so dispute/money routes record WHO acted.
+  const { data: { session } } = await supabase.auth.getSession();
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-admin-secret': adminSecret },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-admin-secret': adminSecret,
+      ...(session?.access_token
+        ? { Authorization: `Bearer ${session.access_token}` }
+        : {}),
+    },
     body: JSON.stringify(body),
   });
   const json = await res.json().catch(() => ({}));
