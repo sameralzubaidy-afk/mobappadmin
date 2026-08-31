@@ -22,6 +22,8 @@ interface TaxSummaryRow {
   taxable_total_cents: number;
   tax_collected_cents: number;
   tax_refunded_cents: number;
+  // DT71 (2026-08-31): per-jurisdiction voided tax — shown separately from refunded.
+  tax_voided_cents: number;
   tax_net_cents: number;
 }
 
@@ -179,6 +181,7 @@ export default function TaxReportsPage() {
         'buyer_email',
         'node_name',
         'tax_rate',
+        'tax_voided_cents',
       ];
       const lines = [headers.join(',')];
       (rows as Record<string, unknown>[]).forEach((r) => {
@@ -300,13 +303,15 @@ export default function TaxReportsPage() {
 
       {summary && reportType === 'summary' && (
         <div data-testid="tax-report-results">
-          {/* TAX-REFUND-INTEGRITY (2026-07-24): Summary cards now show 9 metrics.
-              Tax Collected = captured only. Tax Refunded = verified Stripe refunds only.
-              Pending/Voided/CaptureFailed/Reconciliation are operational only. */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+          {/* TAX-REFUND-INTEGRITY (2026-07-24): Tax Collected = captured only.
+              Tax Refunded = verified Stripe refunds only. DT71 (2026-08-31):
+              'Tax Voided' is now a headline card (voided ≠ refunded — no money moved).
+              Pending/CaptureFailed/Reconciliation remain operational-only below. */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
             <Stat label="Taxable Sales" value={fmtCents(summary.taxable_sales_cents)} />
             <Stat label="Tax Collected" value={fmtCents(summary.tax_collected_cents)} />
             <Stat label="Tax Refunded" value={fmtCents(summary.tax_refunded_cents)} />
+            <Stat label="Tax Voided" value={fmtCents(summary.voided_tax_cents ?? 0)} />
             <Stat label="Net Tax Payable" value={fmtCents(summary.tax_net_cents)} className={summary.tax_net_cents > 0 ? 'text-green-700' : ''} />
             <Stat label="Transactions" value={String(summary.transaction_count)} />
           </div>
@@ -336,6 +341,7 @@ export default function TaxReportsPage() {
                 <th className="text-right p-2 border-b">Taxable</th>
                 <th className="text-right p-2 border-b">Collected</th>
                 <th className="text-right p-2 border-b">Refunded</th>
+                <th className="text-right p-2 border-b">Voided</th>
                 <th className="text-right p-2 border-b">Net</th>
               </tr>
             </thead>
@@ -347,12 +353,13 @@ export default function TaxReportsPage() {
                   <td className="p-2 text-right">{fmtCents(r.taxable_total_cents)}</td>
                   <td className="p-2 text-right">{fmtCents(r.tax_collected_cents)}</td>
                   <td className="p-2 text-right">{fmtCents(r.tax_refunded_cents)}</td>
+                  <td className="p-2 text-right">{fmtCents(r.tax_voided_cents ?? 0)}</td>
                   <td className="p-2 text-right">{fmtCents(r.tax_net_cents)}</td>
                 </tr>
               ))}
               {summary.by_jurisdiction.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="p-3 text-center text-gray-500">
+                  <td colSpan={7} className="p-3 text-center text-gray-500">
                     No tax collected in this period.
                   </td>
                 </tr>

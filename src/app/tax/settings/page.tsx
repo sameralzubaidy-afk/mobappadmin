@@ -154,6 +154,21 @@ export default function TaxSettingsPage() {
         Master switches that apply across all nodes. Per-node rates override the default.
       </p>
 
+      {/* DT71 (2026-08-31): config-propagation note — the sales tax toggle is read
+          server-side per offer/checkout; other admin config values refresh on app
+          foreground (5-min in-memory cache). No app relaunch required. */}
+      <div
+        className="flex items-center gap-2 bg-blue-50 border border-blue-200 text-blue-800 rounded p-3 mb-4"
+        data-testid="tax-settings-propagation-note"
+      >
+        <span className="text-lg">ℹ️</span>
+        <span className="text-sm">
+          <strong>Changes apply without a relaunch.</strong> Sales-tax changes take
+          effect on the next offer/checkout in the app. Other admin config values
+          refresh when the app returns to the foreground (or within ~5 minutes).
+        </span>
+      </div>
+
       {/* Cross-link: these settings share the same admin_config rows as /config → Tax */}
       <div className="mb-4">
         <SettingsLinkBanner
