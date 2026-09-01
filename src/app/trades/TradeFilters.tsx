@@ -126,7 +126,11 @@ export default function TradeFilters({
       </div>
 
       {/* Filters Bar — shown for both views */}
-      <div className="bg-white p-4 rounded shadow-sm border border-gray-200">
+      {/* DEV-TASK-76 (W12): key on the view so toggling Single<->Bundle REMOUNTS the
+          filter controls. The status <select> (and date/search inputs) are uncontrolled
+          (defaultValue), so without a remount the <select> keeps showing the previously
+          selected value even though the URL/data were reset. */}
+      <div key={initialView} className="bg-white p-4 rounded shadow-sm border border-gray-200">
         <div className="flex flex-wrap gap-4 items-end">
           {/* Date Range */}
           <div>

@@ -46,6 +46,12 @@ export interface TradeTimingConfig {
   platform_fee_buyer_percentage: number;
   // Bundle fee behavior toggle (boolean; read by create-trade-offer).
   charge_one_fee_per_bundle: boolean;
+  // Buyer Cancel Request & Admin Escalation (2026-09-01) — surfaced on the
+  // Trade Timing settings page (Group N). Backend readers: the
+  // fn_cancel_request_* SECURITY DEFINER helpers; both keys are seeded in
+  // admin_config by 20260901000000_cancel_request_flow.sql.
+  cancel_request_escalation_enabled: boolean;
+  cancel_request_response_timeout_hours: number;
   // R1 — Tiered Buyer-Fee Engine (first-trade protection). All values are dynamic
   // from admin_config (fees category) and resolved at checkout by
   // fn_get_buyer_fee_for_checkout. Tiers:

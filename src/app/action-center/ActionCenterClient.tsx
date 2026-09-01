@@ -117,6 +117,17 @@ const SOURCE_META: Record<string, SourceMeta> = {
     href: '/cancellation-insights',
     hrefLabel: 'Open cancellation insights',
   },
+  cancel_requests: {
+    label: 'Cancel Requests',
+    icon: <Scale size={ICON_SIZE} />,
+    severity: 'urgent',
+    actionVerb: 'Review',
+    summaryText: (n) =>
+      `${n} buyer cancellation ${n === 1 ? 'request' : 'requests'} awaiting review`,
+    emptyText: 'No buyer cancellation requests pending.',
+    href: '/trades',
+    hrefLabel: 'Open trades',
+  },
   failed_payouts: {
     label: 'Failed Payouts',
     icon: <CircleDollarSign size={ICON_SIZE} />,
@@ -143,6 +154,7 @@ const SOURCE_ORDER = [
   'flagged_items',
   'disputes',
   'id_badge_requests',
+  'cancel_requests',
   'cancel_anomalies',
   'failed_payouts',
   'config_drift',

@@ -15,6 +15,7 @@ type Props = {
   cashAmountCents?: number;
   feeCents?: number;
   taxCents?: number;
+  cancelRequestStatus?: string | null;
 };
 
 function cents(n: number): string {
@@ -27,10 +28,17 @@ export default function TradeActions({
   cashAmountCents = 0,
   feeCents = 0,
   taxCents = 0,
+  cancelRequestStatus = null,
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [reason, setReason] = useState('');
   const [showCancelModal, setShowCancelModal] = useState(false);
+
+  // FIX-CANCEL (2026-09-01): admin resolve of a buyer cancellation request
+  const [showCancelRequestModal, setShowCancelRequestModal] = useState(false);
+  const [cancelRequestAction, setCancelRequestAction] = useState<
+    'approve_cancel' | 'keep_trade' | null
+  >(null);
 
   // Partial / line-item refund state (PAY-317)
   const [showRefundModal, setShowRefundModal] = useState(false);
@@ -153,10 +161,52 @@ export default function TradeActions({
   const showPartialRefund =
     (status === 'completed' || status === 'in_progress' || status === 'payment_processing') &&
     (cashAmountCents + feeCents + taxCents) > 0;
+  const showCancelRequestAction =
+    cancelRequestStatus === 'requested' || cancelRequestStatus === 'escalated';
 
-  if (!showForceCancel && !showPartialRefund) {
+  if (!showForceCancel && !showPartialRefund && !showCancelRequestAction) {
     return null;
   }
+
+  const handleResolveCancelRequest = async (action: 'approve_cancel' | 'keep_trade') => {
+    const adminSecret = process.env.NEXT_PUBLIC_ADMIN_UI_SECRET;
+    if (!adminSecret) {
+      alert('Configuration error: Admin secret missing');
+      return;
+    }
+    setLoading(true);
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const response = await fetch('/api/admin/trades/cancel-request-action', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-secret': adminSecret,
+        },
+        body: JSON.stringify({ tradeId, action, adminId: user?.id ?? null }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || data?.data?.error || `HTTP error ${response.status}`);
+      }
+      alert(
+        action === 'approve_cancel'
+          ? 'Cancellation approved and refund issued.'
+          : 'Trade kept — request resolved.'
+      );
+      window.location.reload();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      console.error('Error resolving cancel request:', message);
+      alert('Failed to resolve cancel request: ' + message);
+    } finally {
+      setLoading(false);
+      setShowCancelRequestModal(false);
+      setCancelRequestAction(null);
+    }
+  };
 
   const refundTotal = (refundPrice || 0) + (refundFee || 0) + (refundTax || 0);
 
@@ -288,6 +338,68 @@ export default function TradeActions({
                   onClick={() => setShowRefundModal(false)}
                   className="bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300"
                   data-testid="btn-refund-modal-cancel"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {showCancelRequestAction && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded">
+          <h3 className="text-amber-800 font-semibold mb-2">Buyer Cancellation Request</h3>
+          <p className="text-sm text-amber-700 mb-3">
+            This buyer requested to cancel the in-progress trade. Approving will cancel the
+            trade and refund the buyer. Keeping the trade leaves it in progress.
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                setCancelRequestAction('approve_cancel');
+                setShowCancelRequestModal(true);
+              }}
+              className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors"
+              data-testid="btn-approve-cancel-request"
+            >
+              Approve Cancel &amp; Refund
+            </button>
+            <button
+              onClick={() => {
+                setCancelRequestAction('keep_trade');
+                setShowCancelRequestModal(true);
+              }}
+              className="bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300"
+              data-testid="btn-keep-trade"
+            >
+              Keep Trade
+            </button>
+          </div>
+
+          {showCancelRequestModal && cancelRequestAction && (
+            <div className="mt-4 space-y-3 border-t border-amber-200 pt-3">
+              <p className="text-sm text-gray-700">
+                {cancelRequestAction === 'approve_cancel'
+                  ? 'Cancel this trade and refund the buyer? The trade will be cancelled and Swap Points / payment released back.'
+                  : "Keep this trade in progress? The buyer's cancellation request will be closed and they will be notified."}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleResolveCancelRequest(cancelRequestAction)}
+                  disabled={loading}
+                  className="bg-amber-600 text-white px-4 py-2 rounded hover:bg-amber-700 disabled:opacity-50"
+                  data-testid="btn-confirm-resolve-cancel-request"
+                >
+                  {loading ? 'Processing...' : 'Confirm'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowCancelRequestModal(false);
+                    setCancelRequestAction(null);
+                  }}
+                  className="bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300"
+                  data-testid="btn-cancel-resolve-cancel-request"
                 >
                   Cancel
                 </button>

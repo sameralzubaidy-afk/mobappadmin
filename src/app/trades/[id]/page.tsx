@@ -403,6 +403,7 @@ export default async function TradeDetailPage({ params }: Props) {
             cashAmountCents={trade.cash_amount_cents ?? 0}
             feeCents={trade.buyer_transaction_fee_cents ?? 0}
             taxCents={trade.tax_amount_cents ?? 0}
+            cancelRequestStatus={trade.cancel_request_status ?? null}
           />
         </div>
       </div>

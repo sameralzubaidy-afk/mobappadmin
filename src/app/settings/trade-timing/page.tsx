@@ -2,7 +2,8 @@
 
 // filepath: p2p-kids-admin/src/app/settings/trade-timing/page.tsx
 // TFV2-001: Admin UI for trade timing configuration
-// Reads/writes the 8 TradeTimingConfig keys from admin_config table.
+// Reads/writes the 12 TradeTimingConfig keys this page manages from the
+// admin_config table (11 numeric + the cancel-request boolean toggle).
 
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
@@ -28,7 +29,17 @@ type ManagedTradeTimingKey =
   | 'pending_sp_release_days'
   | 'transaction_fee_subscriber_cents'
   | 'transaction_fee_non_subscriber_cents'
-  | 'max_pending_offers_per_seller';
+  | 'max_pending_offers_per_seller'
+  | 'cancel_request_escalation_enabled'
+  | 'cancel_request_response_timeout_hours';
+
+// Number-valued keys (rendered by numField) vs. the boolean toggle (rendered by
+// boolField), so the settings state stays fully typed.
+type ManagedTradeTimingNumberKey = Exclude<
+  ManagedTradeTimingKey,
+  'cancel_request_escalation_enabled'
+>;
+type ManagedTradeTimingBooleanKey = 'cancel_request_escalation_enabled';
 
 const DEFAULT_CONFIG: Pick<TradeTimingConfig, ManagedTradeTimingKey> = {
   offer_timeout_hours: 48,
@@ -41,6 +52,10 @@ const DEFAULT_CONFIG: Pick<TradeTimingConfig, ManagedTradeTimingKey> = {
   transaction_fee_subscriber_cents: 150,
   transaction_fee_non_subscriber_cents: 250,
   max_pending_offers_per_seller: 3,
+  // Cancel-request defaults (BP-13: link to the seed in
+  // 20260901000000_cancel_request_flow.sql — 48h / enabled).
+  cancel_request_escalation_enabled: true,
+  cancel_request_response_timeout_hours: 48,
 };
 
 export default function TradeTimingSettingsPage() {
@@ -71,11 +86,20 @@ export default function TradeTimingSettingsPage() {
       if (error) throw error;
 
       const parsed: Partial<TradeTimingConfig> = {};
-      data?.forEach((row: { out_key: string; out_value: string }) => {
-        if (row.out_key in DEFAULT_CONFIG && !isNaN(Number(row.out_value))) {
-          (parsed as any)[row.out_key] = Number(row.out_value);
+      data?.forEach(
+        (row: { out_key: string; out_value: string; out_data_type?: string }) => {
+          if (!(row.out_key in DEFAULT_CONFIG)) return;
+          // Boolean keys come back as the strings 'true'/'false' — parse them
+          // explicitly (Number('true') is NaN and would fall back to the default).
+          if (row.out_key === 'cancel_request_escalation_enabled') {
+            (parsed as Record<string, unknown>)[row.out_key] =
+              row.out_value === 'true';
+          } else if (!isNaN(Number(row.out_value))) {
+            (parsed as Record<string, number>)[row.out_key] =
+              Number(row.out_value);
+          }
         }
-      });
+      );
 
       setSettings((prev) => ({ ...prev, ...parsed }));
 
@@ -134,6 +158,14 @@ export default function TradeTimingSettingsPage() {
     if (settings.max_pending_offers_per_seller > 10) {
       e.max_pending_offers_per_seller = 'Maximum is 10 offers per seller';
     }
+    // Same 1–336 range the backend enforces in fn_cancel_request_timeout_hours().
+    if (
+      settings.cancel_request_response_timeout_hours < 1 ||
+      settings.cancel_request_response_timeout_hours > 336
+    ) {
+      e.cancel_request_response_timeout_hours =
+        'Must be between 1 and 336 hours';
+    }
 
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -153,12 +185,22 @@ export default function TradeTimingSettingsPage() {
       } = await supabase.auth.getUser();
       const adminId = user?.id ?? null;
 
-      for (const [key, value] of Object.entries(settings)) {
+      // Boolean keys are stored as 'true'/'false' with data_type 'boolean';
+      // every other key on this page is numeric (data_type 'number').
+      const writes: Array<{ key: string; value: string; data_type: string }> =
+        Object.entries(settings).map(([key, value]) => ({
+          key,
+          value: String(value),
+          data_type:
+            key === 'cancel_request_escalation_enabled' ? 'boolean' : 'number',
+        }));
+
+      for (const w of writes) {
         const { error } = await supabase.rpc('upsert_admin_config_setting', {
-          p_key: key,
-          p_value: String(value),
+          p_key: w.key,
+          p_value: w.value,
           p_category: 'feature_flags',
-          p_data_type: 'number',
+          p_data_type: w.data_type,
           p_is_secret: false,
           p_is_active: true,
           p_admin_id: adminId,
@@ -187,11 +229,12 @@ export default function TradeTimingSettingsPage() {
   };
 
   const numField = (
-    key: ManagedTradeTimingKey,
+    key: ManagedTradeTimingNumberKey,
     label: string,
     description: string,
     unit: string,
-    min = 1
+    min = 1,
+    max?: number
   ) => (
     <div key={key} className="space-y-1">
       <label className="block text-sm font-medium text-gray-700">
@@ -206,6 +249,7 @@ export default function TradeTimingSettingsPage() {
           }
           className="w-36 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
           min={min}
+          max={max}
           disabled={saving}
           data-testid={`input-${key}`}
         />
@@ -221,6 +265,40 @@ export default function TradeTimingSettingsPage() {
         {...formatUpdatedMeta(meta[key as string])}
         testId={`last-updated-${key}`}
       />
+    </div>
+  );
+
+  const boolField = (
+    key: ManagedTradeTimingBooleanKey,
+    label: string,
+    description: string
+  ) => (
+    <div key={key} className="space-y-1">
+      <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+        <input
+          type="checkbox"
+          checked={settings[key]}
+          onChange={(e) =>
+            setSettings((prev) => ({ ...prev, [key]: e.target.checked }))
+          }
+          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+          disabled={saving}
+          data-testid={`input-${key}`}
+        />
+        {label}
+      </label>
+      <p className="text-xs text-gray-500 pl-6">{description}</p>
+      {errors[key] && (
+        <p className="text-xs text-red-600 pl-6" data-testid={`error-${key}`}>
+          {errors[key]}
+        </p>
+      )}
+      <div className="pl-6">
+        <LastUpdatedLabel
+          {...formatUpdatedMeta(meta[key])}
+          testId={`last-updated-${key}`}
+        />
+      </div>
     </div>
   );
 
@@ -240,7 +318,7 @@ export default function TradeTimingSettingsPage() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">Trade Timing Settings</h1>
         <p className="text-gray-500 mt-1 text-sm">
-          Configure offer expiry windows, auto-complete timing, SP release schedules, and transaction fees.
+          Configure offer expiry windows, auto-complete timing, buyer cancel-request escalation, SP release schedules, and transaction fees.
         </p>
       </div>
 
@@ -325,6 +403,33 @@ export default function TradeTimingSettingsPage() {
             'Send final reminder before auto-complete fires (must be < first reminder).',
             'hours before auto-complete'
           )}
+        </section>
+
+        {/* Buyer Cancel Requests */}
+        <section className="bg-white rounded-lg border border-gray-200 p-6 space-y-5">
+          <h2 className="text-base font-semibold text-gray-800 border-b border-gray-100 pb-3">
+            Buyer Cancel Requests
+          </h2>
+          {boolField(
+            'cancel_request_escalation_enabled',
+            'Escalate to Admin',
+            'When enabled, a seller decline — or no response within the timeout — sends the buyer’s cancellation request to the admin Action Center for review. When disabled, a declined request simply ends with the trade continuing (no admin review).'
+          )}
+          {numField(
+            'cancel_request_response_timeout_hours',
+            'Response Timeout',
+            'Hours a seller has to respond to a buyer’s cancellation request before it auto-escalates to admin (validated 1–336).',
+            'hours',
+            1,
+            336
+          )}
+          <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+            <p className="text-xs text-blue-800">
+              These control buyer-initiated cancellation requests on in-progress
+              trades (single-item and bundles). Changes take effect immediately —
+              the app reads them from admin_config on each request/response.
+            </p>
+          </div>
         </section>
 
         {/* Swap Points */}

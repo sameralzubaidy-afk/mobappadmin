@@ -21,6 +21,7 @@ const VALID_SOURCES = [
   'flagged_items',
   'disputes',
   'id_badge_requests',
+  'cancel_requests',
   'cancel_anomalies',
   'failed_payouts',
   'config_drift',

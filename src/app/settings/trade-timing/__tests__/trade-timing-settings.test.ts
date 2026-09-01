@@ -26,6 +26,8 @@ interface TradeTimingConfig {
   platform_fee_buyer_fixed_cents: number;
   platform_fee_buyer_percentage: number;
   charge_one_fee_per_bundle: boolean;
+  cancel_request_escalation_enabled: boolean;
+  cancel_request_response_timeout_hours: number;
 }
 
 /**
@@ -119,6 +121,14 @@ function validateTradeTimingSettings(s: TradeTimingConfig): Record<string, strin
   if (s.platform_fee_buyer_percentage < 0 || s.platform_fee_buyer_percentage > 100) {
     e.platform_fee_buyer_percentage = 'Must be between 0 and 100';
   }
+  // Buyer Cancel Request (2026-09-01) — timeout validated to the same 1–336
+  // range the backend enforces in fn_cancel_request_timeout_hours().
+  if (
+    s.cancel_request_response_timeout_hours < 1 ||
+    s.cancel_request_response_timeout_hours > 336
+  ) {
+    e.cancel_request_response_timeout_hours = 'Must be between 1 and 336 hours';
+  }
 
   return e;
 }
@@ -142,6 +152,8 @@ const DEFAULT_VALID: TradeTimingConfig = {
   platform_fee_buyer_fixed_cents: 25,
   platform_fee_buyer_percentage: 2.5,
   charge_one_fee_per_bundle: false,
+  cancel_request_escalation_enabled: true,
+  cancel_request_response_timeout_hours: 48,
 };
 
 describe('validateTradeTimingSettings', () => {
@@ -389,6 +401,37 @@ describe('validateTradeTimingSettings', () => {
     });
   });
 
+  describe('Buyer cancel request constraints', () => {
+    it('should error when cancel_request_response_timeout_hours < 1', () => {
+      const errors = validateTradeTimingSettings({
+        ...DEFAULT_VALID,
+        cancel_request_response_timeout_hours: 0,
+      });
+      expect(errors.cancel_request_response_timeout_hours).toBeDefined();
+    });
+
+    it('should error when cancel_request_response_timeout_hours > 336', () => {
+      const errors = validateTradeTimingSettings({
+        ...DEFAULT_VALID,
+        cancel_request_response_timeout_hours: 337,
+      });
+      expect(errors.cancel_request_response_timeout_hours).toBeDefined();
+    });
+
+    it('should accept the boundary values (1 and 336)', () => {
+      const minErrors = validateTradeTimingSettings({
+        ...DEFAULT_VALID,
+        cancel_request_response_timeout_hours: 1,
+      });
+      expect(minErrors.cancel_request_response_timeout_hours).toBeUndefined();
+      const maxErrors = validateTradeTimingSettings({
+        ...DEFAULT_VALID,
+        cancel_request_response_timeout_hours: 336,
+      });
+      expect(maxErrors.cancel_request_response_timeout_hours).toBeUndefined();
+    });
+  });
+
   describe('Multiple violations', () => {
     it('should return multiple errors for completely invalid config', () => {
       const invalid: TradeTimingConfig = {
@@ -410,6 +453,8 @@ describe('validateTradeTimingSettings', () => {
         platform_fee_buyer_fixed_cents: -25,
         platform_fee_buyer_percentage: 101,
         charge_one_fee_per_bundle: false,
+        cancel_request_escalation_enabled: true,
+        cancel_request_response_timeout_hours: 0,
       };
       const errors = validateTradeTimingSettings(invalid);
       expect(Object.keys(errors).length).toBeGreaterThan(3);
