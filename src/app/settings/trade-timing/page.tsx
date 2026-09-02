@@ -2,8 +2,11 @@
 
 // filepath: p2p-kids-admin/src/app/settings/trade-timing/page.tsx
 // TFV2-001: Admin UI for trade timing configuration
-// Reads/writes the 12 TradeTimingConfig keys this page manages from the
-// admin_config table (11 numeric + the cancel-request boolean toggle).
+// Reads/writes the TradeTimingConfig keys this page manages (timing windows,
+// pickup & payout, cancel-request escalation, SP release, and the consolidated
+// fee params). Shared validation lives in src/lib/tradeTimingValidation.ts and
+// is imported by BOTH this page and its mirror test (Dev Task 91 — restores the
+// F03/F05/F06/F08/F10 sections that drifted off this page).
 
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
@@ -13,12 +16,12 @@ import {
   formatUpdatedMeta,
   type AdminConfigMetaRow,
 } from '@/lib/settingsAudit';
+import { validateTradeTimingSettings } from '@/lib/tradeTimingValidation';
 import SettingsLinkBanner from '@/components/settings/SettingsLinkBanner';
 import LastUpdatedLabel from '@/components/settings/LastUpdatedLabel';
 
-// Keys this page manages (renders + reads/writes), scoped so DEFAULT_CONFIG
-// stays a complete typed object and save/load only ever touch the rendered
-// subset — the rest of TradeTimingConfig is managed on its own surfaces.
+// Keys this page manages (renders + reads/writes). Legacy fee keys are loaded +
+// surfaced read-only (audit) and excluded from save writes (F10).
 type ManagedTradeTimingKey =
   | 'offer_timeout_hours'
   | 'offer_notif_1_hours_before'
@@ -31,15 +34,71 @@ type ManagedTradeTimingKey =
   | 'transaction_fee_non_subscriber_cents'
   | 'max_pending_offers_per_seller'
   | 'cancel_request_escalation_enabled'
-  | 'cancel_request_response_timeout_hours';
+  | 'cancel_request_response_timeout_hours'
+  // N1/R2 — pickup countdown + payout buffer + pickup reminders (F05/F06)
+  | 'pickup_window_hours'
+  | 'pickup_notif_1_hours_before'
+  | 'pickup_notif_2_hours_before'
+  | 'payout_buffer_days'
+  // Fee params consolidated from /config → FEES (single fee surface, F03)
+  | 'platform_fee_seller_percentage'
+  | 'platform_fee_seller_discount_percentage_kids_club_plus'
+  | 'platform_fee_buyer_fixed_cents'
+  | 'platform_fee_buyer_percentage'
+  | 'charge_one_fee_per_bundle'
+  // R1 — tiered buyer-fee engine (F08)
+  | 'buyer_fee_active_member_cents'
+  | 'buyer_fee_first_trade_cents'
+  | 'buyer_fee_subsequent_percentage'
+  | 'buyer_fee_subsequent_fixed_cents'
+  | 'buyer_fee_subsequent_max_cents'
+  | 'buyer_fee_label'
+  // Legacy fee keys (audit only, read-only — F10)
+  | 'transaction_fee_member_cents'
+  | 'transaction_fee_non_member_cents'
+  | 'platform_fee_seller_discount_percentage_freemium';
 
-// Number-valued keys (rendered by numField) vs. the boolean toggle (rendered by
-// boolField), so the settings state stays fully typed.
+// Boolean keys (rendered by boolField) vs. the string key (buyer_fee_label,
+// rendered by textField) vs. number keys (rendered by numField), so the
+// settings state stays fully typed.
+type ManagedTradeTimingBooleanKey =
+  | 'cancel_request_escalation_enabled'
+  | 'charge_one_fee_per_bundle';
+type ManagedTradeTimingStringKey = 'buyer_fee_label';
 type ManagedTradeTimingNumberKey = Exclude<
   ManagedTradeTimingKey,
-  'cancel_request_escalation_enabled'
+  ManagedTradeTimingBooleanKey | ManagedTradeTimingStringKey
 >;
-type ManagedTradeTimingBooleanKey = 'cancel_request_escalation_enabled';
+
+// Legacy fee keys surfaced read-only for audit (F10). Loaded + displayed, but
+// never written on Save (the current checkout does not read them).
+const LEGACY_READ_ONLY_KEYS: ReadonlySet<string> = new Set([
+  'transaction_fee_member_cents',
+  'transaction_fee_non_member_cents',
+  'platform_fee_seller_discount_percentage_freemium',
+]);
+
+// Key → canonical admin_config category (single-source with /config tabs).
+// Unlisted keys fall back to 'feature_flags' (behavior-preserving — they were
+// seeded/edited under that bucket). Restored keys use their seed categories.
+const CONFIG_CATEGORIES: Record<string, string> = {
+  pickup_window_hours: 'trade',
+  pickup_notif_1_hours_before: 'trade',
+  pickup_notif_2_hours_before: 'trade',
+  payout_buffer_days: 'fees',
+  platform_fee_buyer_fixed_cents: 'fees',
+  platform_fee_buyer_percentage: 'fees',
+  charge_one_fee_per_bundle: 'fees',
+  buyer_fee_active_member_cents: 'fees',
+  buyer_fee_first_trade_cents: 'fees',
+  buyer_fee_subsequent_percentage: 'fees',
+  buyer_fee_subsequent_fixed_cents: 'fees',
+  buyer_fee_subsequent_max_cents: 'fees',
+  buyer_fee_label: 'fees',
+  transaction_fee_member_cents: 'fees',
+  transaction_fee_non_member_cents: 'fees',
+  platform_fee_seller_discount_percentage_freemium: 'fees',
+};
 
 const DEFAULT_CONFIG: Pick<TradeTimingConfig, ManagedTradeTimingKey> = {
   offer_timeout_hours: 48,
@@ -56,6 +115,30 @@ const DEFAULT_CONFIG: Pick<TradeTimingConfig, ManagedTradeTimingKey> = {
   // 20260901000000_cancel_request_flow.sql — 48h / enabled).
   cancel_request_escalation_enabled: true,
   cancel_request_response_timeout_hours: 48,
+  // N1/R2 (20260809000004 / 20260810000001 seeds): 72 / 24 / 2 / 2.
+  pickup_window_hours: 72,
+  pickup_notif_1_hours_before: 24,
+  pickup_notif_2_hours_before: 2,
+  payout_buffer_days: 2,
+  // Fee params (20250113 + 316 seeds): seller free=5/KCP=0, buyer fixed=25/2.5%,
+  // bundle-fee OFF.
+  platform_fee_seller_percentage: 5,
+  platform_fee_seller_discount_percentage_kids_club_plus: 0,
+  platform_fee_buyer_fixed_cents: 25,
+  platform_fee_buyer_percentage: 2.5,
+  charge_one_fee_per_bundle: false,
+  // R1 tiered buyer-fee engine (20260810000009 seeds): 149 / 149 / 5.0 / 199 /
+  // 499 / label.
+  buyer_fee_active_member_cents: 149,
+  buyer_fee_first_trade_cents: 149,
+  buyer_fee_subsequent_percentage: 5.0,
+  buyer_fee_subsequent_fixed_cents: 199,
+  buyer_fee_subsequent_max_cents: 499,
+  buyer_fee_label: 'Safety & Platform Fee',
+  // Legacy audit-only (20260528 / 20250113 seeds): 99 / 299 / 0.
+  transaction_fee_member_cents: 99,
+  transaction_fee_non_member_cents: 299,
+  platform_fee_seller_discount_percentage_freemium: 0,
 };
 
 export default function TradeTimingSettingsPage() {
@@ -89,11 +172,14 @@ export default function TradeTimingSettingsPage() {
       data?.forEach(
         (row: { out_key: string; out_value: string; out_data_type?: string }) => {
           if (!(row.out_key in DEFAULT_CONFIG)) return;
-          // Boolean keys come back as the strings 'true'/'false' — parse them
-          // explicitly (Number('true') is NaN and would fall back to the default).
-          if (row.out_key === 'cancel_request_escalation_enabled') {
+          // Values come back as TEXT regardless of admin_config.data_type.
+          // Re-hydrate by the stored data_type so booleans ('true'/'false'),
+          // strings (buyer_fee_label) and numbers all land correctly.
+          if (row.out_data_type === 'boolean') {
             (parsed as Record<string, unknown>)[row.out_key] =
               row.out_value === 'true';
+          } else if (row.out_data_type === 'string') {
+            (parsed as Record<string, string>)[row.out_key] = row.out_value;
           } else if (!isNaN(Number(row.out_value))) {
             (parsed as Record<string, number>)[row.out_key] =
               Number(row.out_value);
@@ -117,56 +203,48 @@ export default function TradeTimingSettingsPage() {
   };
 
   const validateSettings = (): boolean => {
-    const e: Record<string, string> = {};
+    // Shared validator — single source of truth shared with the mirror test
+    // (src/lib/tradeTimingValidation.ts). Covers offer/auto-complete ordering,
+    // fee params, pickup window + reminders, the R2 ≤167h guardrail, payout
+    // buffer, and the cancel-request timeout.
+    const e = validateTradeTimingSettings(settings);
 
-    if (settings.offer_timeout_hours < 1) {
-      e.offer_timeout_hours = 'Must be at least 1 hour';
-    }
-    if (settings.offer_notif_1_hours_before >= settings.offer_timeout_hours) {
-      e.offer_notif_1_hours_before = `Must be less than offer timeout (${settings.offer_timeout_hours}h)`;
-    }
-    if (settings.offer_notif_2_hours_before >= settings.offer_notif_1_hours_before) {
-      e.offer_notif_2_hours_before = `Must be less than first reminder (${settings.offer_notif_1_hours_before}h)`;
-    }
-    if (settings.offer_notif_2_hours_before < 1) {
-      e.offer_notif_2_hours_before = 'Must be at least 1 hour';
-    }
-    if (settings.auto_complete_hours < 1) {
-      e.auto_complete_hours = 'Must be at least 1 hour';
-    }
-    if (settings.auto_complete_notif_1_hours_before >= settings.auto_complete_hours) {
-      e.auto_complete_notif_1_hours_before = `Must be less than auto-complete window (${settings.auto_complete_hours}h)`;
-    }
-    if (settings.auto_complete_notif_2_hours_before < 1) {
-      e.auto_complete_notif_2_hours_before = 'Must be at least 1 hour';
-    }
-    if (settings.auto_complete_notif_2_hours_before >= settings.auto_complete_notif_1_hours_before) {
-      e.auto_complete_notif_2_hours_before = `Must be less than first auto-complete reminder (${settings.auto_complete_notif_1_hours_before}h)`;
-    }
-    if (settings.pending_sp_release_days < 1) {
-      e.pending_sp_release_days = 'Must be at least 1 day';
-    }
-    if (settings.transaction_fee_subscriber_cents < 0) {
-      e.transaction_fee_subscriber_cents = 'Cannot be negative';
-    }
-    if (settings.transaction_fee_non_subscriber_cents < 0) {
-      e.transaction_fee_non_subscriber_cents = 'Cannot be negative';
-    }
+    // max_pending_offers_per_seller is page-managed but has no mirror-test rule
+    // (kept local to where it renders).
     if (settings.max_pending_offers_per_seller < 1) {
       e.max_pending_offers_per_seller = 'Must be at least 1';
     }
     if (settings.max_pending_offers_per_seller > 10) {
       e.max_pending_offers_per_seller = 'Maximum is 10 offers per seller';
     }
-    // Same 1–336 range the backend enforces in fn_cancel_request_timeout_hours().
+
+    // R1 — Tiered Buyer-Fee Engine (page-only; no mirror-test rule).
+    if (settings.buyer_fee_active_member_cents < 0) {
+      e.buyer_fee_active_member_cents = 'Cannot be negative';
+    }
+    if (settings.buyer_fee_first_trade_cents < 0) {
+      e.buyer_fee_first_trade_cents = 'Cannot be negative';
+    }
     if (
-      settings.cancel_request_response_timeout_hours < 1 ||
-      settings.cancel_request_response_timeout_hours > 336
+      settings.buyer_fee_subsequent_percentage < 0 ||
+      settings.buyer_fee_subsequent_percentage > 100
     ) {
-      e.cancel_request_response_timeout_hours =
-        'Must be between 1 and 336 hours';
+      e.buyer_fee_subsequent_percentage = 'Must be between 0 and 100';
+    }
+    if (settings.buyer_fee_subsequent_fixed_cents < 0) {
+      e.buyer_fee_subsequent_fixed_cents = 'Cannot be negative';
+    }
+    if (
+      settings.buyer_fee_subsequent_max_cents <
+      settings.buyer_fee_subsequent_fixed_cents
+    ) {
+      e.buyer_fee_subsequent_max_cents = 'Must be at least the fixed fee';
+    }
+    if (settings.buyer_fee_label.trim() === '') {
+      e.buyer_fee_label = 'Cannot be empty';
     }
 
+    // Legacy fee keys are read-only audit fields — never validated/blocking.
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -185,21 +263,38 @@ export default function TradeTimingSettingsPage() {
       } = await supabase.auth.getUser();
       const adminId = user?.id ?? null;
 
-      // Boolean keys are stored as 'true'/'false' with data_type 'boolean';
-      // every other key on this page is numeric (data_type 'number').
-      const writes: Array<{ key: string; value: string; data_type: string }> =
-        Object.entries(settings).map(([key, value]) => ({
+      // Build the write list from the editable settings. Legacy fee keys are
+      // read-only audit fields — excluded so Save never touches them (F10).
+      // data_type mirrors what admin_config stores (boolean/string/number).
+      const booleanKeys: ReadonlySet<string> = new Set([
+        'cancel_request_escalation_enabled',
+        'charge_one_fee_per_bundle',
+      ]);
+      const stringKeys: ReadonlySet<string> = new Set(['buyer_fee_label']);
+
+      const writes: Array<{
+        key: string;
+        value: string;
+        data_type: string;
+        category: string;
+      }> = Object.entries(settings)
+        .filter(([key]) => !LEGACY_READ_ONLY_KEYS.has(key))
+        .map(([key, value]) => ({
           key,
           value: String(value),
-          data_type:
-            key === 'cancel_request_escalation_enabled' ? 'boolean' : 'number',
+          data_type: booleanKeys.has(key)
+            ? 'boolean'
+            : stringKeys.has(key)
+              ? 'string'
+              : 'number',
+          category: CONFIG_CATEGORIES[key] ?? 'feature_flags',
         }));
 
       for (const w of writes) {
         const { error } = await supabase.rpc('upsert_admin_config_setting', {
           p_key: w.key,
           p_value: w.value,
-          p_category: 'feature_flags',
+          p_category: w.category,
           p_data_type: w.data_type,
           p_is_secret: false,
           p_is_active: true,
@@ -302,6 +397,68 @@ export default function TradeTimingSettingsPage() {
     </div>
   );
 
+  // Text field for string-valued admin_config keys (e.g. buyer_fee_label).
+  const textField = (
+    key: ManagedTradeTimingStringKey,
+    label: string,
+    description: string
+  ) => (
+    <div key={key} className="space-y-1">
+      <label className="block text-sm font-medium text-gray-700">
+        {label} <span className="text-red-500">*</span>
+      </label>
+      <input
+        type="text"
+        value={String(settings[key] ?? '')}
+        onChange={(e) =>
+          setSettings((prev) => ({ ...prev, [key]: e.target.value }))
+        }
+        className="w-72 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+        disabled={saving}
+        data-testid={`input-${key}`}
+      />
+      <p className="text-xs text-gray-500">{description}</p>
+      {errors[key] && (
+        <p className="text-xs text-red-600" data-testid={`error-${key}`}>
+          {errors[key]}
+        </p>
+      )}
+      <LastUpdatedLabel
+        {...formatUpdatedMeta(meta[key])}
+        testId={`last-updated-${key}`}
+      />
+    </div>
+  );
+
+  // Read-only display for legacy fee keys (F10) — audit surface, not editable.
+  const readOnlyField = (
+    key: ManagedTradeTimingNumberKey,
+    label: string,
+    description: string,
+    unit: string
+  ) => (
+    <div key={key} className="space-y-1">
+      <label className="block text-sm font-medium text-gray-700">
+        {label} <span className="text-gray-400 font-normal">(read-only)</span>
+      </label>
+      <div className="flex items-center gap-3">
+        <input
+          type="number"
+          value={settings[key]}
+          disabled
+          className="w-36 border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500"
+          data-testid={`readonly-${key}`}
+        />
+        <span className="text-sm text-gray-500">{unit}</span>
+      </div>
+      <p className="text-xs text-gray-500">{description}</p>
+      <LastUpdatedLabel
+        {...formatUpdatedMeta(meta[key as string])}
+        testId={`last-updated-${key}`}
+      />
+    </div>
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -318,7 +475,7 @@ export default function TradeTimingSettingsPage() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">Trade Timing Settings</h1>
         <p className="text-gray-500 mt-1 text-sm">
-          Configure offer expiry windows, auto-complete timing, buyer cancel-request escalation, SP release schedules, and transaction fees.
+          Configure offer expiry, pickup &amp; payout timing, auto-complete, buyer cancel-request escalation, SP release schedules, and transaction fees.
         </p>
       </div>
 
@@ -405,6 +562,48 @@ export default function TradeTimingSettingsPage() {
           )}
         </section>
 
+        {/* Pickup & Payout — N1 Configurability + R2 guardrail (F05/F06) */}
+        <section className="bg-white rounded-lg border border-gray-200 p-6 space-y-5">
+          <h2 className="text-base font-semibold text-gray-800 border-b border-gray-100 pb-3">
+            Pickup &amp; Payout
+          </h2>
+          {numField(
+            'pickup_window_hours',
+            'Pickup Window',
+            'Hours a buyer has to confirm pickup/meetup once a trade is ready (1–168). Drives the post-acceptance auto-complete deadline (R2). Combined with the offer window it must stay under 168h (Stripe’s 7-day authorization limit).',
+            'hours',
+            1,
+            168
+          )}
+          {numField(
+            'pickup_notif_1_hours_before',
+            'First Pickup Reminder',
+            'Send the first reminder to the buyer this many hours before the pickup window ends (must be < pickup window).',
+            'hours before deadline'
+          )}
+          {numField(
+            'pickup_notif_2_hours_before',
+            'Final Pickup Reminder',
+            'Send the final reminder to the buyer before the pickup window ends (must be < first reminder).',
+            'hours before deadline'
+          )}
+          {numField(
+            'payout_buffer_days',
+            'Payout Buffer',
+            'Days a completed trade payout sits as a buffer before release to the seller (0 = immediate, max 30).',
+            'days',
+            0,
+            30
+          )}
+          <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+            <p className="text-xs text-blue-800">
+              R2 guardrail: Offer Timeout + Pickup Window must total under 168h
+              (Stripe’s 7-day authorization limit). The UI hard-blocks a save
+              that exceeds it — lower one window.
+            </p>
+          </div>
+        </section>
+
         {/* Buyer Cancel Requests */}
         <section className="bg-white rounded-lg border border-gray-200 p-6 space-y-5">
           <h2 className="text-base font-semibold text-gray-800 border-b border-gray-100 pb-3">
@@ -464,6 +663,129 @@ export default function TradeTimingSettingsPage() {
             'cents',
             0
           )}
+          <div className="border-t border-gray-100 pt-4 space-y-5">
+            <h3 className="text-sm font-semibold text-gray-800">
+              Seller &amp; Buyer Platform Fees
+            </h3>
+            {numField(
+              'platform_fee_seller_percentage',
+              'Seller Fee % — Free Tier',
+              'Seller platform fee for FREE (non-subscriber) sellers, as a % of the cash portion (item price − SP). Example: 5 = 5% (default).',
+              '%',
+              0,
+              100
+            )}
+            {numField(
+              'platform_fee_seller_discount_percentage_kids_club_plus',
+              'Seller Fee % — Kids Club+',
+              'Seller platform fee for Kids Club+ (subscriber) sellers, as an ABSOLUTE % of the cash portion (item price − SP). This is the rate itself, not a discount.',
+              '%',
+              0,
+              100
+            )}
+            {numField(
+              'platform_fee_buyer_fixed_cents',
+              'Buyer Platform Fee — Fixed',
+              'Fixed buyer platform fee in cents (e.g. 25 = $0.25). Applies to each trade; shown in the buyer fee preview.',
+              'cents',
+              0
+            )}
+            {numField(
+              'platform_fee_buyer_percentage',
+              'Buyer Platform Fee %',
+              'Buyer platform fee as a % of item price (e.g. 2.5 = 2.5%). Shown in the buyer fee preview.',
+              '%',
+              0,
+              100
+            )}
+            {boolField(
+              'charge_one_fee_per_bundle',
+              'Charge One Fee Per Bundle',
+              'When enabled, a bundle charges the platform fee once instead of per item. Single-item trades are unaffected. Applies to both free-tier and subscriber fixed fees.'
+            )}
+          </div>
+          <div className="border-t border-gray-100 pt-4 space-y-4">
+            <h3 className="text-sm font-semibold text-gray-800">
+              Tiered Buyer Fee — R1 (first-trade protection)
+            </h3>
+            <p className="text-xs text-gray-500">
+              Resolved at checkout by buyer fee-tier: active members and free
+              users on their first trade pay a flat fee; free users with 1+
+              completed trades pay a percentage of the cash portion + a fixed
+              fee, capped at the maximum. Swap Points never reduce the fee base.
+              All values are dynamic — changes apply to new checkouts
+              immediately.
+            </p>
+            {numField(
+              'buyer_fee_active_member_cents',
+              'Flat Fee — Active Members',
+              'Flat fee (cents) for active members (trial or paid). Example: 149 = $1.49.',
+              'cents',
+              0
+            )}
+            {numField(
+              'buyer_fee_first_trade_cents',
+              'Flat Fee — First Trade',
+              'Flat fee (cents) for free users on their first trade. Consumed only when the trade is successfully captured and completed.',
+              'cents',
+              0
+            )}
+            {numField(
+              'buyer_fee_subsequent_percentage',
+              'Percentage — Free users (1+ completed trades)',
+              'Percentage of the cash portion (order total minus Swap Points) for free users with 1+ completed trades. Example: 5 = 5%.',
+              '%',
+              0,
+              100
+            )}
+            {numField(
+              'buyer_fee_subsequent_fixed_cents',
+              'Fixed Fee — Free users (1+ completed trades)',
+              'Fixed fee component (cents) for free users with 1+ completed trades. Example: 199 = $1.99.',
+              'cents',
+              0
+            )}
+            {numField(
+              'buyer_fee_subsequent_max_cents',
+              'Maximum Total Fee (cap)',
+              'Cap (cents) on the TOTAL fee (fixed + percentage) for free users with 1+ completed trades. Must be ≥ fixed fee. Example: 499 = $4.99.',
+              'cents',
+              0
+            )}
+            {textField(
+              'buyer_fee_label',
+              'Fee Display Label',
+              'Label shown to buyers on checkout / order summary (e.g. "Safety & Platform Fee").'
+            )}
+          </div>
+          <div className="border-t border-gray-100 pt-4 space-y-4">
+            <h3 className="text-sm font-semibold text-gray-800">
+              Legacy fee keys (audit only)
+            </h3>
+            <p className="text-xs text-gray-500">
+              These keys were seeded under the old naming scheme and are NOT
+              read by the current checkout. Surfaced here read-only for audit —
+              changes have no effect on live trades.
+            </p>
+            {readOnlyField(
+              'transaction_fee_member_cents',
+              'Legacy Member Fee (cents)',
+              'Legacy: not used by current checkout. Replaced by "Kids Club+ Member Fee" (transaction_fee_subscriber_cents).',
+              'cents'
+            )}
+            {readOnlyField(
+              'transaction_fee_non_member_cents',
+              'Legacy Non-Member Fee (cents)',
+              'Legacy: not used by current checkout. Replaced by "Free-Tier User Fee" (transaction_fee_non_subscriber_cents).',
+              'cents'
+            )}
+            {readOnlyField(
+              'platform_fee_seller_discount_percentage_freemium',
+              'Legacy Seller Discount % — Free',
+              'Legacy: not used by current checkout. Replaced by "Seller Fee % — Free Tier" (platform_fee_seller_percentage, absolute per-tier, BP-38).',
+              '%'
+            )}
+          </div>
           <div className="bg-amber-50 border border-amber-200 rounded-md p-3">
             <p className="text-xs text-amber-800">
               ⚠️ Fee changes take effect on all new trades immediately. Existing pending trades are unaffected.
