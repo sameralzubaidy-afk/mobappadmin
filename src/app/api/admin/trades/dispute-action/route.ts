@@ -108,6 +108,120 @@ export async function POST(req: NextRequest) {
       // delegated to complete_trade_v2 below so payout math is NOT duplicated;
       // DEV-TASK-48: previously this branch wrote status='completed' directly and
       // left payout_amount_cents NULL, so initiate-payout processed $0).
+
+      // DEV-TASK-85 (QA Task 18 R10 money-flow gap — HIGH): complete_trade_v2 is
+      // a DB-only RPC — it assumes the CALLER already captured the buyer's Stripe
+      // authorization hold. The normal completion paths (complete-trade EF,
+      // process-auto-complete EF) capture the PI FIRST (paymentIntents.capture →
+      // rpc_mark_tax_collected), then call the complete RPC. resolve_complete
+      // previously skipped that capture leg entirely: it completed the trade,
+      // created the seller_payouts row and scheduled a Stripe Connect transfer
+      // against an UNCAPTURED hold (buyer never charged; the auth auto-expires
+      // after ~7 days). A payout must NEVER be schedulable against an uncaptured
+      // hold — so capture here, before any dispute/completion mutation.
+      const { data: moneyTrade, error: moneyErr } = await supabase
+        .from('trades')
+        .select('id, status, stripe_payment_intent_id, cash_amount_cents, stripe_refund_id')
+        .eq('id', tradeId)
+        .single();
+      if (moneyErr) throw moneyErr;
+
+      const piId = moneyTrade?.stripe_payment_intent_id as string | undefined;
+      const cashCents = (moneyTrade?.cash_amount_cents as number) ?? 0;
+      const tradeStatus = moneyTrade?.status as string | undefined;
+      const alreadyRefundedId = moneyTrade?.stripe_refund_id as string | undefined;
+
+      if (piId && cashCents > 0 && !alreadyRefundedId && tradeStatus !== 'completed') {
+        const stripeKey = process.env.STRIPE_SECRET_KEY;
+        if (!stripeKey) {
+          // Never complete against a possibly-uncaptured hold without Stripe config.
+          return NextResponse.json({
+            success: false,
+            tradeId,
+            error: 'Payment system not configured — cannot capture the buyer hold before completing',
+            code: 'STRIPE_CONFIG_ERROR',
+          }, { status: 500 });
+        }
+        const stripeAuth = `Bearer ${stripeKey}`;
+        const stripeApi = 'https://api.stripe.com/v1';
+        try {
+          const piRes = await fetch(`${stripeApi}/payment_intents/${piId}`, {
+            headers: { Authorization: stripeAuth },
+          });
+          const pi = await piRes.json();
+
+          if (pi.status === 'requires_capture') {
+            // Uncaptured authorization hold → capture it (actually charge the buyer).
+            const capRes = await fetch(`${stripeApi}/payment_intents/${piId}/capture`, {
+              method: 'POST',
+              headers: { Authorization: stripeAuth, 'Content-Type': 'application/x-www-form-urlencoded' },
+            });
+            const captured = await capRes.json();
+            if (captured.status !== 'succeeded') {
+              console.error(`[dispute-action] PI capture returned status ${captured.status} for trade ${tradeId}`);
+              return NextResponse.json({
+                success: false,
+                tradeId,
+                error: 'We could not charge the buyer for this trade, so it was not completed. No payout was created.',
+                code: 'CAPTURE_FAILED',
+              }, { status: 502 });
+            }
+            const chargeId = captured.latest_charge ?? null;
+            console.log(`[dispute-action] PI ${piId} captured (charge ${chargeId}) for dispute-complete trade ${tradeId}`);
+
+            // Mark tax as collected (idempotent — mirrors the complete-trade EF).
+            try {
+              await supabase.rpc('rpc_mark_tax_collected', {
+                p_trade_id: tradeId,
+                p_stripe_capture_id: chargeId,
+              });
+            } catch (taxErr: any) {
+              console.error('[dispute-action] rpc_mark_tax_collected error (non-fatal):', taxErr.message);
+            }
+
+            // N2 — Idempotency & Audit: record payment_captured (parity with the
+            // complete-trade EF; idempotency key dedupes retries).
+            try {
+              await supabase.rpc('fn_log_financial_audit', {
+                p_mutation_type: 'payment_captured',
+                p_entity_type: 'trade',
+                p_entity_id: tradeId,
+                p_actor_id: actorId ?? null,
+                p_before_state: { stripe_payment_intent_id: piId },
+                p_after_state: { stripe_payment_intent_id: piId, stripe_charge_id: chargeId, source: 'dispute_resolve_complete' },
+                p_amount_cents: cashCents,
+                p_idempotency_key: `capture_${tradeId}`,
+                p_node_id: null,
+              });
+            } catch (auditErr: any) {
+              console.error('[dispute-action] payment_captured audit error (non-fatal):', auditErr.message);
+            }
+          } else if (pi.status === 'succeeded') {
+            // Already captured (e.g. a completed-then-disputed edge) — nothing to do.
+            console.log(`[dispute-action] PI ${piId} already captured — skipping capture for trade ${tradeId}`);
+          } else {
+            // canceled / requires_payment_method / etc — money can never be collected.
+            return NextResponse.json({
+              success: false,
+              tradeId,
+              error: `The buyer's payment (${pi.status}) can't be captured, so this trade was not completed. No payout was created — resolve with a refund instead.`,
+              code: 'PI_NOT_CAPTURABLE',
+            }, { status: 409 });
+          }
+        } catch (stripeErr: any) {
+          console.error(`[dispute-action] Stripe capture error for trade ${tradeId}:`, stripeErr.message);
+          return NextResponse.json({
+            success: false,
+            tradeId,
+            error: `We couldn't capture the buyer's payment: ${stripeErr.message}. No payout was created.`,
+            code: 'STRIPE_CAPTURE_ERROR',
+          }, { status: 502 });
+        }
+      } else if (!piId && cashCents > 0) {
+        console.warn(`[dispute-action] Trade ${tradeId} has cash ($${(cashCents / 100).toFixed(2)}) but no PI — completing without capture`);
+      }
+
+      // Overlay columns now (capture already succeeded above).
       const { error: updateErr } = await supabase
         .from('trades')
         .update({
