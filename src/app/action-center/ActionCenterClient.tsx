@@ -20,6 +20,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import {
   Flag,
@@ -220,6 +221,9 @@ async function postJson(url: string, body: unknown) {
 // ── Main component ─────────────────────────────────────────────────────────
 
 export default function ActionCenterClient({ variant = 'full', maxCards }: ActionCenterProps) {
+  // DEV-TASK-83 (F-6): client-side navigation to the real resolve path for
+  // cancel-request "Review" actions (/trades/<id>).
+  const router = useRouter();
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -350,6 +354,16 @@ export default function ActionCenterClient({ variant = 'full', maxCards }: Actio
           action: 'mark_under_review',
         });
         setToast({ kind: 'success', text: 'Dispute marked under review.' });
+      } else if (action === 'review') {
+        // DEV-TASK-83 (F-6): "Review" on a cancel request must open the real
+        // resolve path (/trades/<id>). Previously Review fell through to the
+        // 'approve' default and showed a false "Approved item." toast with NO
+        // server call, leaving the request unchanged.
+        if (source === 'cancel_requests' && row.trade_id) {
+          router.push(`/trades/${row.trade_id}`);
+          return;
+        }
+        setToast({ kind: 'error', text: 'Nothing to review for this action type.' });
       } else if (action === 'retry') {
         if (
           !window.confirm('Retry this payout? This will attempt to reprocess the failed payout.')
@@ -724,6 +738,24 @@ function ActionRowText({ source, row }: { source: string; row: any }) {
       </>
     );
   }
+  if (source === 'cancel_requests') {
+    return (
+      <>
+        <p className="text-sm font-medium truncate" style={{ color: COLORS.textPrimary }}>
+          {row.item_title || 'Untitled trade'}
+        </p>
+        <p className="text-xs truncate" style={{ color: COLORS.textSecondary }}>
+          Buyer: {row.buyer_name || row.buyer_id || 'Unknown'} · {formatMoney(row.cash_amount_cents)}
+          {row.bundle_id ? ' · Bundle' : ''} · {String(row.status || '').replace('_', ' ')}
+        </p>
+        {row.reason ? (
+          <p className="text-xs truncate mt-0.5" style={{ color: COLORS.textSecondary }}>
+            Reason: {row.reason}
+          </p>
+        ) : null}
+      </>
+    );
+  }
   return null;
 }
 
@@ -795,6 +827,22 @@ function ActionButtons({
       >
         {meta.actionVerb}
       </Link>
+    );
+  }
+
+  if (source === 'cancel_requests') {
+    // DEV-TASK-83 (F-6): Review routes through handleAction('review') →
+    // /trades/<id> (the real resolve path). Never fall through to 'approve'.
+    return (
+      <button
+        onClick={() => onAction(source, 'review', row)}
+        disabled={acting}
+        className="px-3 rounded-xl text-xs font-medium text-white disabled:opacity-50 whitespace-nowrap"
+        style={{ height: 24, background: primaryBg }}
+        data-testid={`action-${source}-${row.id}`}
+      >
+        {acting ? '…' : meta.actionVerb}
+      </button>
     );
   }
 
