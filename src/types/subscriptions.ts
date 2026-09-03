@@ -1,27 +1,27 @@
 // filepath: p2p-kids-admin/src/types/subscriptions.ts
 
-export type SubscriptionStatus = 
-  | 'free'
-  | 'trial'
-  | 'active'
-  | 'cancelled'
-  | 'paused'
-  | 'grace_period'
-  | 'expired';
+export type SubscriptionStatus =
+  | "free"
+  | "trial"
+  | "active"
+  | "cancelled"
+  | "paused"
+  | "grace_period"
+  | "expired";
 
 export interface Subscription {
   id: string;
   user_id: string;
   tier_id: string | null;
   status: SubscriptionStatus;
-  
+
   // Trial fields
   trial_start_date: string | null;
   trial_end_date: string | null;
   trial_started_at: string | null;
   trial_ends_at: string | null;
   has_used_trial: boolean;
-  
+
   // Billing fields
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
@@ -32,22 +32,22 @@ export interface Subscription {
   last_payment_date: string | null;
   last_payment_amount: number | null;
   next_billing_date: string | null;
-  
+
   // Payment failure tracking
   payment_failed_at: string | null;
   payment_retry_count: number;
-  
+
   // Cancellation tracking
   cancelled_at: string | null;
   cancel_reason: string | null;
   cancel_at_period_end: boolean;
   auto_renew_enabled: boolean;
-  
+
   // Pause and grace period
   paused_until: string | null;
   grace_started_at: string | null;
   grace_ends_at: string | null;
-  
+
   created_at: string;
   updated_at: string;
 }
@@ -75,6 +75,8 @@ export interface SubscriptionMetrics {
   mrr: number; // Monthly Recurring Revenue in cents
   churnRate: number; // Percentage
   graceToResubscribeRate: number; // Percentage
+  // Cancellations grouped by the stored cancel_reason (raw value + count), desc by count.
+  cancellationsByReason?: { reason: string; count: number }[];
 }
 
 export interface GracePeriodConfig {

@@ -1,44 +1,75 @@
-'use client';
+"use client";
 
 // filepath: p2p-kids-admin/src/app/subscriptions/manage/page.tsx
 
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from "react";
 import type {
   SubscriptionWithProfile,
   SubscriptionMetrics,
   SubscriptionStatus,
   GracePeriodConfig,
-} from '@/types/subscriptions';
+} from "@/types/subscriptions";
 
 // Allow overriding the admin API host when the UI runs from a different origin.
-const ADMIN_API_BASE_URL = process.env.NEXT_PUBLIC_ADMIN_API_URL?.replace(/\/$/, '') || '';
+const ADMIN_API_BASE_URL =
+  process.env.NEXT_PUBLIC_ADMIN_API_URL?.replace(/\/$/, "") || "";
 
 const buildAdminApiUrl = (path: string) => {
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  return ADMIN_API_BASE_URL ? `${ADMIN_API_BASE_URL}${normalizedPath}` : normalizedPath;
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return ADMIN_API_BASE_URL
+    ? `${ADMIN_API_BASE_URL}${normalizedPath}`
+    : normalizedPath;
 };
 
 const describeAdminApiConnectionIssue = (endpoint: string, err: any) => {
-  if (!err?.message?.includes('Failed to fetch')) {
+  if (!err?.message?.includes("Failed to fetch")) {
     return null;
   }
 
   const advice = ADMIN_API_BASE_URL
-    ? 'Confirm NEXT_PUBLIC_ADMIN_API_URL points to the admin backend you started.'
-    : 'Start the admin server locally (npm run dev -p 3001) so this endpoint becomes reachable from the UI.';
+    ? "Confirm NEXT_PUBLIC_ADMIN_API_URL points to the admin backend you started."
+    : "Start the admin server locally (npm run dev -p 3001) so this endpoint becomes reachable from the UI.";
 
   return `Unable to reach ${buildAdminApiUrl(endpoint)}. ${advice}`;
 };
 
+// Map the reason codes the app stores in subscriptions.cancel_reason to
+// parent-friendly labels. Codes come from the in-app Manage Kids Club+ cancel
+// modal; "other" stores the parent's free text; admin/legacy actions store
+// their own markers. Anything unknown is shown as-is so no reason is hidden.
+const CANCEL_REASON_LABELS: Record<string, string> = {
+  too_expensive: "Too expensive",
+  not_using: "Not using it enough",
+  child_lost_interest: "My child lost interest",
+  found_alternative: "Found an alternative",
+  technical_issues: "Technical issues",
+  other: "Other",
+  user_requested: "User requested",
+  "User requested cancellation": "User requested cancellation",
+  admin_override: "Admin override",
+  admin_reactivation: "Admin reactivation",
+  admin_manual_cancellation: "Admin (manual cancel)",
+};
+
+const formatCancelReason = (raw: string | null | undefined): string => {
+  if (!raw || !raw.trim()) return "—";
+  const trimmed = raw.trim();
+  return CANCEL_REASON_LABELS[trimmed] ?? trimmed;
+};
+
 export default function SubscriptionManagementPage() {
-  const [subscriptions, setSubscriptions] = useState<SubscriptionWithProfile[]>([]);
+  const [subscriptions, setSubscriptions] = useState<SubscriptionWithProfile[]>(
+    [],
+  );
   const [metrics, setMetrics] = useState<SubscriptionMetrics | null>(null);
-  const [gracePeriodConfig, setGracePeriodConfig] = useState<GracePeriodConfig>({
-    grace_period_days: 90,
-    grace_reminder_thresholds: [60, 30, 7, 1],
-  });
-  
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [gracePeriodConfig, setGracePeriodConfig] = useState<GracePeriodConfig>(
+    {
+      grace_period_days: 90,
+      grace_reminder_thresholds: [60, 30, 7, 1],
+    },
+  );
+
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [configSaving, setConfigSaving] = useState(false);
@@ -46,17 +77,18 @@ export default function SubscriptionManagementPage() {
   const [configError, setConfigError] = useState<string | null>(null);
 
   // Grace period config edit state
-  const [editGraceDays, setEditGraceDays] = useState('90');
-  const [editReminderThresholds, setEditReminderThresholds] = useState('60, 30, 7, 1');
+  const [editGraceDays, setEditGraceDays] = useState("90");
+  const [editReminderThresholds, setEditReminderThresholds] =
+    useState("60, 30, 7, 1");
 
   // Admin actions state
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [searchInput, setSearchInput] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchInput, setSearchInput] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
 
-  const adminSecret = process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '';
+  const adminSecret = process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || "";
 
   useEffect(() => {
     loadSubscriptions();
@@ -76,45 +108,50 @@ export default function SubscriptionManagementPage() {
   };
 
   const handleClearSearch = () => {
-    if (!searchTerm && searchInput === '') {
+    if (!searchTerm && searchInput === "") {
       return;
     }
-    setSearchInput('');
-    setSearchTerm('');
+    setSearchInput("");
+    setSearchTerm("");
   };
 
   const loadSubscriptions = async () => {
     setLoading(true);
     setError(null);
     try {
-      const subscriptionsEndpoint = buildAdminApiUrl('/api/admin/subscriptions');
+      const subscriptionsEndpoint = buildAdminApiUrl(
+        "/api/admin/subscriptions",
+      );
       const params = new URLSearchParams({
-        status: searchTerm ? 'all' : statusFilter,
+        status: searchTerm ? "all" : statusFilter,
         ts: Date.now().toString(),
       });
 
       if (searchTerm) {
-        params.set('search', searchTerm);
+        params.set("search", searchTerm);
       }
 
       const res = await fetch(`${subscriptionsEndpoint}?${params.toString()}`, {
-        cache: 'no-store',
+        cache: "no-store",
         headers: {
-          'x-admin-secret': adminSecret,
+          "x-admin-secret": adminSecret,
         },
       });
       const json = await res.json();
-      
+
       if (!res.ok || json.error) {
-        throw new Error(json.error || 'Failed to fetch subscriptions');
+        throw new Error(json.error || "Failed to fetch subscriptions");
       }
 
       setSubscriptions(json.subscriptions || []);
       setMetrics(json.metrics || null);
     } catch (err: any) {
-      const connectionHint = describeAdminApiConnectionIssue('/api/admin/subscriptions', err);
-      setError(connectionHint || err.message || 'Failed to load subscriptions');
-      console.error('[SubscriptionManagement] Load error:', err);
+      const connectionHint = describeAdminApiConnectionIssue(
+        "/api/admin/subscriptions",
+        err,
+      );
+      setError(connectionHint || err.message || "Failed to load subscriptions");
+      console.error("[SubscriptionManagement] Load error:", err);
     } finally {
       setLoading(false);
     }
@@ -122,37 +159,52 @@ export default function SubscriptionManagementPage() {
 
   const loadGracePeriodConfig = async () => {
     try {
-      const configEndpoint = buildAdminApiUrl('/api/admin/config');
-      const res = await fetch(`${configEndpoint}?ts=${Date.now()}`, { cache: 'no-store' });
+      const configEndpoint = buildAdminApiUrl("/api/admin/config");
+      const res = await fetch(`${configEndpoint}?ts=${Date.now()}`, {
+        cache: "no-store",
+      });
       const json = await res.json();
-      
+
       if (json.error) {
-        console.error('[GracePeriodConfig] Load error:', json.error);
+        console.error("[GracePeriodConfig] Load error:", json.error);
         return;
       }
 
       const configData = json.data || [];
-      const graceDaysItem = configData.find((c: any) => c.key === 'grace_period_days');
-      const thresholdsItem = configData.find((c: any) => c.key === 'grace_reminder_thresholds');
+      const graceDaysItem = configData.find(
+        (c: any) => c.key === "grace_period_days",
+      );
+      const thresholdsItem = configData.find(
+        (c: any) => c.key === "grace_reminder_thresholds",
+      );
 
       if (graceDaysItem) {
         const days = parseInt(graceDaysItem.value, 10);
-        setGracePeriodConfig(prev => ({ ...prev, grace_period_days: days }));
+        setGracePeriodConfig((prev) => ({ ...prev, grace_period_days: days }));
         setEditGraceDays(graceDaysItem.value);
       }
 
       if (thresholdsItem) {
         try {
           const thresholds = JSON.parse(thresholdsItem.value);
-          setGracePeriodConfig(prev => ({ ...prev, grace_reminder_thresholds: thresholds }));
-          setEditReminderThresholds(thresholds.join(', '));
+          setGracePeriodConfig((prev) => ({
+            ...prev,
+            grace_reminder_thresholds: thresholds,
+          }));
+          setEditReminderThresholds(thresholds.join(", "));
         } catch (parseErr) {
-          console.error('[GracePeriodConfig] Parse error for thresholds:', parseErr);
+          console.error(
+            "[GracePeriodConfig] Parse error for thresholds:",
+            parseErr,
+          );
         }
       }
     } catch (err: any) {
-      console.error('[GracePeriodConfig] Load error:', err);
-      const connectionHint = describeAdminApiConnectionIssue('/api/admin/config', err);
+      console.error("[GracePeriodConfig] Load error:", err);
+      const connectionHint = describeAdminApiConnectionIssue(
+        "/api/admin/config",
+        err,
+      );
       if (connectionHint) {
         setConfigError(connectionHint);
       }
@@ -166,37 +218,42 @@ export default function SubscriptionManagementPage() {
 
     try {
       const days = parseInt(editGraceDays, 10);
-      
+
       if (isNaN(days) || days < 1) {
-        throw new Error('Grace period days must be a positive integer');
+        throw new Error("Grace period days must be a positive integer");
       }
 
-      const configEndpoint = buildAdminApiUrl('/api/admin/config');
+      const configEndpoint = buildAdminApiUrl("/api/admin/config");
       const res = await fetch(configEndpoint, {
-        method: 'PATCH',
+        method: "PATCH",
         headers: {
-          'Content-Type': 'application/json',
-          'x-admin-secret': adminSecret,
+          "Content-Type": "application/json",
+          "x-admin-secret": adminSecret,
         },
         body: JSON.stringify({
-          key: 'grace_period_days',
+          key: "grace_period_days",
           value: String(days),
         }),
       });
 
       const json = await res.json();
-      
+
       if (!res.ok || json.error) {
         throw new Error(json.error || `HTTP ${res.status}`);
       }
 
-      setGracePeriodConfig(prev => ({ ...prev, grace_period_days: days }));
-      setConfigSuccess('Grace period days updated successfully');
+      setGracePeriodConfig((prev) => ({ ...prev, grace_period_days: days }));
+      setConfigSuccess("Grace period days updated successfully");
       setTimeout(() => setConfigSuccess(null), 5000);
     } catch (err: any) {
-      const connectionHint = describeAdminApiConnectionIssue('/api/admin/config', err);
-      setConfigError(connectionHint || err.message || 'Failed to save grace period days');
-      console.error('[GracePeriodConfig] Save error:', err);
+      const connectionHint = describeAdminApiConnectionIssue(
+        "/api/admin/config",
+        err,
+      );
+      setConfigError(
+        connectionHint || err.message || "Failed to save grace period days",
+      );
+      console.error("[GracePeriodConfig] Save error:", err);
     } finally {
       setConfigSaving(false);
     }
@@ -210,73 +267,83 @@ export default function SubscriptionManagementPage() {
     try {
       // Parse comma-separated values
       const thresholds = editReminderThresholds
-        .split(',')
-        .map(s => parseInt(s.trim(), 10))
-        .filter(n => !isNaN(n) && n > 0);
+        .split(",")
+        .map((s) => parseInt(s.trim(), 10))
+        .filter((n) => !isNaN(n) && n > 0);
 
       if (thresholds.length === 0) {
-        throw new Error('Reminder thresholds must contain at least one positive integer');
+        throw new Error(
+          "Reminder thresholds must contain at least one positive integer",
+        );
       }
 
-      const configEndpoint = buildAdminApiUrl('/api/admin/config');
+      const configEndpoint = buildAdminApiUrl("/api/admin/config");
       const res = await fetch(configEndpoint, {
-        method: 'PATCH',
+        method: "PATCH",
         headers: {
-          'Content-Type': 'application/json',
-          'x-admin-secret': adminSecret,
+          "Content-Type": "application/json",
+          "x-admin-secret": adminSecret,
         },
         body: JSON.stringify({
-          key: 'grace_reminder_thresholds',
+          key: "grace_reminder_thresholds",
           value: JSON.stringify(thresholds),
         }),
       });
 
       const json = await res.json();
-      
+
       if (!res.ok || json.error) {
         throw new Error(json.error || `HTTP ${res.status}`);
       }
 
-      setGracePeriodConfig(prev => ({ ...prev, grace_reminder_thresholds: thresholds }));
-      setConfigSuccess('Reminder thresholds updated successfully');
+      setGracePeriodConfig((prev) => ({
+        ...prev,
+        grace_reminder_thresholds: thresholds,
+      }));
+      setConfigSuccess("Reminder thresholds updated successfully");
       setTimeout(() => setConfigSuccess(null), 5000);
     } catch (err: any) {
-      const connectionHint = describeAdminApiConnectionIssue('/api/admin/config', err);
-      setConfigError(connectionHint || err.message || 'Failed to save reminder thresholds');
-      console.error('[GracePeriodConfig] Save error:', err);
+      const connectionHint = describeAdminApiConnectionIssue(
+        "/api/admin/config",
+        err,
+      );
+      setConfigError(
+        connectionHint || err.message || "Failed to save reminder thresholds",
+      );
+      console.error("[GracePeriodConfig] Save error:", err);
     } finally {
       setConfigSaving(false);
     }
   };
 
   const formatPrice = (cents: number | null): string => {
-    if (cents === null || cents === undefined) return '$0.00';
+    if (cents === null || cents === undefined) return "$0.00";
     return `$${(cents / 100).toFixed(2)}`;
   };
 
   const formatDate = (dateString: string | null): string => {
-    if (!dateString) return '—';
-    return new Date(dateString).toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
+    if (!dateString) return "—";
+    return new Date(dateString).toLocaleString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
     });
   };
 
   const getStatusBadgeClass = (status: SubscriptionStatus): string => {
-    const baseClass = 'px-2 py-1 text-xs font-semibold rounded-full';
+    const baseClass = "px-2 py-1 text-xs font-semibold rounded-full";
     switch (status) {
-      case 'active':
+      case "active":
         return `${baseClass} bg-green-100 text-green-800`;
-      case 'trial':
+      case "trial":
         return `${baseClass} bg-blue-100 text-blue-800`;
-      case 'grace_period':
+      case "grace_period":
         return `${baseClass} bg-yellow-100 text-yellow-800`;
-      case 'cancelled':
+      case "cancelled":
         return `${baseClass} bg-orange-100 text-orange-800`;
-      case 'expired':
+      case "expired":
         return `${baseClass} bg-red-100 text-red-800`;
-      case 'paused':
+      case "paused":
         return `${baseClass} bg-gray-100 text-gray-800`;
       default:
         return `${baseClass} bg-gray-100 text-gray-600`;
@@ -284,9 +351,9 @@ export default function SubscriptionManagementPage() {
   };
 
   const handleAdminAction = async (
-    action: 'manually_cancel' | 'extend_trial' | 'reactivate',
+    action: "manually_cancel" | "extend_trial" | "reactivate",
     userId: string,
-    additionalData?: { days?: number; reason?: string }
+    additionalData?: { days?: number; reason?: string },
   ) => {
     const actionKey = `${action}-${userId}`;
     setActionInProgress(actionKey);
@@ -294,12 +361,14 @@ export default function SubscriptionManagementPage() {
     setActionSuccess(null);
 
     try {
-      const actionEndpoint = buildAdminApiUrl('/api/admin/subscriptions/actions');
+      const actionEndpoint = buildAdminApiUrl(
+        "/api/admin/subscriptions/actions",
+      );
       const res = await fetch(actionEndpoint, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'x-admin-secret': adminSecret,
+          "Content-Type": "application/json",
+          "x-admin-secret": adminSecret,
         },
         body: JSON.stringify({
           action,
@@ -309,46 +378,62 @@ export default function SubscriptionManagementPage() {
       });
 
       const json = await res.json();
-      
+
       if (!res.ok || json.error) {
         throw new Error(json.error || `HTTP ${res.status}`);
       }
 
-      setActionSuccess(json.message || 'Action completed successfully');
+      setActionSuccess(json.message || "Action completed successfully");
       setTimeout(() => setActionSuccess(null), 5000);
-      
+
       // Reload subscriptions
       await loadSubscriptions();
     } catch (err: any) {
-      const connectionHint = describeAdminApiConnectionIssue('/api/admin/subscriptions/actions', err);
-      setActionError(connectionHint || err.message || 'Action failed');
-      console.error('[AdminAction] Error:', err);
+      const connectionHint = describeAdminApiConnectionIssue(
+        "/api/admin/subscriptions/actions",
+        err,
+      );
+      setActionError(connectionHint || err.message || "Action failed");
+      console.error("[AdminAction] Error:", err);
     } finally {
       setActionInProgress(null);
     }
   };
 
   const confirmCancelSubscription = (userId: string, userName: string) => {
-    if (window.confirm(`Are you sure you want to manually cancel subscription for ${userName}?`)) {
-      handleAdminAction('manually_cancel', userId, { reason: 'admin_override' });
+    if (
+      window.confirm(
+        `Are you sure you want to manually cancel subscription for ${userName}?`,
+      )
+    ) {
+      handleAdminAction("manually_cancel", userId, {
+        reason: "admin_override",
+      });
     }
   };
 
   const confirmExtendTrial = (userId: string, userName: string) => {
-    const daysStr = window.prompt(`Enter number of days to extend trial for ${userName}:`, '7');
+    const daysStr = window.prompt(
+      `Enter number of days to extend trial for ${userName}:`,
+      "7",
+    );
     if (daysStr) {
       const days = parseInt(daysStr, 10);
       if (!isNaN(days) && days > 0 && days <= 90) {
-        handleAdminAction('extend_trial', userId, { days });
+        handleAdminAction("extend_trial", userId, { days });
       } else {
-        alert('Invalid number of days. Must be between 1 and 90.');
+        alert("Invalid number of days. Must be between 1 and 90.");
       }
     }
   };
 
   const confirmReactivateSubscription = (userId: string, userName: string) => {
-    if (window.confirm(`Are you sure you want to manually reactivate subscription for ${userName}? This will set status to active.`)) {
-      handleAdminAction('reactivate', userId, { reason: 'admin_reactivation' });
+    if (
+      window.confirm(
+        `Are you sure you want to manually reactivate subscription for ${userName}? This will set status to active.`,
+      )
+    ) {
+      handleAdminAction("reactivate", userId, { reason: "admin_reactivation" });
     }
   };
 
@@ -358,69 +443,133 @@ export default function SubscriptionManagementPage() {
 
       {/* Metrics Cards */}
       {metrics && (
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8" data-testid="subscription-metrics">
+        <div
+          className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8"
+          data-testid="subscription-metrics"
+        >
           <div className="bg-white p-4 rounded-lg shadow border">
             <p className="text-sm text-gray-600 mb-1">MRR</p>
-            <p className="text-2xl font-bold text-green-600" data-testid="metric-mrr">
+            <p
+              className="text-2xl font-bold text-green-600"
+              data-testid="metric-mrr"
+            >
               {formatPrice(metrics.mrr)}
             </p>
           </div>
-          
+
           <div className="bg-white p-4 rounded-lg shadow border">
             <p className="text-sm text-gray-600 mb-1">Active Subscribers</p>
             <p className="text-2xl font-bold" data-testid="metric-active">
               {metrics.activeSubscribers}
             </p>
           </div>
-          
+
           <div className="bg-white p-4 rounded-lg shadow border">
             <p className="text-sm text-gray-600 mb-1">Trial Users</p>
-            <p className="text-2xl font-bold text-blue-600" data-testid="metric-trial">
+            <p
+              className="text-2xl font-bold text-blue-600"
+              data-testid="metric-trial"
+            >
               {metrics.trialUsers}
             </p>
           </div>
-          
+
           <div className="bg-white p-4 rounded-lg shadow border">
             <p className="text-sm text-gray-600 mb-1">Grace Period</p>
-            <p className="text-2xl font-bold text-yellow-600" data-testid="metric-grace">
+            <p
+              className="text-2xl font-bold text-yellow-600"
+              data-testid="metric-grace"
+            >
               {metrics.gracePeriodUsers}
             </p>
           </div>
-          
+
           <div className="bg-white p-4 rounded-lg shadow border">
             <p className="text-sm text-gray-600 mb-1">Churn Rate</p>
-            <p className="text-2xl font-bold text-red-600" data-testid="metric-churn">
+            <p
+              className="text-2xl font-bold text-red-600"
+              data-testid="metric-churn"
+            >
               {metrics.churnRate.toFixed(1)}%
             </p>
           </div>
         </div>
       )}
 
-      {/* Grace Period Configuration */}
-      <div className="bg-white p-6 rounded-lg shadow border mb-8" data-testid="grace-period-config">
-        <h2 className="text-xl font-bold mb-4">Grace Period Configuration</h2>
-        <p className="text-sm text-gray-600 mb-6">
-          Configure grace period duration and reminder notification thresholds. Changes affect all users entering grace period after save.
-        </p>
-
-        {configSuccess && (
-          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded text-green-800 text-sm" data-testid="config-success">
-            ✓ {configSuccess}
+      {/* Cancellation Reasons */}
+      {metrics?.cancellationsByReason &&
+        metrics.cancellationsByReason.length > 0 && (
+          <div
+            className="bg-white p-6 rounded-lg shadow border mb-8"
+            data-testid="cancellation-reasons"
+          >
+            <h2 className="text-xl font-bold mb-1">Cancellation Reasons</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Reasons recorded when members cancelled Kids Club+ (all-time,
+              where a reason was stored).
+            </p>
+            <div className="flex flex-wrap gap-3">
+              {metrics.cancellationsByReason.map(({ reason, count }) => (
+                <div
+                  key={reason ?? "unknown"}
+                  className="flex items-center gap-2 px-3 py-2 rounded-md bg-gray-50 border border-gray-200"
+                  data-testid={`cancel-reason-${
+                    (reason ?? "unknown")
+                      .replace(/[^a-z0-9]+/gi, "-")
+                      .replace(/^-+|-+$/g, "")
+                      .toLowerCase() || "unknown"
+                  }`}
+                >
+                  <span className="text-sm font-medium text-gray-800">
+                    {formatCancelReason(reason)}
+                  </span>
+                  <span className="text-xs px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-800 font-semibold">
+                    {count}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
+      {/* Grace Period Configuration */}
+      <div
+        className="bg-white p-6 rounded-lg shadow border mb-8"
+        data-testid="grace-period-config"
+      >
+        <h2 className="text-xl font-bold mb-4">Grace Period Configuration</h2>
+        <p className="text-sm text-gray-600 mb-6">
+          Configure grace period duration and reminder notification thresholds.
+          Changes affect all users entering grace period after save.
+        </p>
+        {configSuccess && (
+          <div
+            className="mb-4 p-3 bg-green-50 border border-green-200 rounded text-green-800 text-sm"
+            data-testid="config-success"
+          >
+            ✓ {configSuccess}
+          </div>
+        )}
         {configError && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-800 text-sm" data-testid="config-error">
+          <div
+            className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-800 text-sm"
+            data-testid="config-error"
+          >
             ✗ {configError}
           </div>
-        )}        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        )}{" "}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Grace Period Days */}
           <div>
-            <label htmlFor="grace-days-input" className="block text-sm font-medium text-gray-700 mb-2">
+            <label
+              htmlFor="grace-days-input"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
               Grace Period Days
             </label>
             <p className="text-xs text-gray-500 mb-2">
-              Number of days users have to re-subscribe before their Swap Points are deleted. Default: 90 days.
+              Number of days users have to re-subscribe before their Swap Points
+              are deleted. Default: 90 days.
             </p>
             <div className="flex gap-2">
               <input
@@ -436,11 +585,14 @@ export default function SubscriptionManagementPage() {
               />
               <button
                 onClick={handleSaveGracePeriodDays}
-                disabled={configSaving || editGraceDays === String(gracePeriodConfig.grace_period_days)}
+                disabled={
+                  configSaving ||
+                  editGraceDays === String(gracePeriodConfig.grace_period_days)
+                }
                 data-testid="save-grace-days-btn"
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {configSaving ? 'Saving...' : 'Save'}
+                {configSaving ? "Saving..." : "Save"}
               </button>
             </div>
             <p className="text-xs text-gray-500 mt-1">
@@ -450,11 +602,15 @@ export default function SubscriptionManagementPage() {
 
           {/* Reminder Thresholds */}
           <div>
-            <label htmlFor="reminder-thresholds-input" className="block text-sm font-medium text-gray-700 mb-2">
+            <label
+              htmlFor="reminder-thresholds-input"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
               Reminder Thresholds (days before expiry)
             </label>
             <p className="text-xs text-gray-500 mb-2">
-              Comma-separated list of days when reminder notifications are sent. Example: 60, 30, 7, 1
+              Comma-separated list of days when reminder notifications are sent.
+              Example: 60, 30, 7, 1
             </p>
             <div className="flex gap-2">
               <input
@@ -473,11 +629,11 @@ export default function SubscriptionManagementPage() {
                 data-testid="save-reminder-thresholds-btn"
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {configSaving ? 'Saving...' : 'Save'}
+                {configSaving ? "Saving..." : "Save"}
               </button>
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              Current: {gracePeriodConfig.grace_reminder_thresholds.join(', ')}
+              Current: {gracePeriodConfig.grace_reminder_thresholds.join(", ")}
             </p>
           </div>
         </div>
@@ -486,31 +642,49 @@ export default function SubscriptionManagementPage() {
       {/* Filters */}
       <div className="bg-white p-4 rounded-lg shadow border mb-6">
         {actionSuccess && (
-          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded text-green-800 text-sm" data-testid="action-success">
+          <div
+            className="mb-4 p-3 bg-green-50 border border-green-200 rounded text-green-800 text-sm"
+            data-testid="action-success"
+          >
             ✓ {actionSuccess}
           </div>
         )}
 
         {actionError && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-800 text-sm" data-testid="action-error">
+          <div
+            className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-800 text-sm"
+            data-testid="action-error"
+          >
             ✗ {actionError}
           </div>
         )}
 
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex flex-wrap gap-2">
-            {['all', 'trial', 'active', 'grace_period', 'cancelled', 'expired', 'free'].map((status) => (
+            {[
+              "all",
+              "trial",
+              "active",
+              "grace_period",
+              "cancelled",
+              "expired",
+              "free",
+            ].map((status) => (
               <button
                 key={status}
                 onClick={() => setStatusFilter(status)}
                 data-testid={`filter-${status}`}
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                   statusFilter === status
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                 }`}
               >
-                {status === 'all' ? 'All' : status.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+                {status === "all"
+                  ? "All"
+                  : status
+                      .replace("_", " ")
+                      .replace(/\b\w/g, (l) => l.toUpperCase())}
               </button>
             ))}
           </div>
@@ -552,7 +726,9 @@ export default function SubscriptionManagementPage() {
         </div>
 
         {searchTerm && (
-          <p className="mt-2 text-xs text-gray-500">Showing results for &ldquo;{searchTerm}&rdquo;</p>
+          <p className="mt-2 text-xs text-gray-500">
+            Showing results for &ldquo;{searchTerm}&rdquo;
+          </p>
         )}
       </div>
 
@@ -565,19 +741,30 @@ export default function SubscriptionManagementPage() {
       )}
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6" data-testid="error-state">
+        <div
+          className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6"
+          data-testid="error-state"
+        >
           <p className="text-red-800 font-medium">Error: {error}</p>
         </div>
       )}
 
       {!loading && !error && subscriptions.length === 0 && (
-        <div className="bg-gray-50 rounded-lg p-8 text-center" data-testid="empty-state">
-          <p className="text-gray-600">No subscriptions found for the selected filter.</p>
+        <div
+          className="bg-gray-50 rounded-lg p-8 text-center"
+          data-testid="empty-state"
+        >
+          <p className="text-gray-600">
+            No subscriptions found for the selected filter.
+          </p>
         </div>
       )}
 
       {!loading && !error && subscriptions.length > 0 && (
-        <div className="bg-white rounded-lg shadow border overflow-x-auto" data-testid="subscriptions-table">
+        <div
+          className="bg-white rounded-lg shadow border overflow-x-auto"
+          data-testid="subscriptions-table"
+        >
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -589,6 +776,9 @@ export default function SubscriptionManagementPage() {
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Cancel Reason
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Price
@@ -612,14 +802,19 @@ export default function SubscriptionManagementPage() {
                 <tr key={sub.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3">
                     <div className="text-sm font-medium text-gray-900">
-                      {sub.profile?.display_name || sub.user_id?.substring(0, 8) || 'No Name'}
+                      {sub.profile?.display_name ||
+                        sub.user_id?.substring(0, 8) ||
+                        "No Name"}
                     </div>
                     <div className="text-xs text-gray-500">
-                      {sub.profile?.email || 'No Email'}
+                      {sub.profile?.email || "No Email"}
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <p className="text-xs text-gray-500" data-testid={`user-id-${sub.user_id}`}>
+                    <p
+                      className="text-xs text-gray-500"
+                      data-testid={`user-id-${sub.user_id}`}
+                    >
                       {sub.user_id}
                     </p>
                   </td>
@@ -628,55 +823,103 @@ export default function SubscriptionManagementPage() {
                       {sub.status}
                     </span>
                   </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                    {sub.cancelled_at && sub.cancel_reason
+                      ? formatCancelReason(sub.cancel_reason)
+                      : "—"}
+                  </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                    {sub.display_price_cents !== null && sub.display_price_cents !== undefined
+                    {sub.display_price_cents !== null &&
+                    sub.display_price_cents !== undefined
                       ? formatPrice(sub.display_price_cents)
-                      : (sub.tier?.display_name || 'N/A')
-                    }
+                      : sub.tier?.display_name || "N/A"}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm">
                     <div className="flex gap-2">
-                      {sub.status === 'trial' && (
+                      {sub.status === "trial" && (
                         <button
-                          onClick={() => confirmExtendTrial(sub.user_id, sub.profile?.display_name || 'User')}
-                          disabled={actionInProgress === `extend_trial-${sub.user_id}`}
+                          onClick={() =>
+                            confirmExtendTrial(
+                              sub.user_id,
+                              sub.profile?.display_name || "User",
+                            )
+                          }
+                          disabled={
+                            actionInProgress === `extend_trial-${sub.user_id}`
+                          }
                           data-testid={`btn-extend-trial-${sub.user_id}`}
                           className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          {actionInProgress === `extend_trial-${sub.user_id}` ? 'Processing...' : 'Extend Trial'}
+                          {actionInProgress === `extend_trial-${sub.user_id}`
+                            ? "Processing..."
+                            : "Extend Trial"}
                         </button>
                       )}
-                      
-                      {['active', 'trial'].includes(sub.status) && (
+
+                      {["active", "trial"].includes(sub.status) && (
                         <button
-                          onClick={() => confirmCancelSubscription(sub.user_id, sub.profile?.display_name || 'User')}
-                          disabled={actionInProgress === `manually_cancel-${sub.user_id}`}
+                          onClick={() =>
+                            confirmCancelSubscription(
+                              sub.user_id,
+                              sub.profile?.display_name || "User",
+                            )
+                          }
+                          disabled={
+                            actionInProgress ===
+                            `manually_cancel-${sub.user_id}`
+                          }
                           data-testid={`btn-cancel-${sub.user_id}`}
                           className="px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          {actionInProgress === `manually_cancel-${sub.user_id}` ? 'Processing...' : 'Cancel'}
+                          {actionInProgress === `manually_cancel-${sub.user_id}`
+                            ? "Processing..."
+                            : "Cancel"}
                         </button>
                       )}
-                      
-                      {['cancelled', 'grace_period', 'expired', 'paused'].includes(sub.status) && (
+
+                      {[
+                        "cancelled",
+                        "grace_period",
+                        "expired",
+                        "paused",
+                      ].includes(sub.status) && (
                         <button
-                          onClick={() => confirmReactivateSubscription(sub.user_id, sub.profile?.display_name || 'User')}
-                          disabled={actionInProgress === `reactivate-${sub.user_id}`}
+                          onClick={() =>
+                            confirmReactivateSubscription(
+                              sub.user_id,
+                              sub.profile?.display_name || "User",
+                            )
+                          }
+                          disabled={
+                            actionInProgress === `reactivate-${sub.user_id}`
+                          }
                           data-testid={`btn-reactivate-${sub.user_id}`}
                           className="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          {actionInProgress === `reactivate-${sub.user_id}` ? 'Processing...' : 'Reactivate'}
+                          {actionInProgress === `reactivate-${sub.user_id}`
+                            ? "Processing..."
+                            : "Reactivate"}
                         </button>
                       )}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {sub.current_period_end || sub.trial_end_date || sub.trial_ends_at
-                      ? formatDate(sub.current_period_end || sub.trial_end_date || sub.trial_ends_at)
-                      : 'N/A'}
+                    {sub.current_period_end ||
+                    sub.trial_end_date ||
+                    sub.trial_ends_at
+                      ? formatDate(
+                          sub.current_period_end ||
+                            sub.trial_end_date ||
+                            sub.trial_ends_at,
+                        )
+                      : "N/A"}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                    {sub.grace_ends_at ? formatDate(sub.grace_ends_at) : (sub.status === 'grace_period' ? 'TBD' : 'N/A')}
+                    {sub.grace_ends_at
+                      ? formatDate(sub.grace_ends_at)
+                      : sub.status === "grace_period"
+                        ? "TBD"
+                        : "N/A"}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
                     {formatDate(sub.updated_at)}
