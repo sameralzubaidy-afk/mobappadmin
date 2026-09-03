@@ -39,6 +39,9 @@ export default function IDVerificationDetailsPage({
     try {
       // DT97 (Item 1): /api/admin/* fetches must send x-admin-secret (BP-49).
       const response = await fetch(`/api/admin/id-badges/${params.requestId}`, {
+        // DEV-TASK-101: bypass the HTTP cache so a just-decided request's details
+        // page never shows a stale status (matches the queue page's no-store).
+        cache: 'no-store',
         headers: { 'x-admin-secret': adminSecret },
       });
       const data = await response.json();

@@ -6,6 +6,11 @@ import { verifyAdminAuth } from '@/lib/adminAuth';
 import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
+// DEV-TASK-101: without revalidate=0, Next 14 caches this route's internal Supabase
+// GET in .next/cache keyed by PostgREST URL. A request that was decided AFTER a
+// pending payload got cached keeps serving stale "Pending" on /id-badges/<id>/details.
+// Mirror the list/stats routes, which already set revalidate = 0.
+export const revalidate = 0;
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,

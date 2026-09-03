@@ -44,6 +44,10 @@ export async function POST(request: NextRequest,
       status: decision === 'approve' ? 'approved' : 'rejected',
       reviewed_at: new Date().toISOString(),
       reviewed_by: adminUserId,
+      // DEV-TASK-101: the storage object is deleted below — null the DB path in the
+      // same update so the row never retains a dangling reference to a deleted
+      // screenshot ("permanently deleted" privacy note on the details page).
+      screenshot_path: null,
     };
 
     if (decision === 'reject') {
