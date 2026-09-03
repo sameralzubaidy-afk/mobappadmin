@@ -21,6 +21,8 @@ interface IDVerificationRequest {
   approval_notes: string | null;
 }
 
+const adminSecret = process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '';
+
 export default function IDVerificationDetailsPage({
   params,
 }: {
@@ -35,7 +37,10 @@ export default function IDVerificationDetailsPage({
 
   const loadRequest = async () => {
     try {
-      const response = await fetch(`/api/admin/id-badges/${params.requestId}`);
+      // DT97 (Item 1): /api/admin/* fetches must send x-admin-secret (BP-49).
+      const response = await fetch(`/api/admin/id-badges/${params.requestId}`, {
+        headers: { 'x-admin-secret': adminSecret },
+      });
       const data = await response.json();
       setRequest(data);
     } catch (error) {

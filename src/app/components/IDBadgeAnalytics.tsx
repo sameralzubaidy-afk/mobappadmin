@@ -11,6 +11,8 @@ interface IDBadgeStats {
   approval_rate: number;
 }
 
+const adminSecret = process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '';
+
 export default function IDBadgeAnalytics() {
   const [stats, setStats] = useState<IDBadgeStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -19,7 +21,8 @@ export default function IDBadgeAnalytics() {
     async function fetchStats() {
       try {
         const response = await fetch('/api/admin/id-badges/stats', {
-          cache: 'no-store'
+          cache: 'no-store',
+          headers: { 'x-admin-secret': adminSecret },
         });
         const data = await response.json();
         setStats(data);

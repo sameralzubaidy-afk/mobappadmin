@@ -22,6 +22,8 @@ const TEMPLATE_VARIABLES = [
   { key: '{approval_timeframe_hours}', desc: 'Expected approval time (default: 24)' },
 ];
 
+const adminSecret = process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '';
+
 export default function IDMessagesPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -41,7 +43,7 @@ export default function IDMessagesPage() {
       setError(null);
       const response = await fetch('/api/admin/id-badges/messages', {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-admin-secret': adminSecret },
       });
 
       if (!response.ok) {
@@ -81,7 +83,7 @@ export default function IDMessagesPage() {
     try {
       const response = await fetch(`/api/admin/id-badges/messages/${messageId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-admin-secret': adminSecret },
         body: JSON.stringify({ message_text: editText }),
       });
 

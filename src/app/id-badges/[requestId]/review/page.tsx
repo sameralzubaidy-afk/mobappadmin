@@ -7,6 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@supabase/supabase-js';
 
 const REJECTION_REASONS = [
   { value: 'unclear_photo', label: 'Unclear photo' },
@@ -16,6 +17,30 @@ const REJECTION_REASONS = [
   { value: 'not_government_id', label: 'Not a government-issued ID' },
   { value: 'other', label: 'Other (please explain in notes)' },
 ];
+
+// DT97 (Item 1): browser fetches to /api/admin/* must send x-admin-secret (BP-49).
+// Mirrors ActionCenterClient + the id-badges queue page. The anon client below is used
+// only to recover the acting admin's identity so the decide route can record
+// reviewed_by + admin_activity_log (R35 actor-attribution discipline).
+const adminSecret = process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '';
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+async function getAdminIdentity() {
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    return {
+      adminId: session?.user?.id ?? null,
+      token: session?.access_token ?? null,
+    };
+  } catch {
+    return { adminId: null, token: null };
+  }
+}
 
 interface IDVerificationRequest {
   id: string;
@@ -51,14 +76,17 @@ export default function IDVerificationReviewPage({
 
   const loadRequest = async () => {
     try {
-      const response = await fetch(`/api/admin/id-badges/${params.requestId}`);
+      const response = await fetch(`/api/admin/id-badges/${params.requestId}`, {
+        headers: { 'x-admin-secret': adminSecret },
+      });
       const data = await response.json();
       setRequest(data);
 
       // Get screenshot URL if available
       if (data.screenshot_path) {
         const urlResponse = await fetch(
-          `/api/admin/id-badges/${params.requestId}/screenshot-url`
+          `/api/admin/id-badges/${params.requestId}/screenshot-url`,
+          { headers: { 'x-admin-secret': adminSecret } }
         );
         const { url } = await urlResponse.json();
         setScreenshotUrl(url);
@@ -84,9 +112,18 @@ export default function IDVerificationReviewPage({
     setDeciding(true);
 
     try {
+      // DT97 (Item 1): x-admin-secret authorizes; x-admin-user-id records the acting
+      // admin on reviewed_by + admin_activity_log (decide route reads x-admin-user-id).
+      // Bearer token is sent so the JWT path also works if the secret is unset in an env.
+      const identity = await getAdminIdentity();
       const response = await fetch(`/api/admin/id-badges/${params.requestId}/decide`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-secret': adminSecret,
+          ...(identity.adminId ? { 'x-admin-user-id': identity.adminId } : {}),
+          ...(identity.token ? { Authorization: `Bearer ${identity.token}` } : {}),
+        },
         body: JSON.stringify({
           decision,
           rejection_reason: decision === 'reject' ? rejectionReason : null,
