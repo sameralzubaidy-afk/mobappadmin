@@ -1,7 +1,19 @@
+import { redirect } from 'next/navigation';
+
 type Props = { searchParams?: { user_id?: string } };
 
 export default async function SubscriptionsPage({ searchParams }: Props) {
   const userId = searchParams?.user_id;
+
+  // DEV-TASK-106 (QA Task 29 M02): the bare /subscriptions route was a dead-end
+  // (no ?user_id= → "Provide ?user_id=... / No subscriptions found"). The
+  // canonical all-subscriptions console is /subscriptions/manage, so a bare
+  // /subscriptions now redirects there. /subscriptions?user_id=... remains the
+  // documented per-user history view (deep-linked from Trade detail, ADM-TC-H04).
+  if (!userId) {
+    redirect('/subscriptions/manage');
+  }
+
   const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 

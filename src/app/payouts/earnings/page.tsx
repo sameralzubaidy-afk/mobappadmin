@@ -65,6 +65,13 @@ function getInitialStatusFilter(): PayoutStatus {
   return (PAYOUT_STATUSES as string[]).includes(raw ?? '') ? (raw as PayoutStatus) : 'all';
 }
 
+// DEV-TASK-106 (BP-49): /api/admin/* routes authenticate via the x-admin-secret
+// header (or a Bearer JWT) — there is no middleware, so a cookie session alone
+// is never enough. This page's fetches were header-less → "No valid
+// authentication provided" (QA Task 29 K02/K03/Z05). Mirror the working
+// sibling pages (action-center, /payouts).
+const adminSecret = process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '';
+
 export default function AdminPayoutsPage() {
   const [payouts, setPayouts] = useState<SellerPayout[]>([]);
   const [stats, setStats] = useState<PayoutStats | null>(null);
@@ -92,7 +99,9 @@ export default function AdminPayoutsPage() {
       }
       params.append('limit', '100');
 
-      const res = await fetch(`/api/admin/payouts?${params.toString()}`);
+      const res = await fetch(`/api/admin/payouts?${params.toString()}`, {
+        headers: { 'x-admin-secret': adminSecret },
+      });
       const json = await res.json();
 
       if (!res.ok || json.error) {
@@ -154,6 +163,7 @@ export default function AdminPayoutsPage() {
     try {
       const res = await fetch(`/api/admin/payouts/${payoutId}/retry`, {
         method: 'POST',
+        headers: { 'x-admin-secret': adminSecret },
       });
 
       if (!res.ok) {
@@ -168,22 +178,9 @@ export default function AdminPayoutsPage() {
     }
   };
 
-  const handleExportPayouts = async () => {
-    try {
-      const params = new URLSearchParams();
-      if (statusFilter !== 'all') {
-        params.append('status', statusFilter);
-      }
-      if (searchTerm) {
-        params.append('search', searchTerm);
-      }
-      params.append('format', 'csv');
-
-      window.open(`/api/admin/payouts/export?${params.toString()}`, '_blank');
-    } catch (err: any) {
-      alert('Export failed: ' + err.message);
-    }
-  };
+  // DEV-TASK-106: removed the dead Export control — it targeted a non-existent
+  // /api/admin/payouts/export route (404, header-less window.open). If CSV
+  // export is wanted later, add a verifyAdminAuth-guarded route first.
 
   const renderStats = () => {
     if (!stats) return null;
@@ -485,22 +482,6 @@ export default function AdminPayoutsPage() {
                 />
               </svg>
               Refresh
-            </button>
-
-            <button
-              onClick={handleExportPayouts}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2"
-              data-testid="btn-payout-export"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                />
-              </svg>
-              Export
             </button>
           </div>
         </div>

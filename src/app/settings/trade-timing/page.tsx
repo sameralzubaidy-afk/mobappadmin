@@ -290,18 +290,24 @@ export default function TradeTimingSettingsPage() {
           category: CONFIG_CATEGORIES[key] ?? 'feature_flags',
         }));
 
-      for (const w of writes) {
-        const { error } = await supabase.rpc('upsert_admin_config_setting', {
-          p_key: w.key,
-          p_value: w.value,
-          p_category: w.category,
-          p_data_type: w.data_type,
-          p_is_secret: false,
-          p_is_active: true,
-          p_admin_id: adminId,
-        });
-        if (error) throw error;
-      }
+      // DEV-TASK-106: single transactional batch call. The old per-key loop
+      // validated each key against the *stored* paired value (order-dependent
+      // R2 guardrail — e.g. offer 48→100 + pickup 72→67 in one Save failed).
+      // The batch RPC validates the intended FINAL state once and writes
+      // everything atomically, so a valid save succeeds and a genuinely
+      // invalid final state is still hard-blocked server-side.
+      const { error } = await supabase.rpc('upsert_admin_config_settings_batch', {
+        p_items: writes.map((w) => ({
+          key: w.key,
+          value: w.value,
+          category: w.category,
+          data_type: w.data_type,
+          is_secret: false,
+          is_active: true,
+        })),
+        p_admin_id: adminId,
+      });
+      if (error) throw error;
 
       // Audit log
       if (adminId) {
