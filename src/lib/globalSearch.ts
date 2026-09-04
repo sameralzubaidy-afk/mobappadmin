@@ -167,7 +167,13 @@ export function rowHref(row: GlobalResultRow): string {
     case 'users':
       return usersSearchHref(row.user_id);
     case 'listings':
-      return listingsSearchHref(row.id);
+      // DEV-TASK-108 (Y08): the listings search page backs onto
+      // admin_search_listings_v2, which matches TEXT columns (title, etc.),
+      // never item UUIDs. Navigating with the row's UUID landed on an empty
+      // "Results (0)" page. Pass the listing's title (the searchable text) so
+      // the clicked listing actually surfaces; fall back to the id only if a
+      // row somehow has no title.
+      return listingsSearchHref(row.title || row.id);
     case 'trades':
       return tradeHref(row.id);
     default:

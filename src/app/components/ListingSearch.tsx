@@ -13,6 +13,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 
 const adminSecret = process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '';
@@ -128,6 +129,12 @@ export default function ListingSearch() {
     []
   );
 
+  // DEV-TASK-108 (Y08): read the ?q= deep-link param reactively (see the
+  // deep-link effect below) so palette / "View all listings" navigations that
+  // change q while this page is mounted re-run the search.
+  const searchParams = useSearchParams();
+  const urlQ = searchParams?.get('q') ?? '';
+
   const [filters, setFilters] = useState<SearchFilters>({
     query: '',
     sellerEmail: '',
@@ -183,13 +190,12 @@ export default function ListingSearch() {
   
   const ITEMS_PER_PAGE = 20;
 
-  // Skip the initial (empty-query) mount search when the command palette
-  // deep-linked with ?q= — the seed effect below runs the one search that matters.
-  const skipInitialSearchRef = useRef(
-    typeof window !== 'undefined'
-      ? !!new URLSearchParams(window.location.search).get('q')
-      : false
-  );
+  // Skip the initial (empty-query) mount search when a ?q= deep link is present
+  // (the deep-link effect below runs the search that matters).
+  const skipInitialSearchRef = useRef<boolean | null>(null);
+  if (skipInitialSearchRef.current === null) {
+    skipInitialSearchRef.current = !!urlQ;
+  }
 
   React.useEffect(() => {
     if (skipInitialSearchRef.current) {
@@ -197,17 +203,23 @@ export default function ListingSearch() {
       return;
     }
     handleSearch(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.page]);
 
-  // Command palette deep link (?q=): prefill the query and run one search.
+  // Command palette / "View all listings" deep link (?q=): prefill the query
+  // and run the search. DEV-TASK-108 (Y08): the palette navigates to
+  // /listings?...q= — sometimes while this page is ALREADY mounted (same route,
+  // new query). The old mount-only ([]) effect never re-ran for a new q, so the
+  // page kept showing stale/unfiltered results (e.g. all listings instead of
+  // the clicked one). Keying off the live search param fixes that. The query is
+  // passed explicitly (not read from the filters closure) so it can never race
+  // with the setFilters below.
   React.useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const q = new URLSearchParams(window.location.search).get('q') || '';
-    if (!q) return;
-    setFilters((prev) => ({ ...prev, query: q }));
-    void handleSearch(true, q);
+    if (!urlQ) return;
+    setFilters((prev) => ({ ...prev, query: urlQ, page: 1 }));
+    void handleSearch(true, urlQ);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [urlQ]);
 
   React.useEffect(() => {
     const loadCategories = async () => {

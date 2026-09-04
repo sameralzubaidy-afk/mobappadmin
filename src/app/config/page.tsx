@@ -701,10 +701,19 @@ function SMSRateLimitStats() {
   const [stats, setStats] = useState<SMSRateLimitStats | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // DEV-TASK-108 (BP-49): /api/admin/* routes authenticate via the
+  // x-admin-secret header (no middleware; verifyAdminAuth accepts only that
+  // header or an explicit Bearer JWT). Without it this sub-fetch 401s with
+  // "No valid authentication provided" — same class as the DT106
+  // /payouts/earnings fix. This component is a sibling of ConfigPage, so the
+  // header value is resolved here, not from ConfigPage's scope.
+  const adminSecret = process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || "";
+
   const loadStatsFromApi = async () => {
     try {
       const res = await fetch(`/api/admin/sms-stats?ts=${Date.now()}`, {
         cache: "no-store",
+        headers: { "x-admin-secret": adminSecret },
       });
       const json = await res.json();
       if (json.error) throw new Error(json.error);
