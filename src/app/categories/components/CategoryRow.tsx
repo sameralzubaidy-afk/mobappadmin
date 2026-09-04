@@ -6,26 +6,32 @@
 
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical } from 'lucide-react';
+import { ChevronDown, ChevronUp, GripVertical } from 'lucide-react';
 import type { Category } from '../../../types/category';
 
 interface CategoryRowProps {
   category: Category;
   selected: boolean;
+  isFirst?: boolean;
+  isLast?: boolean;
   onToggleSelect: (id: string) => void;
   onEdit: (category: Category) => void;
   onToggleActive: (category: Category) => void;
   onDelete: (category: Category) => void;
+  onMove: (id: string, direction: 'up' | 'down') => void;
   disabled?: boolean;
 }
 
 export function CategoryRow({
   category,
   selected,
+  isFirst = false,
+  isLast = false,
   onToggleSelect,
   onEdit,
   onToggleActive,
   onDelete,
+  onMove,
   disabled,
 }: CategoryRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -162,6 +168,28 @@ export function CategoryRow({
       {/* Actions */}
       <td className="px-3 py-4 text-center">
         <div className="flex items-center justify-center space-x-2">
+          <div className="flex items-center">
+            <button
+              onClick={() => onMove(category.id, 'up')}
+              disabled={disabled || isFirst}
+              aria-label={`Move ${category.name} up`}
+              data-testid={`btn-move-up-${category.id}`}
+              title={isFirst ? 'Already first' : 'Move up'}
+              className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed p-0.5"
+            >
+              <ChevronUp size={16} />
+            </button>
+            <button
+              onClick={() => onMove(category.id, 'down')}
+              disabled={disabled || isLast}
+              aria-label={`Move ${category.name} down`}
+              data-testid={`btn-move-down-${category.id}`}
+              title={isLast ? 'Already last' : 'Move down'}
+              className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed p-0.5"
+            >
+              <ChevronDown size={16} />
+            </button>
+          </div>
           <button
             onClick={() => onEdit(category)}
             disabled={disabled}

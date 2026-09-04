@@ -118,6 +118,73 @@ export default function PoliciesPage() {
     }
   };
 
+  // Restore a previously-active (archived) version as the current published one.
+  // Makes a full publish round-trip safe to test on load-bearing legal surfaces
+  // (G04): publish a draft → archive the prior active → restore it back.
+  const restorePolicy = async (policyId: string) => {
+    if (!confirm('Restore this version as the active policy? It will replace the currently active version.')) {
+      return;
+    }
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('Not authenticated');
+      }
+
+      const response = await fetch(`/api/admin/policies/${policyId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-secret': process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '',
+        },
+        body: JSON.stringify({
+          action: 'republish',
+          admin_id: user.id,
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to restore policy');
+      }
+
+      alert('Policy restored as the active version');
+      fetchPolicies();
+    } catch (error) {
+      console.error('Error restoring policy:', error);
+      alert('Failed to restore policy');
+    }
+  };
+
+  // Delete an inert draft (never published). Safe: drafts carry no load-bearing
+  // state, and published/archived versions can never be deleted via this API.
+  const deleteDraft = async (policyId: string) => {
+    if (!confirm('Delete this draft? This cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/admin/policies/${policyId}`, {
+        method: 'DELETE',
+        headers: {
+          'x-admin-secret': process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '',
+        },
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to delete policy');
+      }
+
+      alert('Draft deleted');
+      fetchPolicies();
+    } catch (error) {
+      console.error('Error deleting policy:', error);
+      alert('Failed to delete policy');
+    }
+  };
+
   const PolicyList = ({ policyType, title }: { policyType: PolicyType; title: string }) => {
     const policyList = policies[policyType];
     const publishedPolicy = policyList.find(p => p.status === 'published');
@@ -184,7 +251,23 @@ export default function PoliciesPage() {
                           >
                             Publish
                           </button>
+                          <button
+                            onClick={() => deleteDraft(policy.id)}
+                            className="bg-white border border-red-300 text-red-600 px-3 py-1 rounded hover:bg-red-50 text-sm"
+                            data-testid={`delete-${policy.id}-button`}
+                          >
+                            Delete
+                          </button>
                         </>
+                      )}
+                      {policy.status === 'archived' && (
+                        <button
+                          onClick={() => restorePolicy(policy.id)}
+                          className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm"
+                          data-testid={`restore-${policy.id}-button`}
+                        >
+                          Make Active
+                        </button>
                       )}
                     </div>
                   </div>

@@ -102,6 +102,9 @@ function shortId(id: string | null | undefined): string {
 
 export default function FinancialAuditPage() {
   const [rows, setRows] = useState<AuditRow[]>([]);
+  // Total journal rows matching the current filters (R54 — the journal is larger
+  // than one page; the strip below summarizes the SHOWN window, not the journal).
+  const [total, setTotal] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
@@ -135,6 +138,7 @@ export default function FinancialAuditPage() {
       const json = await res.json();
       if (json.error) throw new Error(json.error);
       setRows(json.data || []);
+      setTotal(typeof json.total === 'number' ? json.total : null);
     } catch (err: any) {
       setError(err.message || 'We couldn’t load the audit journal. Please try again.');
     } finally {
@@ -231,17 +235,20 @@ export default function FinancialAuditPage() {
       {/* Summary strip */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
         <div className="bg-white rounded shadow-sm border border-gray-200 p-3">
-          <p className="text-xs text-gray-500">Entries</p>
+          <p className="text-xs text-gray-500">Entries (this page)</p>
           <p className="text-xl font-bold">{rows.length}</p>
+          {total !== null && (
+            <p className="text-xs text-gray-400">of {total} matching</p>
+          )}
         </div>
         {(Object.keys(CATEGORY_GROUPS) as string[]).map((cat) => (
           <div key={cat} className="bg-white rounded shadow-sm border border-gray-200 p-3">
-            <p className="text-xs text-gray-500">{cat}</p>
+            <p className="text-xs text-gray-500">{cat} (this page)</p>
             <p className="text-xl font-bold">{categoryCounts[cat] ?? 0}</p>
           </div>
         ))}
         <div className="bg-white rounded shadow-sm border border-gray-200 p-3">
-          <p className="text-xs text-gray-500">Cash Movement</p>
+          <p className="text-xs text-gray-500">Cash Movement (this page)</p>
           <p className="text-xl font-bold">${(totalAmountCents / 100).toFixed(2)}</p>
         </div>
       </div>

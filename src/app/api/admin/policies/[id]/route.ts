@@ -16,7 +16,7 @@ interface UpdatePolicyBody {
 }
 
 interface PublishBody {
-  action?: 'publish';
+  action?: 'publish' | 'republish';
   admin_id?: string | null;
 }
 
@@ -145,9 +145,11 @@ export async function POST(req: Request, { params }: RouteParams) {
     body = {};
   }
 
-  if (body.action !== 'publish') {
+  if (body.action !== 'publish' && body.action !== 'republish') {
     return NextResponse.json({ error: 'Unsupported action' }, { status: 400 });
   }
+
+  const isRepublish = body.action === 'republish';
 
   const supabase = getClient();
   let adminId = body.admin_id ?? null;
@@ -211,8 +213,15 @@ export async function POST(req: Request, { params }: RouteParams) {
     return NextResponse.json({ error: 'Policy not found' }, { status: 404 });
   }
 
-  if (targetPolicy.status !== 'draft') {
-    return NextResponse.json({ error: 'Only draft policies can be published' }, { status: 409 });
+  if (targetPolicy.status !== (isRepublish ? 'archived' : 'draft')) {
+    return NextResponse.json(
+      {
+        error: isRepublish
+          ? 'Only archived policies can be restored as the active version'
+          : 'Only draft policies can be published',
+      },
+      { status: 409 }
+    );
   }
 
   const nowIso = new Date().toISOString();
@@ -249,4 +258,60 @@ export async function POST(req: Request, { params }: RouteParams) {
   }
 
   return NextResponse.json({ data }, { status: 200 });
+}
+
+/**
+ * DELETE /api/admin/policies/[id]
+ *
+ * Deletes a policy. For safety on load-bearing legal surfaces this is limited to
+ * DRAFT versions only — published/archived versions are never hard-deleted (they
+ * may be referenced by existing trades, e.g. the liability disclaimer).
+ */
+export async function DELETE(req: Request, { params }: RouteParams) {
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
+
+  if (!SERVICE_KEY || !SUPABASE_URL) {
+    return missingConfig('Admin writes are disabled: missing Supabase service role configuration');
+  }
+
+  const supabase = getClient();
+
+  const { data: currentPolicy, error: currentPolicyError } = await supabase
+    .from('platform_policies')
+    .select('id, status')
+    .eq('id', params.id)
+    .maybeSingle();
+
+  if (currentPolicyError) {
+    return NextResponse.json(
+      { error: currentPolicyError.message, code: currentPolicyError.code },
+      { status: 500 }
+    );
+  }
+
+  if (!currentPolicy) {
+    return NextResponse.json({ error: 'Policy not found' }, { status: 404 });
+  }
+
+  if (currentPolicy.status !== 'draft') {
+    return NextResponse.json(
+      { error: 'Only draft policies can be deleted' },
+      { status: 409 }
+    );
+  }
+
+  const { error: deleteError } = await supabase
+    .from('platform_policies')
+    .delete()
+    .eq('id', params.id);
+
+  if (deleteError) {
+    return NextResponse.json(
+      { error: deleteError.message, code: deleteError.code },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json({ success: true }, { status: 200 });
 }

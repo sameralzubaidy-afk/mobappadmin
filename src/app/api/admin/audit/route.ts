@@ -40,6 +40,10 @@ export async function GET(req: NextRequest) {
 
     // BP-45: query the text-cast view admin_financial_audit_view (UUIDs pre-cast
     // to text) so ilike search on entity/trade/idempotency-key works via PostgREST.
+    // `Prefer: count=exact` returns the total row count (matching all current
+    // filters) in the Content-Range header, independent of the page limit — R54:
+    // lets the UI disclose "N of TOTAL" instead of implying the page window is
+    // the whole journal.
     const base = `${supabaseUrl}/rest/v1/admin_financial_audit_view?select=*&order=created_at.desc&limit=${limit}&offset=${offset}`;
     let urlQuery = base;
 
@@ -60,7 +64,10 @@ export async function GET(req: NextRequest) {
       urlQuery += `&or=(entity_id_text.ilike.${encoded},trade_id_text.ilike.${encoded},idempotency_key.ilike.${encoded})`;
     }
 
-    const resp = await fetch(urlQuery, { headers, cache: 'no-store' });
+    const resp = await fetch(urlQuery, {
+      headers: { ...headers, Prefer: 'count=exact' },
+      cache: 'no-store',
+    });
     if (!resp.ok) {
       const text = await resp.text();
       console.error('[api/admin/audit] fetch failed:', resp.status, text);
@@ -68,7 +75,18 @@ export async function GET(req: NextRequest) {
     }
 
     const rows = await resp.json();
-    return NextResponse.json({ data: rows || [] });
+
+    // Parse the exact matching count out of `Content-Range: 0-99/328`.
+    let total: number | null = null;
+    const contentRange = resp.headers.get('content-range');
+    if (contentRange) {
+      const match = contentRange.match(/\/(\d+)$/);
+      if (match) {
+        total = Number(match[1]);
+      }
+    }
+
+    return NextResponse.json({ data: rows || [], total });
   } catch (err: any) {
     console.error('[api/admin/audit] error:', err);
     return NextResponse.json({ error: err.message || 'Failed to load audit log' }, { status: 500 });

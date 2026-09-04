@@ -53,14 +53,37 @@ export async function GET(request: NextRequest) {
       seller_name: payout.seller_name || null
     }));
 
-    // Calculate stats from the returned data
-    const stats = {
-      total_count: enriched.length,
-      total_completed: enriched.filter((p: any) => p.status === 'completed').length || 0,
-      total_pending: enriched.filter((p: any) => ['pending', 'processing'].includes(p.status)).length || 0,
-      total_failed: enriched.filter((p: any) => p.status === 'failed').length || 0,
-      total_volume_cents: enriched.reduce((sum: number, p: any) => sum + (p.net_amount_cents || 0), 0) || 0
+    // R54: the stat cards read as global aggregates (Total / Completed / Pending /
+    // Failed / Total Volume), so they must NOT come from the 100-row page window.
+    // Compute them from the full ledger via the same RPC at the admin_payouts_view
+    // scope (status='all', p_limit=10000) — independent of the page/filter window.
+    let stats = {
+      total_count: 0,
+      total_completed: 0,
+      total_pending: 0,
+      total_failed: 0,
+      total_volume_cents: 0
     };
+    try {
+      const { data: allPayouts, error: allError } = await supabase.rpc(
+        'get_admin_payouts',
+        { p_status: 'all', p_search: null, p_limit: 10000, p_offset: 0 }
+      );
+      if (!allError) {
+        const all = (allPayouts || []) as any[];
+        stats = {
+          total_count: all.length,
+          total_completed: all.filter((p: any) => p.status === 'completed').length || 0,
+          total_pending: all.filter((p: any) => ['pending', 'processing'].includes(p.status)).length || 0,
+          total_failed: all.filter((p: any) => p.status === 'failed').length || 0,
+          total_volume_cents: all.reduce((sum: number, p: any) => sum + (p.net_amount_cents || 0), 0) || 0
+        };
+      } else {
+        console.error('Error computing global payout stats:', allError);
+      }
+    } catch (statsErr: any) {
+      console.error('Error computing global payout stats:', statsErr);
+    }
 
     return NextResponse.json({ data: enriched, stats });
   } catch (err: any) {

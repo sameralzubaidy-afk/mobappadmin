@@ -204,16 +204,15 @@ export async function getSPAnalyticsByCategory(dateRange: {
     };
   };
 
-  // Preferred path: read from analytics relation (or view) by date range.
-  // This keeps the query lightweight and aligns with existing unit tests.
+  // DEV-TASK-109: read real per-category analytics from the SECURITY DEFINER
+  // RPC get_category_sp_analytics(p_start, p_end), which aggregates REAL
+  // completed trades within the requested window. (The old `category_sp_analytics`
+  // table never existed — L02 FAIL "…in the schema cache".)
   try {
-    const analyticsQuery = supabase
-      .from('category_sp_analytics')
-      .select('category_id, category_name, velocity, gap_percent, avg_cash_per_trade, anomaly_flags')
-      .gte('created_at', dateRange.start)
-      .lte('created_at', dateRange.end);
-
-    const { data, error } = await analyticsQuery;
+    const { data, error } = await supabase.rpc('get_category_sp_analytics', {
+      p_start: dateRange.start,
+      p_end: dateRange.end,
+    });
 
     if (error) {
       throw new Error(error.message);
@@ -224,8 +223,12 @@ export async function getSPAnalyticsByCategory(dateRange: {
       .sort((a, b) => b.gap_percent - a.gap_percent);
   } catch (error: any) {
     const message = error?.message || '';
+    // RPC absent (migration not applied yet) → fall back to the approximation
+    // below. Matchers are broad so a pre-migration DB degrades instead of erroring.
     const shouldFallback =
       message.includes('does not exist') ||
+      message.includes('schema cache') ||
+      message.includes('not found') ||
       message.includes('is not a function');
 
     if (!shouldFallback) {

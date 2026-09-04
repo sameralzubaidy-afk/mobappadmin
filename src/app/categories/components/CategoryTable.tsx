@@ -67,6 +67,40 @@ export function CategoryTable({ categories, onEdit, onUpdate }: CategoryTablePro
     }
   };
 
+  /**
+   * DEV-TASK-110 (2026-09-04): keyboard/click reorder affordance so category
+   * display order can be changed WITHOUT the drag gesture (HTML5 DnD is not
+   * reliably drivable by the embedded QA browser driver — QA Task 31). Moves a
+   * row one position and persists through the SAME reorderCategories endpoint
+   * the drag handler uses (POST /api/admin/categories/reorder), so D08 can be
+   * verified drag-free. Mirrors handleDragEnd exactly (optimistic + rollback).
+   */
+  const handleMove = async (id: string, direction: 'up' | 'down') => {
+    const idx = localCategories.findIndex((c) => c.id === id);
+    const target = direction === 'up' ? idx - 1 : idx + 1;
+
+    if (idx === -1 || target < 0 || target >= localCategories.length) return;
+
+    const reordered = arrayMove(localCategories, idx, target);
+    const reorderPayload: CategoryReorderItem[] = reordered.map((cat: Category, i: number) => ({
+      id: cat.id,
+      display_order: i + 1,
+    }));
+
+    setLocalCategories(reordered);
+    setReorderError(null);
+
+    try {
+      await reorderCategories(reorderPayload);
+      onUpdate(); // Refresh from server
+    } catch (err: any) {
+      console.error('Reorder failed:', err);
+      setReorderError(err.message || 'Failed to reorder categories');
+      // Rollback
+      setLocalCategories(categories);
+    }
+  };
+
   const handleToggleSelect = (id: string) => {
     const newSelected = new Set(selectedIds);
     if (newSelected.has(id)) {
@@ -200,10 +234,13 @@ export function CategoryTable({ categories, onEdit, onUpdate }: CategoryTablePro
                     key={category.id}
                     category={category}
                     selected={selectedIds.has(category.id)}
+                    isFirst={localCategories[0]?.id === category.id}
+                    isLast={localCategories[localCategories.length - 1]?.id === category.id}
                     onToggleSelect={handleToggleSelect}
                     onEdit={onEdit}
                     onToggleActive={handleToggleActive}
                     onDelete={handleDelete}
+                    onMove={handleMove}
                     disabled={processing}
                   />
                 ))}

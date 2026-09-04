@@ -309,12 +309,12 @@ export async function GET(request: Request) {
       }
     }
 
-    // Calculate metrics from all subscriptions (not just paginated)
-    const { data: allSubscriptions } = await supabase
-      .from("subscriptions")
-      .select(
-        "status, monthly_price_cents, last_payment_amount, cancelled_at, tier_id, cancel_reason",
-      );
+    // Calculate metrics from ALL subscriptions (true global aggregates, R54).
+    // The metric cards read as global KPIs (MRR / Active / Trial / Grace / Churn),
+    // so they must NOT come from the paginated page window. A single unbounded
+    // select is also wrong: PostgREST caps rows at its default max (~1000), so we
+    // page through every row (same pattern as the cancellation-reason loop below).
+    const allSubscriptions = await fetchAllSubscriptionsForMetrics(supabase);
 
     const tierIds = Array.from(
       new Set(
@@ -454,6 +454,41 @@ export async function GET(request: Request) {
 }
 
 /**
+ * Fetch the FULL subscriptions table (paged past PostgREST's default ~1000-row
+ * cap) with only the columns the metric cards need. R54: the metric cards are
+ * global KPIs, so a window-capped select silently under-counts on large tables.
+ */
+async function fetchAllSubscriptionsForMetrics(
+  supabase: any,
+): Promise<any[]> {
+  const all: any[] = [];
+  const PAGE = 1000;
+  for (let offset = 0; offset < 30000; offset += PAGE) {
+    const { data, error } = await supabase
+      .from("subscriptions")
+      .select(
+        "status, monthly_price_cents, last_payment_amount, cancelled_at, tier_id, cancel_reason",
+      )
+      .order("user_id", { ascending: true })
+      .range(offset, offset + PAGE - 1);
+
+    if (error) {
+      console.error(
+        "[Subscriptions API] fetchAllSubscriptionsForMetrics error at offset " +
+          offset +
+          ":",
+        error,
+      );
+      break;
+    }
+    const page = (data || []) as any[];
+    all.push(...page);
+    if (page.length < PAGE) break;
+  }
+  return all;
+}
+
+/**
  * Calculate subscription metrics from raw data
  */
 function calculateMetrics(
@@ -463,7 +498,11 @@ function calculateMetrics(
   const activeStatuses = ["trial", "active"];
   const activeOnly = subscriptions.filter((s) => s.status === "active");
   const trialOnly = subscriptions.filter((s) => s.status === "trial");
-  const graceOnly = subscriptions.filter((s) => s.status === "grace_period");
+  // DB CHECK allows both 'grace' (legacy) and 'grace_period' spellings — count
+  // both so the Grace card matches the real DB count (R54).
+  const graceOnly = subscriptions.filter(
+    (s) => s.status === "grace_period" || s.status === "grace",
+  );
   const expiredOnly = subscriptions.filter((s) => s.status === "expired");
   const cancelledOnly = subscriptions.filter((s) => s.cancelled_at !== null);
   const allActive = subscriptions.filter((s) =>

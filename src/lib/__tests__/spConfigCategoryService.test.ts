@@ -10,7 +10,8 @@ import type { Category } from '../../types/category';
 // Supabase mock
 // ---------------------------------------------------------------------------
 const mockFrom = vi.fn();
-const mockSupabase = { from: mockFrom };
+const mockRpc = vi.fn();
+const mockSupabase = { from: mockFrom, rpc: mockRpc };
 
 vi.mock('@supabase/supabase-js', () => ({
   createClient: vi.fn(() => mockSupabase),
@@ -287,13 +288,7 @@ describe('getSPAnalyticsByCategory', () => {
         anomaly_flags: [],
       },
     ];
-    mockFrom.mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        gte: vi.fn().mockReturnValue({
-          lte: vi.fn().mockResolvedValue({ data: mockAnalytics, error: null }),
-        }),
-      }),
-    });
+    mockRpc.mockResolvedValue({ data: mockAnalytics, error: null });
 
     const result = await getSPAnalyticsByCategory(dateRange);
     expect(Array.isArray(result)).toBe(true);
@@ -310,13 +305,7 @@ describe('getSPAnalyticsByCategory', () => {
         anomaly_flags: [],
       },
     ];
-    mockFrom.mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        gte: vi.fn().mockReturnValue({
-          lte: vi.fn().mockResolvedValue({ data: mockData, error: null }),
-        }),
-      }),
-    });
+    mockRpc.mockResolvedValue({ data: mockData, error: null });
 
     const result = await getSPAnalyticsByCategory(dateRange);
     const row = result.find((r) => r.category_id === 'cat-1');
@@ -336,13 +325,7 @@ describe('getSPAnalyticsByCategory', () => {
         anomaly_flags: [],
       },
     ];
-    mockFrom.mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        gte: vi.fn().mockReturnValue({
-          lte: vi.fn().mockResolvedValue({ data: mockData, error: null }),
-        }),
-      }),
-    });
+    mockRpc.mockResolvedValue({ data: mockData, error: null });
 
     const result = await getSPAnalyticsByCategory(dateRange);
     const row = result.find((r) => r.category_id === 'cat-2');
@@ -362,13 +345,7 @@ describe('getSPAnalyticsByCategory', () => {
         anomaly_flags: [],
       },
     ];
-    mockFrom.mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        gte: vi.fn().mockReturnValue({
-          lte: vi.fn().mockResolvedValue({ data: mockData, error: null }),
-        }),
-      }),
-    });
+    mockRpc.mockResolvedValue({ data: mockData, error: null });
 
     const result = await getSPAnalyticsByCategory(dateRange);
     const row = result.find((r) => r.category_id === 'cat-3');
@@ -378,28 +355,16 @@ describe('getSPAnalyticsByCategory', () => {
   });
 
   it('should return empty array when DB returns null', async () => {
-    mockFrom.mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        gte: vi.fn().mockReturnValue({
-          lte: vi.fn().mockResolvedValue({ data: null, error: null }),
-        }),
-      }),
-    });
+    mockRpc.mockResolvedValue({ data: null, error: null });
 
     const result = await getSPAnalyticsByCategory(dateRange);
     expect(result).toEqual([]);
   });
 
   it('should throw on DB error', async () => {
-    mockFrom.mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        gte: vi.fn().mockReturnValue({
-          lte: vi.fn().mockResolvedValue({
-            data: null,
-            error: { message: 'query timeout' },
-          }),
-        }),
-      }),
+    mockRpc.mockResolvedValue({
+      data: null,
+      error: { message: 'query timeout' },
     });
 
     await expect(getSPAnalyticsByCategory(dateRange)).rejects.toThrow('query timeout');
