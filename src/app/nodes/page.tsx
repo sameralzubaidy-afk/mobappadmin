@@ -146,11 +146,14 @@ export default function NodesPage() {
     try {
       setTogglingId(node.id);
 
-      // Update node status
+      // Update node status — keep the legacy `status` column in sync with
+      // `is_active` (both must flip together; a deactivated node must read
+      // status='inactive', not a stale 'active').
       const { error: updateError } = await supabase
         .from('nodes')
         .update({
           is_active: !node.is_active,
+          status: node.is_active ? 'inactive' : 'active',
           updated_at: new Date().toISOString(),
         })
         .eq('id', node.id);

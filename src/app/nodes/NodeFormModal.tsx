@@ -133,7 +133,8 @@ export default function NodeFormModal({ node, onClose }: NodeFormModalProps) {
       }
 
       if (node) {
-        // Update existing node
+        // Update existing node — keep the legacy `status` column in sync with
+        // `is_active` (same rule as the create path + the page-level toggle).
         const { error: updateError } = await supabase
           .from('nodes')
           .update({
@@ -146,6 +147,7 @@ export default function NodeFormModal({ node, onClose }: NodeFormModalProps) {
             radius_miles: formData.radius_miles,
             description: formData.description.trim() || null,
             is_active: formData.is_active,
+            status: formData.is_active ? 'active' : 'inactive',
             updated_at: new Date().toISOString(),
           })
           .eq('id', node.id);

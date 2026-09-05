@@ -56,3 +56,22 @@ export class DuplicatePublishedSectionError extends Error {
     }
   }
 }
+
+/**
+ * Thrown when an admin content action (publish/unpublish/delete a section)
+ * fails for an unexpected reason (e.g. RPC unavailable, PGRST202, network).
+ * Carries friendly, non-technical copy so a raw backend string never reaches
+ * the admin UI — the original error is still logged at the call site.
+ */
+export class ContentActionError extends Error {
+  public readonly code = 'CONTENT_ACTION';
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'ContentActionError';
+
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, ContentActionError);
+    }
+  }
+}

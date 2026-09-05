@@ -294,11 +294,38 @@ export async function DELETE(req: Request, { params }: RouteParams) {
     return NextResponse.json({ error: 'Policy not found' }, { status: 404 });
   }
 
-  if (currentPolicy.status !== 'draft') {
+  const isArchived = currentPolicy.status === 'archived';
+  if (currentPolicy.status !== 'draft' && !isArchived) {
     return NextResponse.json(
-      { error: 'Only draft policies can be deleted' },
+      { error: 'Only draft or archived policies can be deleted' },
       { status: 409 }
     );
+  }
+
+  // DT-116 (item 9): archived QA disposable policies should be removable, but an
+  // archived version that users actually accepted must never be hard-deleted
+  // (policy_acceptances.policy_id FK would cascade away real acceptance rows).
+  if (isArchived) {
+    const { count, error: acceptanceCountError } = await supabase
+      .from('policy_acceptances')
+      .select('id', { count: 'exact', head: true })
+      .eq('policy_id', params.id);
+
+    if (acceptanceCountError) {
+      return NextResponse.json(
+        { error: acceptanceCountError.message, code: acceptanceCountError.code },
+        { status: 500 }
+      );
+    }
+    if ((count ?? 0) > 0) {
+      return NextResponse.json(
+        {
+          error:
+            'This archived version has user acceptances and cannot be deleted. Restore it as active, or leave it archived.',
+        },
+        { status: 409 }
+      );
+    }
   }
 
   const { error: deleteError } = await supabase

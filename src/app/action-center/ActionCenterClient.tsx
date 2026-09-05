@@ -199,6 +199,13 @@ function formatMoney(cents: number | null | undefined): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
+// items.price is stored as DOLLARS (DECIMAL), unlike the *_cents fields below.
+// Never divide by 100 for this field (a $20 item must render as $20.00, not $0.20).
+function formatDollars(value: number | null | undefined): string {
+  if (value === null || value === undefined) return '—';
+  return `$${Number(value).toFixed(2)}`;
+}
+
 async function postJson(url: string, body: unknown) {
   // DEV-TASK-62 (Item 1): attach the admin's JWT so dispute/money routes record WHO acted.
   const { data: { session } } = await supabase.auth.getSession();
@@ -669,7 +676,7 @@ function ActionRowText({ source, row }: { source: string; row: any }) {
           {row.title || 'Untitled item'}
         </p>
         <p className="text-xs truncate" style={{ color: COLORS.textSecondary }}>
-          {formatMoney(row.price)} · {row.seller_name || row.seller_email || 'Unknown seller'} ·
+          {formatDollars(row.price)} · {row.seller_name || row.seller_email || 'Unknown seller'} ·
           Flagged {formatDateTime(row.flagged_at)}
         </p>
       </>

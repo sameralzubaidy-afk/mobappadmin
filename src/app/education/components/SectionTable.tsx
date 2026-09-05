@@ -7,7 +7,7 @@
 import { useState } from 'react';
 import { Edit, Eye, Globe, GlobeIcon, Trash2 } from 'lucide-react';
 import type { EducationSection } from '../../../types/education';
-import { publishSection, unpublishSection } from '../../../lib/educationContentService';
+import { publishSection, unpublishSection, deleteSection } from '../../../lib/educationContentService';
 import { MobilePreview } from './MobilePreview';
 import { PublishConfirmation } from './PublishConfirmation';
 
@@ -45,6 +45,25 @@ export function SectionTable({ sections, onEdit, onRefresh, onError }: SectionTa
     } catch (error: any) {
       console.error('[SectionTable] Unpublish error:', error);
       onError(error.message || 'Failed to unpublish section');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // DT-116 (item 9): drafts can be deleted so QA disposable sections are
+  // removable through the UI instead of accumulating. Published sections are
+  // refused by the delete_section RPC (unpublish first).
+  const handleDelete = async (section: EducationSection) => {
+    if (!window.confirm(`Delete "${section.title}"? This cannot be undone.`)) {
+      return;
+    }
+    try {
+      setActionLoading(section.id);
+      await deleteSection(section.id);
+      onRefresh();
+    } catch (error: any) {
+      console.error('[SectionTable] Delete error:', error);
+      onError(error.message || 'Failed to delete section');
     } finally {
       setActionLoading(null);
     }
@@ -163,18 +182,29 @@ export function SectionTable({ sections, onEdit, onRefresh, onError }: SectionTa
                         <GlobeIcon size={16} style={{ color: '#dc3545' }} />
                       </button>
                     ) : (
-                      <button
-                        onClick={() => setPublishingSection(section)}
-                        disabled={actionLoading === section.id}
-                        data-testid={`btn-publish-${section.id}`}
-                        className="px-3 py-1 text-sm font-medium rounded transition-colors"
-                        style={{
-                          background: 'var(--brand-primary)',
-                          color: 'white',
-                        }}
-                      >
-                        {actionLoading === section.id ? 'Publishing...' : 'Publish'}
-                      </button>
+                      <>
+                        <button
+                          onClick={() => setPublishingSection(section)}
+                          disabled={actionLoading === section.id}
+                          data-testid={`btn-publish-${section.id}`}
+                          className="px-3 py-1 text-sm font-medium rounded transition-colors"
+                          style={{
+                            background: 'var(--brand-primary)',
+                            color: 'white',
+                          }}
+                        >
+                          {actionLoading === section.id ? 'Publishing...' : 'Publish'}
+                        </button>
+                        <button
+                          onClick={() => handleDelete(section)}
+                          disabled={actionLoading === section.id}
+                          data-testid={`btn-delete-${section.id}`}
+                          className="p-2 rounded hover:bg-red-50 transition-colors"
+                          title="Delete draft"
+                        >
+                          <Trash2 size={16} style={{ color: '#dc3545' }} />
+                        </button>
+                      </>
                     )}
                   </div>
                 </td>

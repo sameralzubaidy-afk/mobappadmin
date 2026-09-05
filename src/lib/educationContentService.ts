@@ -3,7 +3,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import type { EducationSection, SectionType } from '../types/education';
-import { ContentValidationError, UnauthorizedError, DuplicatePublishedSectionError } from '../types/education-errors';
+import { ContentValidationError, UnauthorizedError, DuplicatePublishedSectionError, ContentActionError } from '../types/education-errors';
 
 // Initialize Supabase client (use admin service role key for RPC execution)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -140,8 +140,10 @@ export async function updateSection(
  */
 export async function publishSection(id: string): Promise<void> {
   try {
+    // DB signature: publish_section(p_section_id uuid) — the argument name must
+    // match exactly or PostgREST returns PGRST202 (function not found).
     const { error } = await supabase.rpc('publish_section', {
-      section_id: id,
+      p_section_id: id,
     });
 
     if (error) {
@@ -152,7 +154,9 @@ export async function publishSection(id: string): Promise<void> {
         // Unique constraint violation
         throw new DuplicatePublishedSectionError('section');
       }
-      throw error;
+      // Friendly fallback so a raw backend string (e.g. PGRST202) never reaches
+      // the admin UI on a regression. Original error is logged in the catch below.
+      throw new ContentActionError('We couldn\'t publish this section right now. Please try again in a moment.');
     }
   } catch (error: any) {
     console.error('[educationContentService] Publish section error:', error);
@@ -169,18 +173,51 @@ export async function publishSection(id: string): Promise<void> {
  */
 export async function unpublishSection(id: string): Promise<void> {
   try {
+    // DB signature: unpublish_section(p_section_id uuid)
     const { error } = await supabase.rpc('unpublish_section', {
-      section_id: id,
+      p_section_id: id,
     });
 
     if (error) {
       if (error.message?.includes('UnauthorizedError')) {
         throw new UnauthorizedError('Only admins can unpublish sections', 'ADMIN_ONLY');
       }
-      throw error;
+      // Friendly fallback (see publishSection above).
+      throw new ContentActionError('We couldn\'t unpublish this section right now. Please try again in a moment.');
     }
   } catch (error: any) {
     console.error('[educationContentService] Unpublish section error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Delete a draft section via RPC
+ * Refuses published sections (must unpublish first)
+ * MUST be called by admin only (RPC enforces this)
+ *
+ * @param id - Section ID
+ * @returns Success status
+ */
+export async function deleteSection(id: string): Promise<void> {
+  try {
+    // DB signature: delete_section(p_section_id uuid)
+    const { error } = await supabase.rpc('delete_section', {
+      p_section_id: id,
+    });
+
+    if (error) {
+      if (error.message?.includes('UnauthorizedError')) {
+        throw new UnauthorizedError('Only admins can delete sections', 'ADMIN_ONLY');
+      }
+      if (error.message?.includes('PublishedSectionError')) {
+        throw new ContentActionError('Unpublish this section before deleting it.');
+      }
+      // Friendly fallback (see publishSection above).
+      throw new ContentActionError('We couldn\'t delete this section right now. Please try again in a moment.');
+    }
+  } catch (error: any) {
+    console.error('[educationContentService] Delete section error:', error);
     throw error;
   }
 }

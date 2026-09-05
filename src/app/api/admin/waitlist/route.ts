@@ -165,19 +165,20 @@ export async function GET(req: NextRequest) {
       .map((row: any) => row.user_id)
       .filter((value: unknown): value is string => typeof value === 'string' && value.length > 0);
 
+    // profiles stores the display name in the `name` column (there is no `display_name` column).
     let displayNameByUserId: Record<string, string> = {};
     if (userIds.length > 0) {
       const { data: profileRows, error: profileError } = await queryClient
         .from('profiles')
-        .select('user_id, display_name')
+        .select('user_id, name')
         .in('user_id', userIds);
 
       if (profileError) {
         console.warn('[Admin Waitlist API] profile lookup warning:', profileError);
       } else {
         displayNameByUserId = (profileRows || []).reduce((acc: Record<string, string>, row: any) => {
-          if (typeof row.user_id === 'string' && typeof row.display_name === 'string') {
-            acc[row.user_id] = row.display_name;
+          if (typeof row.user_id === 'string' && typeof row.name === 'string') {
+            acc[row.user_id] = row.name;
           }
           return acc;
         }, {});

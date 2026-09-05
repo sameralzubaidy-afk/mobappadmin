@@ -64,32 +64,44 @@ export function BadgeEditor({ badge, onClose, onSuccess }: BadgeEditorProps) {
     setUploadProgress('Uploading icon...');
 
     try {
-      const supabase = createAuthenticatedClient();
-      const filePath = `icons/${badge.id}-${Date.now()}.${file.name.split('.').pop()}`;
+      // Upload through the server API route (service role), which bypasses the
+      // `badge-icons` storage RLS that rejected the authenticated client's
+      // direct storage INSERT. Mirrors the working category-icon upload path.
+      const adminSecret = process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '';
+      const headers: Record<string, string> = {};
+      if (adminSecret) {
+        headers['x-admin-secret'] = adminSecret;
+      }
 
-      // Upload to Supabase Storage
-      const { error: uploadError } = await supabase.storage
-        .from('badge-icons')
-        .upload(filePath, file);
+      const formData = new FormData();
+      formData.append('badgeId', badge.id);
+      formData.append('file', file);
 
-      if (uploadError) throw uploadError;
+      const uploadResponse = await fetch('/api/admin/badges/upload-icon', {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
 
-      setUploadProgress('Generating public URL...');
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('badge-icons')
-        .getPublicUrl(filePath);
+      const uploadPayload = await uploadResponse.json().catch(() => ({}));
+      if (!uploadResponse.ok) {
+        throw new Error(uploadPayload?.error || 'Failed to upload icon');
+      }
+      const publicUrl = uploadPayload?.url as string | undefined;
+      if (!publicUrl) {
+        throw new Error('Upload succeeded but no icon URL was returned');
+      }
 
       setUploadProgress('Updating badge record...');
 
       // Get current user session to get JWT token
+      const supabase = createAuthenticatedClient();
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         throw new Error('No active session');
       }
 
-      // Call Edge Function to update badge with service role (bypasses RLS)
+      // Call Edge Function to update badge (validates admin + writes badges.icon_url)
       const updateResponse = await fetch(
         `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/badges-update-icon`,
         {
@@ -117,7 +129,9 @@ export function BadgeEditor({ badge, onClose, onSuccess }: BadgeEditorProps) {
       }, 1500);
     } catch (err: any) {
       console.error('Error uploading icon:', err);
-      setError(err.message || 'Failed to upload icon');
+      // Friendly fallback so a raw backend string (e.g. a storage RLS error)
+      // never reaches the admin UI on a regression.
+      setError('We couldn\'t upload this icon right now. Please try again in a moment.');
       setUploadProgress(null);
     } finally {
       setUploading(false);

@@ -185,6 +185,35 @@ export default function PoliciesPage() {
     }
   };
 
+  // DT-116 (item 9): delete an archived disposable version (never accepted by
+  // users) so QA test artifacts don't accumulate. The API refuses deletion when
+  // any user accepted it — that error surfaces in the alert below.
+  const deleteArchived = async (policyId: string) => {
+    if (!confirm('Delete this archived version? This cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/admin/policies/${policyId}`, {
+        method: 'DELETE',
+        headers: {
+          'x-admin-secret': process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '',
+        },
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to delete policy');
+      }
+
+      alert('Archived version deleted');
+      fetchPolicies();
+    } catch (error) {
+      console.error('Error deleting archived policy:', error);
+      alert(error instanceof Error ? error.message : 'Failed to delete policy');
+    }
+  };
+
   const PolicyList = ({ policyType, title }: { policyType: PolicyType; title: string }) => {
     const policyList = policies[policyType];
     const publishedPolicy = policyList.find(p => p.status === 'published');
@@ -261,13 +290,22 @@ export default function PoliciesPage() {
                         </>
                       )}
                       {policy.status === 'archived' && (
-                        <button
-                          onClick={() => restorePolicy(policy.id)}
-                          className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm"
-                          data-testid={`restore-${policy.id}-button`}
-                        >
-                          Make Active
-                        </button>
+                        <>
+                          <button
+                            onClick={() => restorePolicy(policy.id)}
+                            className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm"
+                            data-testid={`restore-${policy.id}-button`}
+                          >
+                            Make Active
+                          </button>
+                          <button
+                            onClick={() => deleteArchived(policy.id)}
+                            className="bg-white border border-red-300 text-red-600 px-3 py-1 rounded hover:bg-red-50 text-sm"
+                            data-testid={`delete-archived-${policy.id}-button`}
+                          >
+                            Delete
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
