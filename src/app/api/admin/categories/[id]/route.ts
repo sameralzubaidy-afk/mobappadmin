@@ -241,5 +241,39 @@ export async function DELETE(
     );
   }
 
+  // DEV-TASK-115 item 2: delete the category's uploaded icon / bonus-badge
+  // storage objects so they don't orphan under category-icons/<id>/ when the
+  // category row is deleted. Best-effort: the category row is already gone, so
+  // a storage failure must NOT fail the delete — log and continue.
+  try {
+    const { data: iconObjects, error: listIconsError } = await supabase.storage
+      .from('category-icons')
+      .list(categoryId);
+
+    if (listIconsError) {
+      console.warn(
+        `[DELETE /categories/${categoryId}] Could not list category icons for cleanup: ${listIconsError.message}`
+      );
+    } else if (iconObjects && iconObjects.length > 0) {
+      const pathsToRemove = iconObjects.map(
+        (obj: { name: string }) => `${categoryId}/${obj.name}`
+      );
+      const { error: removeIconsError } = await supabase.storage
+        .from('category-icons')
+        .remove(pathsToRemove);
+
+      if (removeIconsError) {
+        console.warn(
+          `[DELETE /categories/${categoryId}] Could not remove category icons: ${removeIconsError.message}`
+        );
+      }
+    }
+  } catch (storageCleanupErr) {
+    console.warn(
+      `[DELETE /categories/${categoryId}] Category icon storage cleanup failed:`,
+      storageCleanupErr
+    );
+  }
+
   return NextResponse.json({ success: true }, { status: 200 });
 }

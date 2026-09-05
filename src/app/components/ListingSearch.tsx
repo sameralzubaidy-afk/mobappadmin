@@ -157,6 +157,15 @@ export default function ListingSearch() {
     filters.category !== 'all' ||
     filters.status !== 'all' ||
     filters.spEligibleOnly;
+  // DEV-TASK-115 item 4: a "bare-text" search is an item-name-only search with
+  // no narrowing filters. When it returns zero rows, surface the seller-email +
+  // status hint — QA found that combination reliably surfaces the intended row.
+  const isBareTextSearch =
+    filters.query.trim() !== '' &&
+    filters.sellerEmail.trim() === '' &&
+    filters.category === 'all' &&
+    filters.status === 'all' &&
+    !filters.spEligibleOnly;
   const [loading, setLoading] = useState(false);
   const [selectedListingIds, setSelectedListingIds] = useState<Set<string>>(new Set());
   const [selectedListing, setSelectedListing] = useState<ListingSearchResult | null>(null);
@@ -924,7 +933,14 @@ export default function ListingSearch() {
 
             {listings.length === 0 ? (
               <div className="px-6 py-12 text-center text-gray-500">
-                No listings found. Try adjusting your search filters.
+                <p>No listings found. Try adjusting your search filters.</p>
+                {isBareTextSearch && (
+                  <p className="mt-3 text-sm text-gray-400">
+                    Tip: searching by item name alone can return no results even
+                    when the listing exists. Add the seller's email and/or a
+                    status filter (e.g., Pending) to narrow it down.
+                  </p>
+                )}
               </div>
             ) : (
               <>
