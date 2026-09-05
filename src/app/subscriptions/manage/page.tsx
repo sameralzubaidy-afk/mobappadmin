@@ -3,6 +3,7 @@
 // filepath: p2p-kids-admin/src/app/subscriptions/manage/page.tsx
 
 import { useState, useEffect, FormEvent } from "react";
+import { createClient } from "@supabase/supabase-js";
 import type {
   SubscriptionWithProfile,
   SubscriptionMetrics,
@@ -89,6 +90,13 @@ export default function SubscriptionManagementPage() {
   const [searchTerm, setSearchTerm] = useState("");
 
   const adminSecret = process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || "";
+
+  // Browser supabase client — resolves the acting admin id so the grace-config
+  // saves below record updated_by (DEV-TASK-112 item 7).
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+  );
 
   useEffect(() => {
     loadSubscriptions();
@@ -224,6 +232,12 @@ export default function SubscriptionManagementPage() {
       }
 
       const configEndpoint = buildAdminApiUrl("/api/admin/config");
+      // DEV-TASK-112 item 7: record which admin made the edit — the route
+      // forwards user_id -> p_user_id so secure_upsert_admin_config writes
+      // admin_config.updated_by and logs the audit row (was null before).
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       const res = await fetch(configEndpoint, {
         method: "PATCH",
         headers: {
@@ -233,6 +247,7 @@ export default function SubscriptionManagementPage() {
         body: JSON.stringify({
           key: "grace_period_days",
           value: String(days),
+          user_id: user?.id || null,
         }),
       });
 
@@ -278,6 +293,12 @@ export default function SubscriptionManagementPage() {
       }
 
       const configEndpoint = buildAdminApiUrl("/api/admin/config");
+      // DEV-TASK-112 item 7: record which admin made the edit — the route
+      // forwards user_id -> p_user_id so secure_upsert_admin_config writes
+      // admin_config.updated_by and logs the audit row (was null before).
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       const res = await fetch(configEndpoint, {
         method: "PATCH",
         headers: {
@@ -287,6 +308,7 @@ export default function SubscriptionManagementPage() {
         body: JSON.stringify({
           key: "grace_reminder_thresholds",
           value: JSON.stringify(thresholds),
+          user_id: user?.id || null,
         }),
       });
 

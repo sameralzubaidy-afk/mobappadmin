@@ -82,6 +82,7 @@ interface SearchFilters {
     | 'rejected'
     | 'flagged'
     | 'sold'
+    | 'paused'
     | 'draft'
     | 'deleted';
   spEligibleOnly: boolean;
@@ -102,6 +103,7 @@ const getStatusBadgeClass = (status: string): string => {
   if (status === 'needs_edits') return 'bg-orange-100 text-orange-800';
   if (status === 'rejected') return 'bg-red-100 text-red-800';
   if (status === 'sold') return 'bg-gray-100 text-gray-800';
+  if (status === 'paused') return 'bg-gray-200 text-gray-700';
   if (status === 'draft') return 'bg-yellow-100 text-yellow-800';
   return 'bg-red-100 text-red-800';
 };
@@ -146,6 +148,15 @@ export default function ListingSearch() {
   const [listings, setListings] = useState<ListingSearchResult[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [totalCount, setTotalCount] = useState(0);
+  // DEV-TASK-112 item 9: an active search/filter means the visible rows are a
+  // page window of a (possibly larger) matching set, so the Results header
+  // discloses the page scope instead of implying the number is the full set.
+  const isFilterActive =
+    filters.query.trim() !== '' ||
+    filters.sellerEmail.trim() !== '' ||
+    filters.category !== 'all' ||
+    filters.status !== 'all' ||
+    filters.spEligibleOnly;
   const [loading, setLoading] = useState(false);
   const [selectedListingIds, setSelectedListingIds] = useState<Set<string>>(new Set());
   const [selectedListing, setSelectedListing] = useState<ListingSearchResult | null>(null);
@@ -819,6 +830,7 @@ export default function ListingSearch() {
               <option value="rejected">Rejected</option>
               <option value="flagged">Flagged</option>
               <option value="sold">Sold</option>
+              <option value="paused">Paused</option>
               <option value="draft">Draft</option>
               <option value="deleted">Deleted</option>
             </select>
@@ -880,7 +892,14 @@ export default function ListingSearch() {
           <div className="bg-white rounded-lg shadow overflow-hidden">
             <div className="bg-gray-50 px-6 py-4 border-b">
               <h3 className="text-lg font-semibold">
-                Results ({totalCount}) 
+                {isFilterActive ? (
+                  <>
+                    Results ({listings.length} on this page) of {totalCount}{' '}
+                    matching
+                  </>
+                ) : (
+                  <>Results ({totalCount})</>
+                )}
                 {totalCount > ITEMS_PER_PAGE && (
                   <span className="text-sm font-normal text-gray-600 ml-2">
                     Page {filters.page} of {Math.ceil(totalCount / ITEMS_PER_PAGE)}
