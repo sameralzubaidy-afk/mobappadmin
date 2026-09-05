@@ -56,6 +56,7 @@ function cents(n: number): string {
 
 export default function PaymentsPage() {
   const [rows, setRows] = useState<PaymentRow[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState('');
@@ -82,6 +83,7 @@ export default function PaymentsPage() {
       const json = await res.json();
       if (json.error) throw new Error(json.error);
       setRows(json.data || []);
+      setTotal(json.total || 0);
     } catch (err: any) {
       setError(err.message || 'Failed to load payments');
     } finally {
@@ -110,10 +112,13 @@ export default function PaymentsPage() {
       </div>
 
       {/* Summary strip */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-2">
         <div className="bg-white rounded shadow-sm border border-gray-200 p-4">
-          <p className="text-sm text-gray-500">Payments</p>
+          <p className="text-sm text-gray-500">Payments (this page)</p>
           <p className="text-2xl font-bold">{rows.length}</p>
+          {total > 0 && (
+            <p className="text-xs text-gray-500 mt-1">of {total} matching</p>
+          )}
         </div>
         <div className="bg-white rounded shadow-sm border border-gray-200 p-4">
           <p className="text-sm text-gray-500">Total Charged</p>
@@ -128,6 +133,10 @@ export default function PaymentsPage() {
           <p className="text-2xl font-bold text-green-700">{cents(netCollected)}</p>
         </div>
       </div>
+      <p className="text-xs text-gray-400 mb-6">
+        Summary figures reflect the rows shown above
+        {total > rows.length ? ` (the first ${rows.length} of ${total} matching).` : '.'}
+      </p>
 
       {/* Filters */}
       <div className="bg-white rounded shadow-sm border border-gray-200 p-4 mb-6 flex flex-col md:flex-row gap-3">

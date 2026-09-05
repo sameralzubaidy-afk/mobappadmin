@@ -95,11 +95,15 @@ function PaginationBar({
   totalPages,
   totalItems,
   label,
+  note,
+  showTotalWord = true,
 }: {
   currentPage: number;
   totalPages: number;
   totalItems: number;
   label: string;
+  note?: string;
+  showTotalWord?: boolean;
 }) {
   const searchParams = new URLSearchParams();
 
@@ -122,7 +126,9 @@ function PaginationBar({
           <>
             Showing page <span className="font-medium">{currentPage}</span> of{' '}
             <span className="font-medium">{totalPages}</span> —{' '}
-            <span className="font-medium">{totalItems}</span> {label} total
+            <span className="font-medium">{totalItems}</span> {label}
+            {showTotalWord ? ' total' : ''}
+            {note && <span className="text-gray-400 ml-1">({note})</span>}
           </>
         ) : (
           <span>No {label} found</span>
@@ -326,6 +332,12 @@ export default async function TradesListPage({ searchParams }: Props) {
             totalPages={totalPages}
             totalItems={totalItems}
             label="bundles"
+            showTotalWord={false}
+            note={
+              rawTrades.length >= 500
+                ? 'first 500 trades loaded — bundle count may be capped'
+                : 'all matching trades loaded'
+            }
           />
         </div>
       </div>

@@ -594,7 +594,7 @@ export default function UsersPage() {
       <div className="bg-white rounded shadow border border-gray-200 overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-200 flex justify-between items-center">
           <h2 className="text-lg font-semibold">
-            Users ({total} total, page {page} of {totalPages})
+            Users ({users.length} on this page) of {total} total · page {page} of {totalPages}
           </h2>
         </div>
 

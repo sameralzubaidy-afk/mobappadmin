@@ -256,7 +256,7 @@ export default function ReviewModerationPage() {
             </p>
           </div>
           <p className="text-sm font-medium text-gray-500">
-            {sortedReports.length} of {reports.length} reviews
+            Results ({paginatedReports.length} on this page) of {sortedReports.length} matching reviews
           </p>
         </div>
       </div>

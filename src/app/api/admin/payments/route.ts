@@ -51,12 +51,22 @@ export async function GET(req: NextRequest) {
       urlQuery += `&${orClause}`;
     }
 
-    const resp = await fetch(urlQuery, { headers, cache: 'no-store' });
+    const resp = await fetch(urlQuery, {
+      headers: { ...headers, Prefer: 'count=exact' },
+      cache: 'no-store',
+    });
     if (!resp.ok) {
       const text = await resp.text();
       console.error('[api/admin/payments] fetch failed:', resp.status, text);
       return NextResponse.json({ error: `Fetch failed: ${resp.status}` }, { status: 500 });
     }
+
+    // DEV-TASK-113 (2026-09-05) item 6: PostgREST reports the EXACT total of
+    // matching rows in the Content-Range header (e.g. "0-99/1234") even though
+    // the response body is capped at `limit`. The page discloses the on-page
+    // window vs. this total instead of presenting a silently-truncated count.
+    const contentRange = resp.headers.get('content-range') || '';
+    const total = parseInt(contentRange.split('/')[1] || '0', 10) || 0;
 
     const rows = await resp.json();
 
@@ -88,7 +98,7 @@ export async function GET(req: NextRequest) {
       seller_name: names.get(r.seller_id) || '',
     }));
 
-    return NextResponse.json({ data: enriched });
+    return NextResponse.json({ data: enriched, total });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     console.error('[api/admin/payments] unexpected error:', message);
