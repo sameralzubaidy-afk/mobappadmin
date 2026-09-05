@@ -122,6 +122,95 @@ async function fetchLatestSuccessfulBillingAmounts(
   return billingMap;
 }
 
+/**
+ * DEV-TASK-117 (item 8): resolve the most recent admin subscription action
+ * recorded in admin_audit_logs (plural) for each user_id, plus the acting
+ * admin's name/email. The subscriptions table stores no actor column, so the
+ * audit trail is the only source of "who cancelled this". Falls back to an
+ * empty map when nothing is recorded (e.g. pre-DT117 rows written before the
+ * audit inserts were fixed).
+ */
+async function fetchLatestAdminSubscriptionAudits(
+  userIds: string[],
+): Promise<
+  Record<
+    string,
+    {
+      actor_id: string | null;
+      actor_name: string | null;
+      actor_email: string | null;
+      action_type: string;
+      created_at: string | null;
+    }
+  >
+> {
+  const result: Record<string, any> = {};
+
+  if (userIds.length === 0) {
+    return result;
+  }
+
+  const { data, error } = await supabase
+    .from("admin_audit_logs")
+    .select("entity_id, actor_id, action_type, created_at")
+    .eq("entity_type", "subscription")
+    .in("entity_id", userIds)
+    .in("action_type", [
+      "subscription_manually_cancelled",
+      "subscription_reactivated",
+      "trial_extended",
+    ])
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.warn(
+      "[Subscriptions API] admin_audit_logs query error:",
+      error,
+    );
+    return result;
+  }
+
+  // Keep only the latest row per user (rows are ordered created_at desc)
+  const actorIds = new Set<string>();
+  for (const row of data || []) {
+    if (result[row.entity_id]) continue;
+    result[row.entity_id] = {
+      actor_id: row.actor_id ?? null,
+      actor_name: null,
+      actor_email: null,
+      action_type: row.action_type,
+      created_at: row.created_at ?? null,
+    };
+    if (row.actor_id) actorIds.add(row.actor_id);
+  }
+
+  if (actorIds.size > 0) {
+    const { data: actorProfiles, error: actorError } = await supabase
+      .from("profiles")
+      .select("user_id, name, email")
+      .in("user_id", Array.from(actorIds));
+
+    if (actorError) {
+      console.warn(
+        "[Subscriptions API] actor profiles query error:",
+        actorError,
+      );
+    } else {
+      const profileByActor = new Map(
+        (actorProfiles || []).map((p) => [p.user_id, p]),
+      );
+      Object.values(result).forEach((entry) => {
+        if (!entry.actor_id) return;
+        const actor = profileByActor.get(entry.actor_id);
+        entry.actor_name = actor?.name ?? null;
+        entry.actor_email = actor?.email ?? null;
+      });
+    }
+  }
+
+  return result;
+}
+
 const escapeForLike = (value: string) => value.replace(/([%_])/g, "\\$1");
 
 /**
@@ -377,6 +466,13 @@ export async function GET(request: Request) {
     const billingMap =
       await fetchLatestSuccessfulBillingAmounts(subscriptionIds);
 
+    // DEV-TASK-117 (item 8): resolve each row's latest admin subscription
+    // action (who cancelled/reactivated/extended trial) so the manage page can
+    // surface the reason + actor for grace-period/cancelled rows.
+    const adminAuditMap = await fetchLatestAdminSubscriptionAudits(
+      subscriptionIds,
+    );
+
     // Check if we should include Free users (those in profiles but NOT in subscriptions)
     const enrichedSubscriptions = (subscriptions || []).map((sub) => {
       const profile = profiles[sub.user_id];
@@ -391,6 +487,7 @@ export async function GET(request: Request) {
         ...sub,
         display_price_cents: displayPriceCents,
         tier: tierEntry,
+        latest_admin_action: adminAuditMap[sub.user_id] || null,
         profile: {
           user_id: sub.user_id,
           display_name: profile?.display_name || null,

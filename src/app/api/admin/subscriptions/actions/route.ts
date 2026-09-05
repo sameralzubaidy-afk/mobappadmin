@@ -2,6 +2,7 @@
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getActingAdminId } from '@/lib/adminAuth';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -74,6 +75,12 @@ export async function POST(request: Request) {
       );
     }
 
+    // DEV-TASK-117 (QA Task 32 Part 2): recover the acting admin from the
+    // client's Bearer JWT so the admin_audit_logs row records WHO acted.
+    // NULL fallback when only the shared secret is presented — the audit row
+    // still writes (actor_id is nullable) rather than failing the action.
+    const actorId = await getActingAdminId(request);
+
     const body = await request.json();
     const { action, user_id, days, reason } = body;
 
@@ -102,15 +109,15 @@ export async function POST(request: Request) {
 
     switch (action) {
       case 'manually_cancel':
-        result = await handleManualCancel(subscription, reason);
+        result = await handleManualCancel(subscription, actorId, reason);
         break;
       
       case 'extend_trial':
-        result = await handleExtendTrial(subscription, days);
+        result = await handleExtendTrial(subscription, actorId, days);
         break;
       
       case 'reactivate':
-        result = await handleReactivate(subscription, reason);
+        result = await handleReactivate(subscription, actorId, reason);
         break;
       
       default:
@@ -134,7 +141,7 @@ export async function POST(request: Request) {
   }
 }
 
-async function handleManualCancel(subscription: any, reason?: string) {
+async function handleManualCancel(subscription: any, actorId: string | null, reason?: string) {
   const now = new Date().toISOString();
   const gracePeriodDays = await getGracePeriodDaysFromConfig();
   
@@ -164,22 +171,36 @@ async function handleManualCancel(subscription: any, reason?: string) {
     return { error: 'Failed to cancel subscription', details: error.message };
   }
 
-  // Log admin action
-  await supabase.from('admin_audit_logs').insert({
-    admin_user_id: 'system', // TODO: Extract from auth session
-    action: 'subscription_manually_cancelled',
-    target_user_id: subscription.user_id,
-    changes: { 
-      old_status: subscription.status, 
+  // Log admin action — admin_audit_logs (plural) live schema is
+  // actor_id/action_type/entity_type/entity_id/payload/reason (R61 /
+  // DEV-TASK-117). The old columns (admin_user_id/action/target_user_id/
+  // changes) do not exist on the live table, so the insert silently 42703'd
+  // and NO audit row was ever written. Non-blocking: log a write failure,
+  // never fail the state action.
+  const { error: auditError } = await supabase.from('admin_audit_logs').insert({
+    actor_id: actorId,
+    action_type: 'subscription_manually_cancelled',
+    entity_type: 'subscription',
+    entity_id: subscription.user_id,
+    payload: {
+      old_status: subscription.status,
       new_status: newStatus,
-      reason 
+      reason: reason ?? null,
+      cancelled_at: now,
     },
+    reason: reason ?? 'admin_manual_cancellation',
   });
+  if (auditError) {
+    console.error(
+      `[Admin Subscription Actions] Audit insert failed (manually_cancel, user ${subscription.user_id}):`,
+      auditError.message
+    );
+  }
 
   return { success: true, data, message: `Subscription moved to ${newStatus}` };
 }
 
-async function handleExtendTrial(subscription: any, days?: number) {
+async function handleExtendTrial(subscription: any, actorId: string | null, days?: number) {
   if (subscription.status !== 'trial') {
     return { 
       error: 'Can only extend trial for users currently in trial status',
@@ -221,17 +242,25 @@ async function handleExtendTrial(subscription: any, days?: number) {
     return { error: 'Failed to extend trial', details: error.message };
   }
 
-  // Log admin action
-  await supabase.from('admin_audit_logs').insert({
-    admin_user_id: 'system', // TODO: Extract from auth session
-    action: 'trial_extended',
-    target_user_id: subscription.user_id,
-    changes: { 
+  // Log admin action (admin_audit_logs live schema — see handleManualCancel)
+  const { error: auditError } = await supabase.from('admin_audit_logs').insert({
+    actor_id: actorId,
+    action_type: 'trial_extended',
+    entity_type: 'subscription',
+    entity_id: subscription.user_id,
+    payload: {
       old_trial_end_date: trialEndSource,
       new_trial_end_date: newTrialEnds.toISOString(),
-      days_added: days 
+      days_added: days,
     },
+    reason: null,
   });
+  if (auditError) {
+    console.error(
+      `[Admin Subscription Actions] Audit insert failed (extend_trial, user ${subscription.user_id}):`,
+      auditError.message
+    );
+  }
 
   return { 
     success: true, 
@@ -240,7 +269,7 @@ async function handleExtendTrial(subscription: any, days?: number) {
   };
 }
 
-async function handleReactivate(subscription: any, reason?: string) {
+async function handleReactivate(subscription: any, actorId: string | null, reason?: string) {
   if (!['cancelled', 'grace_period', 'expired', 'paused'].includes(subscription.status)) {
     return { 
       error: 'Can only reactivate cancelled, grace_period, expired, or paused subscriptions',
@@ -256,6 +285,7 @@ async function handleReactivate(subscription: any, reason?: string) {
     .update({
       status: 'active',
       cancelled_at: null,
+      cancel_reason: null, // DEV-TASK-117: clear the stale admin reason on reactivate
       grace_ends_at: null,
       grace_started_at: null,
       paused_until: null,
@@ -272,17 +302,25 @@ async function handleReactivate(subscription: any, reason?: string) {
     return { error: 'Failed to reactivate subscription', details: error.message };
   }
 
-  // Log admin action
-  await supabase.from('admin_audit_logs').insert({
-    admin_user_id: 'system', // TODO: Extract from auth session
-    action: 'subscription_reactivated',
-    target_user_id: subscription.user_id,
-    changes: { 
-      old_status: subscription.status, 
+  // Log admin action (admin_audit_logs live schema — see handleManualCancel)
+  const { error: auditError } = await supabase.from('admin_audit_logs').insert({
+    actor_id: actorId,
+    action_type: 'subscription_reactivated',
+    entity_type: 'subscription',
+    entity_id: subscription.user_id,
+    payload: {
+      old_status: subscription.status,
       new_status: 'active',
-      reason 
+      reason: reason ?? null,
     },
+    reason: reason ?? null,
   });
+  if (auditError) {
+    console.error(
+      `[Admin Subscription Actions] Audit insert failed (reactivate, user ${subscription.user_id}):`,
+      auditError.message
+    );
+  }
 
   return { 
     success: true, 

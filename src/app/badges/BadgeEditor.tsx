@@ -38,6 +38,7 @@ export function BadgeEditor({ badge, onClose, onSuccess }: BadgeEditorProps) {
     sort_order: badge.sort_order,
   });
   const [uploading, setUploading] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
@@ -135,6 +136,62 @@ export function BadgeEditor({ badge, onClose, onSuccess }: BadgeEditorProps) {
       setUploadProgress(null);
     } finally {
       setUploading(false);
+    }
+  };
+
+  // DEV-TASK-117 (item 6): remove the badge icon entirely (delete the storage
+  // object + clear badges.icon_url) so test/disposable icons don't linger with
+  // no way to be cleared. Mirrors the upload path but via DELETE
+  // /api/admin/badges/icon (service-role storage remove + DB clear + audit).
+  const handleRemoveIcon = async () => {
+    if (!badge.icon_url) return;
+
+    if (
+      !window.confirm(
+        'Remove this badge icon? The image will be deleted and the badge will have no icon.',
+      )
+    ) {
+      return;
+    }
+
+    setError(null);
+    setRemoving(true);
+
+    try {
+      const adminSecret = process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '';
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (adminSecret) headers['x-admin-secret'] = adminSecret;
+
+      // Send the acting admin's JWT so the server records who removed the icon
+      // in badge_audit_logs (user_id/admin_id are NOT NULL on that table).
+      const supabase = createAuthenticatedClient();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) throw new Error('No active session');
+      headers['Authorization'] = `Bearer ${session.access_token}`;
+
+      const response = await fetch('/api/admin/badges/icon', {
+        method: 'DELETE',
+        headers,
+        body: JSON.stringify({ badgeId: badge.id }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Failed to remove icon');
+      }
+
+      onSuccess();
+    } catch (err: any) {
+      console.error('Error removing icon:', err);
+      setError(
+        "We couldn't remove this icon right now. Please try again in a moment.",
+      );
+    } finally {
+      setRemoving(false);
     }
   };
 
@@ -240,6 +297,17 @@ export function BadgeEditor({ badge, onClose, onSuccess }: BadgeEditorProps) {
               <p className="mt-2 text-xs text-gray-500">
                 PNG, JPEG, WebP, or SVG (max 5MB)
               </p>
+              {badge.icon_url && (
+                <button
+                  type="button"
+                  onClick={handleRemoveIcon}
+                  disabled={removing || uploading || saving}
+                  data-testid="badge-editor-icon-remove"
+                  className="mt-2 inline-flex items-center px-4 py-2 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-white hover:bg-red-50 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {removing ? 'Removing...' : 'Remove Icon'}
+                </button>
+              )}
             </div>
           </div>
         </div>

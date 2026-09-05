@@ -58,6 +58,26 @@ const formatCancelReason = (raw: string | null | undefined): string => {
   return CANCEL_REASON_LABELS[trimmed] ?? trimmed;
 };
 
+// Human-readable status badge text (the raw snake_case value stays available on
+// the badge element via data-status for locators/tests). DEV-TASK-117 (item 8).
+const STATUS_LABELS: Record<string, string> = {
+  free: "Free",
+  trial: "Trial",
+  active: "Active",
+  cancelled: "Cancelled",
+  paused: "Paused",
+  grace_period: "Grace Period",
+  expired: "Expired",
+};
+
+// Human-readable labels for admin subscription actions recorded in
+// admin_audit_logs.action_type (DEV-TASK-117 item 8).
+const ADMIN_ACTION_LABELS: Record<string, string> = {
+  subscription_manually_cancelled: "Manually cancelled",
+  subscription_reactivated: "Reactivated",
+  trial_extended: "Trial extended",
+};
+
 export default function SubscriptionManagementPage() {
   const [subscriptions, setSubscriptions] = useState<SubscriptionWithProfile[]>(
     [],
@@ -352,6 +372,32 @@ export default function SubscriptionManagementPage() {
     });
   };
 
+  // DEV-TASK-117 (item 8): build the "why is this row in grace/cancelled"
+  // detail from the row's own cancel_reason plus the audit-trail actor. Returns
+  // null when there is nothing meaningful to add (not an admin action, or no
+  // audit row yet — pre-DT117 rows have no recorded actor).
+  const buildAdminActionDetail = (
+    sub: SubscriptionWithProfile,
+  ): string | null => {
+    const action = sub.latest_admin_action;
+    if (!action) return null;
+    if (!["grace_period", "cancelled", "expired"].includes(sub.status)) {
+      return null;
+    }
+    const actor =
+      action.actor_name || action.actor_email || action.actor_id || "admin";
+    const when = action.created_at ? formatDate(action.created_at) : null;
+    const actionLabel =
+      ADMIN_ACTION_LABELS[action.action_type] || action.action_type;
+    const reasonLabel = sub.cancel_reason
+      ? formatCancelReason(sub.cancel_reason)
+      : null;
+    const parts = [`${actionLabel} by ${actor}`];
+    if (when) parts.push(`on ${when}`);
+    if (reasonLabel && reasonLabel !== "—") parts.push(`(${reasonLabel})`);
+    return parts.join(" ");
+  };
+
   const getStatusBadgeClass = (status: SubscriptionStatus): string => {
     const baseClass = "px-2 py-1 text-xs font-semibold rounded-full";
     switch (status) {
@@ -386,11 +432,20 @@ export default function SubscriptionManagementPage() {
       const actionEndpoint = buildAdminApiUrl(
         "/api/admin/subscriptions/actions",
       );
+      // DEV-TASK-117: send the acting admin's Supabase session JWT so the
+      // server can record WHO performed the action (admin_audit_logs.actor_id).
+      // Mirrors the dispute-action client pattern; secret-only callers leave
+      // the actor unrecorded (server falls back to null), never blocking.
+      const {
+        data: { session: actionSession },
+      } = await supabase.auth.getSession();
+      const accessToken = actionSession?.access_token ?? null;
       const res = await fetch(actionEndpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-admin-secret": adminSecret,
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         },
         body: JSON.stringify({
           action,
@@ -841,14 +896,35 @@ export default function SubscriptionManagementPage() {
                     </p>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
-                    <span className={getStatusBadgeClass(sub.status)}>
-                      {sub.status}
+                    <span
+                      className={getStatusBadgeClass(sub.status)}
+                      data-testid={`status-badge-${sub.user_id}`}
+                      data-status={sub.status}
+                    >
+                      {STATUS_LABELS[sub.status] ?? sub.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                    {sub.cancelled_at && sub.cancel_reason
-                      ? formatCancelReason(sub.cancel_reason)
-                      : "—"}
+                  <td className="px-4 py-3 text-sm text-gray-600">
+                    {sub.cancelled_at && sub.cancel_reason ? (
+                      <span
+                        className="inline-flex flex-col gap-0.5"
+                        data-testid={`cancel-reason-${sub.user_id}`}
+                      >
+                        <span className="whitespace-nowrap">
+                          {formatCancelReason(sub.cancel_reason)}
+                        </span>
+                        {buildAdminActionDetail(sub) && (
+                          <span
+                            className="text-xs text-gray-400 whitespace-nowrap"
+                            data-testid={`cancel-reason-detail-${sub.user_id}`}
+                          >
+                            ⓘ {buildAdminActionDetail(sub)}
+                          </span>
+                        )}
+                      </span>
+                    ) : (
+                      "—"
+                    )}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                     {sub.display_price_cents !== null &&

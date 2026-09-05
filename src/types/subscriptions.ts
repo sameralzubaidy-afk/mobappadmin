@@ -64,6 +64,15 @@ export interface SubscriptionWithProfile extends Subscription {
     price_cents: number | null;
     stripe_price_id: string | null;
   } | null;
+  // DEV-TASK-117 (item 8): the most recent admin subscription action recorded
+  // in admin_audit_logs (entity_type='subscription') for this user, if any.
+  latest_admin_action?: {
+    actor_id: string | null;
+    actor_name: string | null;
+    actor_email: string | null;
+    action_type: string;
+    created_at: string | null;
+  } | null;
 }
 
 export interface SubscriptionMetrics {
