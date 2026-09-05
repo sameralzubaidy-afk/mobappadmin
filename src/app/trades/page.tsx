@@ -94,6 +94,7 @@ function PaginationBar({
   currentPage,
   totalPages,
   totalItems,
+  onPageCount,
   label,
   note,
   showTotalWord = true,
@@ -101,6 +102,8 @@ function PaginationBar({
   currentPage: number;
   totalPages: number;
   totalItems: number;
+  /** How many rows are actually rendered on the current page (window disclosure). */
+  onPageCount: number;
   label: string;
   note?: string;
   showTotalWord?: boolean;
@@ -126,6 +129,11 @@ function PaginationBar({
           <>
             Showing page <span className="font-medium">{currentPage}</span> of{' '}
             <span className="font-medium">{totalPages}</span> —{' '}
+            {/* DEV-TASK-114 (2026-09-05): align with the DT113 "(N on this
+                page) of M" window-disclosure pattern used by /users and
+                /reviews — the page window is now explicit, not just the
+                page-of counter. */}
+            <span className="font-medium">({onPageCount} on this page)</span> of{' '}
             <span className="font-medium">{totalItems}</span> {label}
             {showTotalWord ? ' total' : ''}
             {note && <span className="text-gray-400 ml-1">({note})</span>}
@@ -331,6 +339,7 @@ export default async function TradesListPage({ searchParams }: Props) {
             currentPage={safePage}
             totalPages={totalPages}
             totalItems={totalItems}
+            onPageCount={pagedGroups.length}
             label="bundles"
             showTotalWord={false}
             note={
@@ -498,6 +507,7 @@ export default async function TradesListPage({ searchParams }: Props) {
           currentPage={currentPage}
           totalPages={totalPages}
           totalItems={totalItems}
+          onPageCount={trades.length}
           label="trades"
         />
       </div>
