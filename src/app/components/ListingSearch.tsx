@@ -150,7 +150,7 @@ export default function ListingSearch() {
   const [selectedListingIds, setSelectedListingIds] = useState<Set<string>>(new Set());
   const [selectedListing, setSelectedListing] = useState<ListingSearchResult | null>(null);
   const [adminAction, setAdminAction] = useState<
-    'force_delete' | 'pause' | 'approve' | 'request_edits' | 'reject' | null
+    'force_delete' | 'pause' | 'approve' | 'unpause' | 'request_edits' | 'reject' | null
   >(null);
   const [actionReason, setActionReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
@@ -511,6 +511,55 @@ export default function ListingSearch() {
     } catch (err) {
       console.error('[ListingSearch] Pause exception:', err);
       alert(`Error pausing listing: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // QA Task 31-M finding 1 (P2): a paused listing had no UI path back to
+  // available — only Force Delete (or a DB reset). This restores availability
+  // via the LIGHTER admin_unpause_listing RPC (paused → available + audit row),
+  // NOT admin_approve_listing — so no duplicate "Listing Approved" notification
+  // and no starter-pack re-check/eligibility side effects.
+  const handleUnpauseListing = async () => {
+    if (!selectedListing) {
+      alert('No listing selected');
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+
+      const { data, error } = await supabase.rpc('admin_unpause_listing', {
+        p_listing_id: selectedListing.id,
+        p_reason: actionReason?.trim() || 'Resumed via listing dashboard',
+      });
+
+      if (error) {
+        console.error('[ListingSearch] Resume error:', error);
+        alert(`Failed to resume listing: ${error.message}`);
+        return;
+      }
+
+      // Check if RPC response indicates failure
+      if (data && !data.success) {
+        console.error('[ListingSearch] Resume failed:', data.error);
+        alert(`Failed to resume listing: ${data.error}`);
+        return;
+      }
+
+      console.log('[ListingSearch] Resume response:', data);
+      alert('Listing resumed and is available again');
+      setSelectedListing(null);
+      setAdminAction(null);
+      setActionReason('');
+
+      // Refresh search results — read the LATEST filters (not the stale closure)
+      // so a filter change made while the action modal was open isn't clobbered.
+      setTimeout(refreshListingsAfterAction, 100);
+    } catch (err) {
+      console.error('[ListingSearch] Resume exception:', err);
+      alert(`Error resuming listing: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setActionLoading(false);
     }
@@ -1230,6 +1279,15 @@ export default function ListingSearch() {
                     ✅ Approve Listing
                   </button>
                 )}
+                {selectedListing.status === 'paused' && (
+                  <button
+                    onClick={() => setAdminAction('unpause')}
+                    data-testid={`btn-resume-${selectedListing.id}`}
+                    className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm"
+                  >
+                    ▶️ Resume / Make Available
+                  </button>
+                )}
                 {(selectedListing.status === 'pending' || selectedListing.status === 'flagged') && (
                   <button
                     onClick={() => setAdminAction('request_edits')}
@@ -1248,7 +1306,7 @@ export default function ListingSearch() {
                     ⛔ Reject Listing
                   </button>
                 )}
-                {selectedListing.status !== 'deleted' && (
+                {selectedListing.status !== 'deleted' && selectedListing.status !== 'paused' && (
                   <button
                     onClick={() => setAdminAction('pause')}
                     data-testid={`btn-pause-${selectedListing.id}`}
@@ -1280,11 +1338,13 @@ export default function ListingSearch() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     {adminAction === 'approve'
                       ? 'Admin Notes (optional):'
-                      : adminAction === 'request_edits'
-                        ? 'Decision Note (required for Request Edits):'
-                        : adminAction === 'reject'
-                          ? 'Decision Note (required for Reject):'
-                          : `Reason for ${adminAction === 'force_delete' ? 'deletion' : 'pausing'}:`}
+                      : adminAction === 'unpause'
+                        ? 'Reason for resuming (optional):'
+                        : adminAction === 'request_edits'
+                          ? 'Decision Note (required for Request Edits):'
+                          : adminAction === 'reject'
+                            ? 'Decision Note (required for Reject):'
+                            : `Reason for ${adminAction === 'force_delete' ? 'deletion' : 'pausing'}:`}
                   </label>
                   <textarea
                     value={actionReason}
@@ -1292,11 +1352,13 @@ export default function ListingSearch() {
                     placeholder={
                       adminAction === 'approve'
                         ? 'e.g., Listing verified as appropriate'
-                        : adminAction === 'request_edits'
-                          ? 'Provide clear edits required for seller...'
-                          : adminAction === 'reject'
-                            ? 'Provide clear rejection reason for seller...'
-                            : 'Enter reason for admin action...'
+                        : adminAction === 'unpause'
+                          ? 'Optional note for the audit log (e.g., restored by mistake)...'
+                          : adminAction === 'request_edits'
+                            ? 'Provide clear edits required for seller...'
+                            : adminAction === 'reject'
+                              ? 'Provide clear rejection reason for seller...'
+                              : 'Enter reason for admin action...'
                     }
                     data-testid="listings-reason-input"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -1313,9 +1375,11 @@ export default function ListingSearch() {
                           ? handleForceDelete
                           : adminAction === 'pause'
                             ? handlePauseListing
-                            : adminAction === 'request_edits'
-                              ? () => handleModerationStatusUpdate('needs_edits')
-                              : () => handleModerationStatusUpdate('rejected')
+                            : adminAction === 'unpause'
+                              ? handleUnpauseListing
+                              : adminAction === 'request_edits'
+                                ? () => handleModerationStatusUpdate('needs_edits')
+                                : () => handleModerationStatusUpdate('rejected')
                     }
                     disabled={
                       actionLoading ||
@@ -1337,9 +1401,11 @@ export default function ListingSearch() {
                               ? 'Delete'
                               : adminAction === 'pause'
                                 ? 'Pause'
-                                : adminAction === 'request_edits'
-                                  ? 'Request Edits'
-                                  : 'Reject'
+                                : adminAction === 'unpause'
+                                  ? 'Resume'
+                                  : adminAction === 'request_edits'
+                                    ? 'Request Edits'
+                                    : 'Reject'
                         }`}
                   </button>
                   <button
