@@ -208,6 +208,41 @@ async function fetchLatestAdminSubscriptionAudits(
     }
   }
 
+  // DT-118 (item 6): some actors (e.g. samer@samer.com — the RBAC admin) have
+  // NO `profiles` row on staging, so the profiles join above leaves
+  // actor_name/actor_email null and the manage page's ⓘ falls back to a raw
+  // UUID. Resolve the actor's email (and user_metadata name when present) from
+  // auth.users via the admin API for any actor the profiles join missed. This
+  // is read-only identity enrichment — admin_audit_logs still stores only
+  // actor_id (by design).
+  const missingActorIds = new Set<string>();
+  Object.values(result).forEach((entry) => {
+    if (entry.actor_id && !entry.actor_name && !entry.actor_email) {
+      missingActorIds.add(entry.actor_id);
+    }
+  });
+  for (const actorId of Array.from(missingActorIds)) {
+    try {
+      const { data: actorUserData } = await supabase.auth.admin.getUserById(
+        actorId,
+      );
+      const actorUser = actorUserData?.user;
+      if (!actorUser) continue;
+      Object.values(result).forEach((entry) => {
+        if (entry.actor_id === actorId) {
+          entry.actor_email = actorUser.email ?? entry.actor_email;
+          entry.actor_name =
+            entry.actor_name ??
+            (typeof actorUser.user_metadata?.name === "string"
+              ? actorUser.user_metadata.name
+              : null);
+        }
+      });
+    } catch (authErr) {
+      console.warn("[Subscriptions API] actor auth lookup error:", authErr);
+    }
+  }
+
   return result;
 }
 
