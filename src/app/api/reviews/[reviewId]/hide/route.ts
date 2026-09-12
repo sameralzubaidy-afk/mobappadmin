@@ -35,19 +35,30 @@ export async function POST(request: NextRequest,
     );
 
     // Update review to mark as hidden (is_hidden = true) + moderation status
-    const { error: updateError } = await supabase
+    // FIX-Task-22 item 0: `.select('id')` makes the update report the rows it ACTUALLY
+    // touched — supabase-js treats a 0-row UPDATE as { error: null }, which would let
+    // this route answer `success: true` for a review id that does not exist.
+    const { data: updatedRows, error: updateError } = await supabase
       .from('reviews')
       .update({
         is_hidden: true,
         review_status: 'hidden',
         updated_at: new Date().toISOString(),
       })
-      .eq('id', reviewId);
+      .eq('id', reviewId)
+      .select('id');
 
     if (updateError) {
       return NextResponse.json(
         { error: 'Failed to hide review', details: updateError },
         { status: 500 }
+      );
+    }
+
+    if (!updatedRows || updatedRows.length === 0) {
+      return NextResponse.json(
+        { error: 'Review not found', review_id: reviewId },
+        { status: 404 }
       );
     }
 

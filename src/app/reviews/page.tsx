@@ -71,6 +71,12 @@ export default function ReviewModerationPage() {
   // can say how stale it is instead of asserting a total that may be minutes old.
   const [lastLoadedAt, setLastLoadedAt] = useState<number | null>(null);
   const [nowTick, setNowTick] = useState(() => Date.now());
+  // FIX-Task-22 item 6: the only recovery path from a mistaken Hide is Keep, which the
+  // moderator had to find on a row they may have already scrolled past. Hiding now
+  // offers a one-shot Undo on that row, and the row's action is labelled "Restore
+  // review" while it is hidden. Deliberately single-shot (the button disappears once
+  // used) so it cannot be double-applied.
+  const [undoHiddenId, setUndoHiddenId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchReportedReviews();
@@ -145,6 +151,8 @@ export default function ReviewModerationPage() {
           r.review_id === reviewId ? { ...r, is_hidden: true, review_status: 'hidden' } : r
         )
       );
+      // FIX-Task-22 item 6: surface the Undo on the row we just hid.
+      setUndoHiddenId(reviewId);
       // FIX-Task-21 item 4: reconcile the queue (and its headline total) with the
       // server once the moderation action has landed.
       await fetchReportedReviews({ silent: true });
@@ -178,6 +186,8 @@ export default function ReviewModerationPage() {
       );
       // FIX-Task-21 item 4: the kept review leaves the queue server-side, so refetch or
       // the header total keeps counting it.
+      // FIX-Task-22 item 6: a Restore/Undo supersedes the pending Undo affordance.
+      setUndoHiddenId(null);
       await fetchReportedReviews({ silent: true });
     } catch (err) {
       alert('Error keeping review: ' + (err instanceof Error ? err.message : 'Unknown error'));
@@ -547,10 +557,18 @@ export default function ReviewModerationPage() {
                             <button
                               onClick={() => keepReport(group.review_id)}
                               className="text-green-600 hover:text-green-900 bg-green-50 px-3 py-1.5 rounded-md transition-colors text-xs"
-                              title="Keep Review (Reject Reports)"
+                              title={
+                                group.is_hidden
+                                  ? 'Restore this review (reject the reports)'
+                                  : 'Keep Review (Reject Reports)'
+                              }
                               data-testid={`btn-review-keep-${group.review_id}`}
                             >
-                              Keep
+                              {/* FIX-Task-22 item 6: on a hidden row this is the recovery
+                                  path, so label it for what it actually does. The testID is
+                                  deliberately unchanged — QA automation and the
+                                  FIX-Task-20/22 records pin `btn-review-keep-<id>`. */}
+                              {group.is_hidden ? 'Restore review' : 'Keep'}
                             </button>
                             <button
                               onClick={() => hideReview(group.review_id)}
@@ -560,6 +578,19 @@ export default function ReviewModerationPage() {
                             >
                               Hide
                             </button>
+                            {/* FIX-Task-22 item 6: one-shot recovery from a mistaken Hide.
+                                Renders only on the row just hidden, and only until it is
+                                used (or another moderation action runs). */}
+                            {undoHiddenId === group.review_id && (
+                              <button
+                                onClick={() => keepReport(group.review_id)}
+                                className="text-amber-800 hover:text-amber-900 bg-amber-100 px-3 py-1.5 rounded-md transition-colors text-xs font-medium"
+                                title="Undo the Hide — restore this review"
+                                data-testid={`btn-review-undo-hide-${group.review_id}`}
+                              >
+                                ↺ Undo Hide
+                              </button>
+                            )}
                             {/* Ban User action removed */}
                           </div>
                         </td>
