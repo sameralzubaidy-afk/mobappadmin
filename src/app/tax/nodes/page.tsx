@@ -46,6 +46,10 @@ export default function TaxNodesPage() {
   const [edits, setEdits] = useState<Record<string, EditState>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
+  // FIX-Task-20 F8: inline error state replacing native alert() — a browser alert
+  // cannot be styled, blocks the page, and wedges browser automation until dismissed.
+  const [pageError, setPageError] = useState<string | null>(null);
+  const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
   // Last-edited metadata per node, sourced from admin_audit_log
   // (action='update_node_tax_config') — the same audit trail used elsewhere.
   const [nodeMeta, setNodeMeta] = useState<Record<string, NodeAuditMeta>>({});
@@ -57,7 +61,8 @@ export default function TaxNodesPage() {
       .select('id, name, tax_rate, tax_jurisdiction, tax_enabled')
       .order('name', { ascending: true });
     if (error) {
-      alert(`Failed to load nodes: ${error.message}`);
+      // FIX-Task-20 F8: inline error, not alert().
+      setPageError(`We couldn't load the node list: ${error.message}`);
       setLoading(false);
       return;
     }
@@ -118,12 +123,25 @@ export default function TaxNodesPage() {
     load();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const clearRowError = (id: string) =>
+    setRowErrors((prev) => {
+      if (!prev[id]) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+
+  const setRowError = (id: string, message: string) =>
+    setRowErrors((prev) => ({ ...prev, [id]: message }));
+
   const save = async (id: string) => {
     const e = edits[id];
     if (!e) return;
+    clearRowError(id);
     const pct = parseFloat(e.ratePercent);
     if (Number.isNaN(pct) || pct < 0 || pct > 100) {
-      alert('Tax rate must be a number between 0 and 100 (percent).');
+      // FIX-Task-20 F8: inline validation (was alert()).
+      setRowError(id, 'Tax rate must be a number between 0 and 100 (percent).');
       return;
     }
     setSavingId(id);
@@ -135,12 +153,15 @@ export default function TaxNodesPage() {
     });
     setSavingId(null);
     if (error) {
-      alert(`Save failed: ${error.message}`);
+      setRowError(id, `We couldn't save this node's tax settings: ${error.message}`);
       return;
     }
     const r = data as { success: boolean; error?: { message: string } };
     if (!r?.success) {
-      alert(`Save failed: ${r?.error?.message ?? 'unknown'}`);
+      setRowError(
+        id,
+        `We couldn't save this node's tax settings: ${r?.error?.message ?? 'unknown error'}.`
+      );
       return;
     }
     await load();
@@ -178,6 +199,25 @@ export default function TaxNodesPage() {
         className="border rounded px-3 py-2 mb-4 w-full max-w-md"
         data-testid="tax-nodes-filter"
       />
+
+      {/* FIX-Task-20 F8: page-level inline error banner (same pattern as /tax/rules). */}
+      {pageError && (
+        <div
+          className="bg-red-50 border border-red-300 text-red-700 rounded p-3 mb-4 flex items-start justify-between gap-4"
+          data-testid="tax-nodes-error"
+          role="alert"
+        >
+          <span className="text-sm">{pageError}</span>
+          <button
+            type="button"
+            onClick={() => setPageError(null)}
+            className="text-red-700 font-bold leading-none"
+            aria-label="Dismiss error"
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <div>Loading…</div>
@@ -271,6 +311,16 @@ export default function TaxNodesPage() {
                       >
                         {savingId === n.id ? 'Saving…' : 'Save'}
                       </button>
+                      {/* FIX-Task-20 F8: per-row inline error, in place of alert(). */}
+                      {rowErrors[n.id] && (
+                        <div
+                          className="text-red-600 text-xs mt-1 max-w-[18rem]"
+                          data-testid={`tax-node-error-${n.id}`}
+                          role="alert"
+                        >
+                          {rowErrors[n.id]}
+                        </div>
+                      )}
                     </td>
                   </tr>
                 );

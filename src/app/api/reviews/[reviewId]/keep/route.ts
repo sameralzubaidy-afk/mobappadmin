@@ -46,6 +46,9 @@ export async function POST(request: NextRequest,
       .update({
         review_status: 'reviewed',
         report_count: 0,
+        // FIX-Task-20 F9: the flag tracks LIVE reports, so it must clear together with
+        // report_count — otherwise a KEPT review stays marked as reported forever.
+        has_been_reported: false,
         is_hidden: false,
         updated_at: new Date().toISOString(),
       })

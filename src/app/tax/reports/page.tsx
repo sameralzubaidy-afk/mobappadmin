@@ -129,6 +129,13 @@ export default function TaxReportsPage() {
     setSummary(r.data);
   };
 
+  // FIX-Task-20 item 13: run the default report (summary, last 30 days, all nodes) once
+  // on mount, so the page opens with data instead of an empty panel that needs a manual
+  // Run press — and the ~4s aggregation has a skeleton to show while it works.
+  useEffect(() => {
+    run('summary');
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   /**
    * TAX-008: Export full per-transaction CSV via get_tax_export_data RPC.
    * TAX-REFUND-INTEGRITY (2026-07-24): Uses the new richer export with 25+ columns
@@ -214,7 +221,10 @@ export default function TaxReportsPage() {
     <div className="p-6" data-testid="tax-reports-page">
       <h1 className="text-2xl font-semibold mb-2">Sales Tax — Reports</h1>
       <p className="text-sm text-gray-600 mb-4">
-        Tax Collected reflects successful card captures. Pending Tax is shown for operations only and is not included in Net Tax Payable.
+        Tax Collected is the gross tax captured in this period — including transactions that
+        were later refunded, which are reported separately as Tax Refunded. Net Tax Payable =
+        Tax Collected − Tax Refunded. Pending/Authorized tax is operational-only (see
+        &ldquo;Operational Tax Details&rdquo;) and is never included in Net Tax Payable.
       </p>
 
       {/* TAX-008: Report type tabs — added reconciliation_required */}
@@ -300,6 +310,28 @@ export default function TaxReportsPage() {
       </div>
 
       {error && <div className="text-red-600 mb-4">{error}</div>}
+
+      {/* FIX-Task-20 item 13: skeleton for the first aggregation (~4s) so the admin is not
+          staring at an empty panel with only a disabled button label as feedback. */}
+      {loading && !summary && (
+        <div data-testid="tax-report-skeleton" className="animate-pulse space-y-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="border rounded p-3">
+                <div className="h-3 w-20 bg-gray-200 rounded mb-2" />
+                <div className="h-5 w-16 bg-gray-200 rounded" />
+              </div>
+            ))}
+          </div>
+          <div className="h-4 w-40 bg-gray-200 rounded" />
+          <div className="border rounded overflow-hidden">
+            <div className="h-8 bg-gray-100" />
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="h-8 border-t bg-white" />
+            ))}
+          </div>
+        </div>
+      )}
 
       {summary && reportType === 'summary' && (
         <div data-testid="tax-report-results">

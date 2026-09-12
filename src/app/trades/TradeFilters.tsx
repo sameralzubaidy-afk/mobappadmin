@@ -215,6 +215,7 @@ export default function TradeFilters({
                   defaultValue={initialSearch}
                   placeholder="Search by ID, Name, Email, or Phone..."
                   className="border border-gray-300 rounded px-3 py-2 text-sm flex-grow"
+                  data-testid="trades-search-input"
                 />
                 <button type="submit" className="bg-blue-600 text-white px-3 py-2 text-sm rounded hover:bg-blue-700 whitespace-nowrap">
                   Search

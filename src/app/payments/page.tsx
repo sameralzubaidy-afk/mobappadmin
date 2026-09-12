@@ -114,6 +114,8 @@ export default function PaymentsPage() {
       {/* Summary strip */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-2">
         <div className="bg-white rounded shadow-sm border border-gray-200 p-4">
+          {/* FIX-Task-20 item 15: use the shared DT113 disclosure phrasing
+              (N on this page) of M matching — as on /users, /reviews, /listings, /audit. */}
           <p className="text-sm text-gray-500">Payments (this page)</p>
           <p className="text-2xl font-bold">{rows.length}</p>
           {total > 0 && (
@@ -135,7 +137,7 @@ export default function PaymentsPage() {
       </div>
       <p className="text-xs text-gray-400 mb-6">
         Summary figures reflect the rows shown above
-        {total > rows.length ? ` (the first ${rows.length} of ${total} matching).` : '.'}
+        {total > rows.length ? ` (${rows.length} on this page of ${total} matching).` : '.'}
       </p>
 
       {/* Filters */}

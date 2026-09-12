@@ -107,7 +107,13 @@ export default function CategoryTaxMappingPage() {
 
   /* ---- Save a single mapping ---- */
   const save = async () => {
-    if (!editingCategoryId || !editValue) return;
+    // FIX-Task-20 F6: never no-op silently. The Save button is also disabled while
+    // the dropdown is empty, but this guards every other entry path (keyboard submit,
+    // a stale render, a future caller) with a visible reason.
+    if (!editingCategoryId || !editValue) {
+      setError('Choose a tax category before saving this mapping.');
+      return;
+    }
     setSaving(editingCategoryId);
     setError(null);
     setSuccess(null);
