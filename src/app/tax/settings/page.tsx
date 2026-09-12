@@ -287,7 +287,16 @@ export default function TaxSettingsPage() {
         />
       </div>
 
-      {/* TAX-009: Warning banner when global tax is disabled */}
+      {/* TAX-009: Warning banner when global tax is disabled.
+          FIX-Task-21 item 3 (QA finding N5): this banner rendered applied-tense copy
+          ("Sales tax is currently OFF") straight from PENDING form state, so simply
+          un-ticking the switch claimed tax was already off while the platform was
+          still collecting it. Only the loaded baseline says what is actually in force:
+            · baseline ON  + form OFF => pending  (will be turned off on save)
+            · baseline OFF            => applied  (is currently OFF)
+          The `tax-disabled-warning` test id is kept on both variants so the existing
+          banner assertions still find it, and the applied-tense sentence returns as
+          soon as the change is saved (persistChanges re-baselines the form). */}
       {!state.enabled && (
         <div
           className="flex items-center gap-2 bg-yellow-50 border border-yellow-300 text-yellow-800 rounded p-3 mb-4"
@@ -295,8 +304,17 @@ export default function TaxSettingsPage() {
         >
           <span className="text-lg">⚠️</span>
           <span className="text-sm">
-            <strong>Sales tax is currently OFF.</strong> No tax will be applied to any
-            transactions across all nodes until you enable it and save.
+            {baseline?.enabled ? (
+              <>
+                <strong>Sales tax will be turned OFF on save.</strong> Tax is still being
+                applied to new offers and checkouts until you press Save Settings.
+              </>
+            ) : (
+              <>
+                <strong>Sales tax is currently OFF.</strong> No tax will be applied to any
+                transactions across all nodes until you enable it and save.
+              </>
+            )}
           </span>
         </div>
       )}
@@ -436,7 +454,14 @@ export default function TaxSettingsPage() {
           className="px-4 py-2 rounded bg-blue-600 text-white disabled:opacity-50"
           data-testid="tax-settings-save"
         >
-          {saving ? 'Saving…' : 'Save Settings'}
+          {/* FIX-Task-21 item 7: put the blast radius ON the button, not only in the
+              line above it — "Save 1 change" is visible even if the dirty-count line
+              scrolls out of view. Label still contains "Save" so existing locators work. */}
+          {saving
+            ? 'Saving…'
+            : changedKeys.length > 0
+              ? `Save ${changedKeys.length} ${changedKeys.length === 1 ? 'change' : 'changes'}`
+              : 'Save Settings'}
         </button>
       </div>
 

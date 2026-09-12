@@ -134,6 +134,12 @@ test.describe('Tax Admin Config — Group P (TC-P01 to TC-P08)', () => {
   });
 
   // ─── TC-P04: Global tax toggle + warning banner ──────────────────────────
+  // FIX-Task-21 item 3: this test used to pass for the WRONG reason. It un-ticked the
+  // switch and clicked Save, but turning tax off opens a confirmation modal (FIX-Task-20
+  // item 0), so the save never happened — the assertion below then matched the
+  // PENDING-state banner, which wrongly read "Sales tax is currently OFF". Now that the
+  // banner distinguishes pending from applied, the test must drive the modal, or it
+  // would be asserting copy that is deliberately no longer shown before saving.
   test('TC-P04 — global tax toggle off shows warning banner', async ({ page }) => {
     await ensureAdminSession(page, '/tax/settings');
     await expect(page.getByTestId('tax-settings-page')).toBeVisible({ timeout: 10_000 });
@@ -152,16 +158,26 @@ test.describe('Tax Admin Config — Group P (TC-P01 to TC-P08)', () => {
       await toggle.uncheck();
     }
 
-    // Save.
+    // FIX-Task-21 item 3: while the change is UNSAVED the banner must speak in the
+    // future tense — the platform is still collecting tax.
+    await expect(page.getByTestId('tax-disabled-warning')).toBeVisible({ timeout: 6_000 });
+    await expect(page.getByTestId('tax-disabled-warning')).toContainText(
+      /sales tax will be turned off on save/i
+    );
+
+    // Save — turning tax off is gated behind an explicit confirmation modal.
     const saveBtn = page.locator('button:has-text("Save")').first();
     await saveBtn.click();
+    const confirmModal = page.getByTestId('tax-killswitch-confirm-modal');
+    await expect(confirmModal).toBeVisible({ timeout: 6_000 });
+    await page.getByTestId('tax-killswitch-confirm-accept').click();
     await page.waitForLoadState('networkidle');
 
-    // TC-P04 Expected: warning banner visible.
+    // TC-P04 Expected: once saved, the banner switches to applied tense.
     await expect(page.getByTestId('tax-disabled-warning')).toBeVisible({ timeout: 6_000 });
     await expect(page.getByTestId('tax-disabled-warning')).toContainText(/sales tax is currently off/i);
 
-    // Restore: turn tax back ON.
+    // Restore: turn tax back ON (re-enabling needs no confirmation modal).
     const toggleRestore = page.locator('input[type="checkbox"][name*="enabled"], [data-testid*="tax-enabled"]').first();
     const restored = await toggleRestore.isChecked().catch(() => false);
     if (!restored) await toggleRestore.check().catch(() => {});

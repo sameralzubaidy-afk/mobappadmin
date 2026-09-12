@@ -41,6 +41,20 @@ type SortKey = 'reports' | 'newest' | 'oldest';
 
 const ITEMS_PER_PAGE = 10;
 
+/**
+ * FIX-Task-21 item 8: relative age for the queue-freshness label. Coarse on purpose —
+ * the queue refreshes after every moderation action, so this is a confidence signal,
+ * not a live timer.
+ */
+function formatAgo(ms: number): string {
+  const seconds = Math.max(0, Math.round(ms / 1000));
+  if (seconds < 10) return 'just now';
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  return `${Math.round(minutes / 60)}h ago`;
+}
+
 const adminSecret = process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '';
 
 export default function ReviewModerationPage() {
@@ -53,14 +67,35 @@ export default function ReviewModerationPage() {
   const [sortKey, setSortKey] = useState<SortKey>('reports');
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedReview, setExpandedReview] = useState<string | null>(null);
+  // FIX-Task-21 item 8: when the queue was last read, + a ticking clock so the label
+  // can say how stale it is instead of asserting a total that may be minutes old.
+  const [lastLoadedAt, setLastLoadedAt] = useState<number | null>(null);
+  const [nowTick, setNowTick] = useState(() => Date.now());
 
   useEffect(() => {
     fetchReportedReviews();
   }, []);
 
-  const fetchReportedReviews = async () => {
+  // FIX-Task-21 item 8: drives the relative "queue updated …" label. A 5s tick is
+  // fine-grained enough to be useful without re-rendering this (potentially large)
+  // table every second.
+  useEffect(() => {
+    const ticker = setInterval(() => setNowTick(Date.now()), 5000);
+    return () => clearInterval(ticker);
+  }, []);
+
+  /**
+   * FIX-Task-21 item 4 (QA finding N6): the header total is derived from `reports`, so
+   * after a Keep/Hide removed a row the queue's headline went stale — it kept
+   * advertising "of N matching reviews" for a row that was no longer in the queue.
+   * Every moderation action now refetches.
+   *
+   * `silent: true` skips the loading state (so the table the admin is reading does not
+   * flash away) and leaves the last good data in place if the refresh fails.
+   */
+  const fetchReportedReviews = async ({ silent = false }: { silent?: boolean } = {}) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const response = await fetch('/api/reviews/reported', {
         cache: 'no-store', // Extra insurance against browser caching
         headers: {
@@ -76,11 +111,16 @@ export default function ReviewModerationPage() {
       const data = await response.json();
       setReports(data);
       setError(null);
+      setLastLoadedAt(Date.now());
+      setNowTick(Date.now());
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-      setReports([]);
+      // A failed SILENT refresh must not wipe the table the admin is reading.
+      if (!silent) {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+        setReports([]);
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -105,6 +145,9 @@ export default function ReviewModerationPage() {
           r.review_id === reviewId ? { ...r, is_hidden: true, review_status: 'hidden' } : r
         )
       );
+      // FIX-Task-21 item 4: reconcile the queue (and its headline total) with the
+      // server once the moderation action has landed.
+      await fetchReportedReviews({ silent: true });
     } catch (err) {
       alert('Error hiding review: ' + (err instanceof Error ? err.message : 'Unknown error'));
     }
@@ -133,6 +176,9 @@ export default function ReviewModerationPage() {
             : r
         )
       );
+      // FIX-Task-21 item 4: the kept review leaves the queue server-side, so refetch or
+      // the header total keeps counting it.
+      await fetchReportedReviews({ silent: true });
     } catch (err) {
       alert('Error keeping review: ' + (err instanceof Error ? err.message : 'Unknown error'));
     }
@@ -255,9 +301,20 @@ export default function ReviewModerationPage() {
               Review and moderate reported reviews from the community.
             </p>
           </div>
-          <p className="text-sm font-medium text-gray-500">
-            Results ({paginatedReports.length} on this page) of {sortedReports.length} matching reviews
-          </p>
+          {/* FIX-Task-21 item 8: the total is only as fresh as the last read, so say when
+              that was and how many reviews are still in the queue, instead of presenting
+              a static number as though it were live. Wrapped in one flex child so the
+              justify-between header keeps its two-column layout. */}
+          <div className="text-right">
+            <p className="text-sm font-medium text-gray-500">
+              Results ({paginatedReports.length} on this page) of {sortedReports.length} matching reviews
+            </p>
+            {lastLoadedAt !== null && (
+              <p className="text-xs text-gray-400 mt-1" data-testid="reviews-freshness">
+                Queue updated {formatAgo(nowTick - lastLoadedAt)} · {reports.length} in queue
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
@@ -335,7 +392,7 @@ export default function ReviewModerationPage() {
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
           <p className="text-red-800">{error}</p>
           <button
-            onClick={fetchReportedReviews}
+            onClick={() => fetchReportedReviews()}
             className="mt-3 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
             data-testid="btn-reviews-retry"
           >
