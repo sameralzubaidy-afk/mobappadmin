@@ -5,6 +5,15 @@
 // (item price / platform fee / sales tax / SP / total) vs. refunded totals, sourced
 // from the `payments` + `trade_refunds` tables. Finance/ops can reconcile what was
 // actually charged and refunded per trade/bundle against the Stripe dashboard.
+//
+// FIX-Task-24 item 1 (2026-09-12): the row's state column is `derived_state`, NOT a
+// Stripe status. It is a projection written by the DB trigger
+// trg_payments_sync_from_trade -> fn_payments_sync_from_trade() from the trade's own
+// status/refund totals — e.g. it reads "captured" while the trade is in_progress,
+// when the real Stripe PaymentIntent is still an uncaptured authorization hold
+// (requires_capture). The column was renamed from `status` precisely so it is never
+// mistaken for Stripe ground truth again. For the real PI state, use the Stripe
+// dashboard (the `stripe_payment_intent_id` column is shown in the last table column).
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
@@ -31,14 +40,17 @@ interface PaymentRow {
   refunded_price_cents: number;
   refunded_fee_cents: number;
   refunded_tax_cents: number;
-  status: string;
+  /** Derived trade-mirror state from `payments.derived_state` — NOT a Stripe status. */
+  derived_state: string;
   created_at: string;
   updated_at: string;
   captured_at: string | null;
   refunded_at: string | null;
 }
 
-const STATUS_COLORS: Record<string, string> = {
+// Keyed by `payments.derived_state` values (FIX-Task-24 item 1: renamed from
+// STATUS_COLORS/`status` — the value is a trade-derived projection, not Stripe state).
+const DERIVED_STATE_COLORS: Record<string, string> = {
   pending: 'bg-gray-100 text-gray-700',
   requires_capture: 'bg-yellow-100 text-yellow-800',
   processing: 'bg-blue-100 text-blue-800',
@@ -59,7 +71,8 @@ export default function PaymentsPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [status, setStatus] = useState('');
+  // Named for what it is: this filter selects on `payments.derived_state`.
+  const [derivedState, setDerivedState] = useState('');
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
 
@@ -74,7 +87,10 @@ export default function PaymentsPage() {
     setError(null);
     try {
       const params = new URLSearchParams();
-      if (status) params.set('status', status);
+      // The API's inbound param name stays `status` (the /payments?status=failed deep
+      // link from the dashboard health strip depends on it); the route maps it onto the
+      // renamed `derived_state` field. See src/app/api/admin/payments/route.ts.
+      if (derivedState) params.set('status', derivedState);
       if (debouncedQuery) params.set('q', debouncedQuery);
       const res = await fetch(`/api/admin/payments?${params.toString()}`, {
         headers: { 'x-admin-secret': adminSecret },
@@ -89,7 +105,7 @@ export default function PaymentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [status, debouncedQuery]);
+  }, [derivedState, debouncedQuery]);
 
   useEffect(() => {
     load();
@@ -143,12 +159,13 @@ export default function PaymentsPage() {
       {/* Filters */}
       <div className="bg-white rounded shadow-sm border border-gray-200 p-4 mb-6 flex flex-col md:flex-row gap-3">
         <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
+          value={derivedState}
+          onChange={(e) => setDerivedState(e.target.value)}
           className="border border-gray-300 rounded px-3 py-2 text-sm bg-white"
+          aria-label="Filter by derived state"
           data-testid="payment-status-filter"
         >
-          <option value="">All Statuses</option>
+          <option value="">All derived states</option>
           <option value="pending">Pending</option>
           <option value="requires_capture">Requires Capture</option>
           <option value="processing">Processing</option>
@@ -161,6 +178,7 @@ export default function PaymentsPage() {
         </select>
         <input
           type="text"
+          aria-label="Search payments by trade id, payment intent id, or bundle id"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search trade id, PI id, or bundle id..."
@@ -175,6 +193,15 @@ export default function PaymentsPage() {
           Refresh
         </button>
       </div>
+
+      {/* FIX-Task-24 item 1: state this plainly on the surface so nobody reads the
+          pill as Stripe truth (it caused a near-miss HIGH "early capture" false
+          positive in QA on 2026-09-12). */}
+      <p className="text-xs text-gray-400 -mt-4 mb-6" data-testid="payment-derived-state-note">
+        The state pill is the trade-derived state we track in our own ledger — not the
+        payment processor&apos;s status. For a payment&apos;s real state in the processor, look up
+        the Stripe payment intent shown in the last column.
+      </p>
 
       {error && (
         <div className="bg-red-50 border border-red-200 rounded p-4 mb-6 text-red-700 text-sm">{error}</div>
@@ -202,7 +229,9 @@ export default function PaymentsPage() {
                   <th className="px-4 py-3 text-right font-semibold text-gray-600">SP</th>
                   <th className="px-4 py-3 text-right font-semibold text-gray-600">Charged</th>
                   <th className="px-4 py-3 text-right font-semibold text-gray-600">Refunded</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-600">Status</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-600">
+                    Derived state
+                  </th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-600">Stripe PI</th>
                 </tr>
               </thead>
@@ -232,8 +261,10 @@ export default function PaymentsPage() {
                       {(r.refunded_cents || 0) > 0 ? cents(r.refunded_cents) : '—'}
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_COLORS[r.status] || 'bg-gray-100 text-gray-700'}`}>
-                        {r.status.replace(/_/g, ' ')}
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-xs font-semibold ${DERIVED_STATE_COLORS[r.derived_state] || 'bg-gray-100 text-gray-700'}`}
+                      >
+                        {(r.derived_state || '—').replace(/_/g, ' ')}
                       </span>
                     </td>
                     <td className="px-4 py-3 font-mono text-xs text-gray-400 max-w-[120px] truncate">

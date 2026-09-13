@@ -17,7 +17,10 @@ export async function GET(req: NextRequest) {
     }
 
     const url = new URL(req.url);
-    const status = url.searchParams.get('status') || '';
+    // Inbound param name stays `status` for backward compatibility (the dashboard
+    // health strip deep-links to /payments?status=failed). It now filters on the
+    // `derived_state` column — see the mapping below.
+    const derivedState = url.searchParams.get('status') || '';
     const q = (url.searchParams.get('q') || '').trim();
     const limit = Math.min(Number(url.searchParams.get('limit')) || 100, 500);
     const offset = Math.max(Number(url.searchParams.get('offset')) || 0, 0);
@@ -40,8 +43,12 @@ export async function GET(req: NextRequest) {
     const base = `${supabaseUrl}/rest/v1/admin_payments_view?select=*&order=created_at.desc&limit=${limit}&offset=${offset}`;
     let urlQuery = base;
 
-    if (status) {
-      urlQuery += `&status=eq.${encodeURIComponent(status)}`;
+    // FIX-Task-24 item 1 (2026-09-12): `payments.status` was renamed to
+    // `payments.derived_state` (it is a trade-derived projection, NOT the Stripe
+    // PaymentIntent state — reading it as Stripe truth caused a near-miss false HIGH
+    // "early capture" finding). The view now exposes `derived_state`.
+    if (derivedState) {
+      urlQuery += `&derived_state=eq.${encodeURIComponent(derivedState)}`;
     }
     if (q) {
       // PostgREST OR across trade_id / stripe_payment_intent_id / bundle_id.
