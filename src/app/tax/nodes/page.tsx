@@ -9,9 +9,10 @@
  * - Writes via RPC `update_node_tax_config` (admin-gated server-side).
  */
 import React, { useEffect, useMemo, useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import { resolveAdminEmails } from '@/lib/settingsAudit';
 import SettingsLinkBanner from '@/components/settings/SettingsLinkBanner';
+// FIX-Task-23 item 2: shared browser client.
+import { supabaseBrowser } from '@/lib/supabase/client';
 
 interface NodeRow {
   id: string;
@@ -33,14 +34,8 @@ interface NodeAuditMeta {
 }
 
 export default function TaxNodesPage() {
-  const supabase = useMemo(
-    () =>
-      createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-      ),
-    []
-  );
+  // FIX-Task-23 item 2: shared browser client (the memo preserves stable identity).
+  const supabase = useMemo(() => supabaseBrowser, []);
   const [rows, setRows] = useState<NodeRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [edits, setEdits] = useState<Record<string, EditState>>({});

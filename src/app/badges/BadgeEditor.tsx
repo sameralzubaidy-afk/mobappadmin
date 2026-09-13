@@ -1,16 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { supabaseBrowser } from '@/lib/supabase/client';
 
-// Create authenticated Supabase client
-// The session is automatically stored in localStorage by Supabase Auth,
-// so each client instance will pick up the authenticated session JWT
+// FIX-Task-23 item 2: returns the SHARED browser client. Previously this built a NEW
+// client on every call — each one a duplicate GoTrue instance contending on the
+// `lock:sb-<ref>-auth-token` Web Lock. The session is still read from localStorage.
 function createAuthenticatedClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  return supabaseBrowser;
 }
 
 interface Badge {

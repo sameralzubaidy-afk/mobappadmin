@@ -3,7 +3,8 @@
 // filepath: p2p-kids-admin/src/app/config/page.tsx
 
 import { useState, useEffect } from "react";
-import { createClient } from "@supabase/supabase-js";
+// FIX-Task-23 item 2: shared browser client (see @/lib/supabase/client).
+import { supabaseBrowser } from "@/lib/supabase/client";
 import type { AdminConfigItem, SMSRateLimitStats } from "@/types/config";
 import { resolveAdminEmails } from "@/lib/settingsAudit";
 import SettingsLinkBanner from "@/components/settings/SettingsLinkBanner";
@@ -182,10 +183,8 @@ export default function ConfigPage() {
 
   const adminSecret = process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || "";
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
-  );
+  // FIX-Task-23 item 2: shared browser client (resolves the acting admin id).
+  const supabase = supabaseBrowser;
 
   const loadConfigFromApi = async () => {
     setLoading(true);

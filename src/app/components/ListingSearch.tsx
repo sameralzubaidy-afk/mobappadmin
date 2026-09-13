@@ -14,7 +14,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
+// FIX-Task-23 item 2: shared browser client (was a per-mount GoTrue instance).
+import { supabaseBrowser } from '@/lib/supabase/client';
 
 const adminSecret = process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '';
 
@@ -122,14 +123,9 @@ const isOtherCategory = (listing: ListingSearchResult): boolean => {
 };
 
 export default function ListingSearch() {
-  const supabase = useMemo(
-    () =>
-      createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      ),
-    []
-  );
+  // FIX-Task-23 item 2: the shared browser client is already a stable singleton, so
+  // the memo only preserves the previous reference semantics.
+  const supabase = useMemo(() => supabaseBrowser, []);
 
   // DEV-TASK-108 (Y08): read the ?q= deep-link param reactively (see the
   // deep-link effect below) so palette / "View all listings" navigations that

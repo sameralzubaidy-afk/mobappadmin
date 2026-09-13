@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+// FIX-Task-23 item 2: shared browser client.
+import { supabaseBrowser as supabase } from '@/lib/supabase/client';
 
 type PolicyType = 'terms_of_service' | 'privacy_policy' | 'liability_disclaimer';
 
@@ -12,11 +13,6 @@ const POLICY_LABELS: Record<PolicyType, string> = {
   privacy_policy: 'Privacy Policy',
   liability_disclaimer: 'Liability Disclaimer',
 };
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 export default function NewPolicyPage() {
   const searchParams = useSearchParams();

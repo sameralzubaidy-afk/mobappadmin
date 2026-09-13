@@ -13,7 +13,8 @@
  *   include_fee_in_tax_base    boolean — tax-category-rules
  */
 import React, { useEffect, useMemo, useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
+// FIX-Task-23 item 2: shared browser client.
+import { supabaseBrowser } from '@/lib/supabase/client';
 import {
   getAdminConfigMeta,
   getCurrentAdminId,
@@ -66,14 +67,8 @@ function normalizeConfig(state: State): Record<string, string> {
 }
 
 export default function TaxSettingsPage() {
-  const supabase = useMemo(
-    () =>
-      createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-      ),
-    []
-  );
+  // FIX-Task-23 item 2: shared browser client (the memo preserves stable identity).
+  const supabase = useMemo(() => supabaseBrowser, []);
   const [state, setState] = useState<State>({
     enabled: false,
     ratePercent: '0.00',

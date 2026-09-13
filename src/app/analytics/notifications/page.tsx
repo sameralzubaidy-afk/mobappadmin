@@ -13,7 +13,10 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+// FIX-Task-23 item 2: shared browser client. This dashboard previously used
+// createClientComponentClient() (auth-helpers), adding another GoTrue instance per
+// mount; it only reads metrics tables, so the anon browser client is equivalent.
+import { supabaseBrowser as supabase } from '@/lib/supabase/client';
 
 // InfoTooltip Component
 function InfoTooltip({ message }: { message: string }) {
@@ -114,8 +117,8 @@ export default function NotificationAnalyticsPage() {
   const [selectedNotificationType, setSelectedNotificationType] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const supabase = createClientComponentClient();
-
+  // FIX-Task-23 item 2: `supabase` comes from the shared browser client imported
+  // at the top of this file (previously a per-mount createClientComponentClient()).
   useEffect(() => {
     loadMetrics();
   }, [dateRange, selectedCategory, selectedNotificationType]);

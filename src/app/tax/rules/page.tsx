@@ -18,8 +18,9 @@
  */
 
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import { resolveAdminEmails } from '@/lib/settingsAudit';
+// FIX-Task-23 item 2: shared browser client.
+import { supabaseBrowser as supabase } from '@/lib/supabase/client';
 import SettingsLinkBanner from '@/components/settings/SettingsLinkBanner';
 
 /* ------------------------------------------------------------------ */
@@ -72,11 +73,6 @@ interface RuleForm {
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 const EMPTY_FORM: RuleForm = {
   tax_category_id: '',

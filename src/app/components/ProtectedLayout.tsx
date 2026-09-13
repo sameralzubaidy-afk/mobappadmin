@@ -1,15 +1,31 @@
+// File: p2p-kids-admin/src/app/components/ProtectedLayout.tsx
+//
+// ⛔ DEAD CODE — RETIRED (FIX-Task-23 item 2, 2026-09-12).
+//
+// Zero importers anywhere in `src/`. The live admin shell is
+// `src/components/layout/AdminShell.tsx`, wired via `src/app/layout.tsx`, and THAT is
+// where the "stuck on Loading…" auth-lock hang actually occurred. This file's dead
+// status was already documented in `docs/guide-currency-audit-ADM-2026-09-02.md` and
+// `BRAND-RENAME-AUDIT-SwapRound-2026-09-07.md`.
+//
+// Its only residual risk was a module-scope Supabase client of its own — a duplicate
+// GoTrue instance in the browser context, i.e. part of the contended-auth-lock
+// precondition. That client is now removed (shared client imported below).
+//
+// SAFE TO DELETE — manual one-liner (this session had no file-delete tool):
+//     rm p2p-kids-admin/src/app/components/ProtectedLayout.tsx
+//
+// Do NOT reintroduce a second auth shell or a second browser Supabase client:
+// extend AdminShell + `@/lib/supabase/client` instead.
+
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { createClient } from '@supabase/supabase-js';
+// FIX-Task-23 item 2: shared browser client.
+import { supabaseBrowser as supabase } from '@/lib/supabase/client';
 import { AdminNotifications } from './AdminNotifications';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 export function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();

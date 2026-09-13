@@ -5,12 +5,10 @@
 // supabase/migrations/20260809000001_admin_global_search.sql for the contract.
 // Row shapes here mirror the RPC's JSONB output 1:1.
 
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// FIX-Task-23 item 2: shared browser client. This module is imported by the
+// CLIENT-side command palette, so its module-scope client was one of the
+// duplicate GoTrue instances contending on the auth Web Lock.
+import { supabaseBrowser as supabase } from '@/lib/supabase/client';
 
 // ---------------------------------------------------------------------------
 // RPC row shapes (each maps to the JSONB objects the RPC builds)

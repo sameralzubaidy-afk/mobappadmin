@@ -10,7 +10,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { calculateCategorySP, getSPAnalyticsByCategory } from '@/lib/spConfigCategoryService';
-import { createClient } from '@supabase/supabase-js';
+// FIX-Task-23 item 2: shared browser client.
+import { supabaseBrowser } from '@/lib/supabase/client';
 import type { CategorySPAnalytics } from '@/types/category';
 
 interface CategoryRow {
@@ -26,10 +27,8 @@ const SP_SPENDING_CAP_MIN = 50;
 const SP_SPENDING_CAP_MAX = 80;
 
 function getClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  );
+  // FIX-Task-23 item 2: shared browser client (was a new GoTrue instance per call).
+  return supabaseBrowser;
 }
 
 export function SPRulesPanel() {

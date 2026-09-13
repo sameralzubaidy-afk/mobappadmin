@@ -9,7 +9,8 @@
  * per-transaction data; summary view uses get_tax_summary_for_period.
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
+// FIX-Task-23 item 2: shared browser client.
+import { supabaseBrowser } from '@/lib/supabase/client';
 
 interface NodeOpt {
   id: string;
@@ -75,14 +76,8 @@ function isoDaysAgo(days: number) {
 }
 
 export default function TaxReportsPage() {
-  const supabase = useMemo(
-    () =>
-      createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-      ),
-    []
-  );
+  // FIX-Task-23 item 2: shared browser client (the memo preserves stable identity).
+  const supabase = useMemo(() => supabaseBrowser, []);
   const [nodes, setNodes] = useState<NodeOpt[]>([]);
   const [startDate, setStartDate] = useState(isoDaysAgo(30));
   const [endDate, setEndDate] = useState(todayISO());

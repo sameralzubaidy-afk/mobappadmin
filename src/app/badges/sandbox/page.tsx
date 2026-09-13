@@ -1,14 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { supabaseBrowser } from '@/lib/supabase/client';
 
-// Create authenticated Supabase client
+// FIX-Task-23 item 2: returns the SHARED browser client (was a per-call duplicate
+// GoTrue instance — see @/lib/supabase/client).
 function createAuthenticatedClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  return supabaseBrowser;
 }
 
 interface User {

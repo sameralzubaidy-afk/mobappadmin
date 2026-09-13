@@ -1,16 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { supabaseBrowser } from '@/lib/supabase/client';
 
-// Create authenticated Supabase client
-// The session is automatically stored in localStorage by Supabase Auth,
-// so each client instance will pick up the authenticated session JWT
+// FIX-Task-23 item 2: returns the SHARED browser client (was a per-call duplicate
+// GoTrue instance — see @/lib/supabase/client).
 function createAuthenticatedClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  return supabaseBrowser;
 }
 
 interface Badge {

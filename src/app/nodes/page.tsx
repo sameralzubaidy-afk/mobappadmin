@@ -3,7 +3,8 @@
 // filepath: p2p-kids-admin/src/app/nodes/page.tsx
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { createClient } from '@supabase/supabase-js';
+// FIX-Task-23 item 2: shared browser client.
+import { supabaseBrowser } from '@/lib/supabase/client';
 import NodeFormModal from './NodeFormModal';
 import type { GeographicNode } from '@/types/nodes';
 
@@ -36,12 +37,9 @@ function formatInt(value: number | null | undefined): string {
 }
 
 export default function NodesPage() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-  const supabase = useMemo(
-    () => createClient(supabaseUrl, supabaseAnonKey),
-    [supabaseUrl, supabaseAnonKey]
-  );
+  // FIX-Task-23 item 2: the shared browser client is already a singleton, so the memo
+  // only preserves the previous stable-reference semantics.
+  const supabase = useMemo(() => supabaseBrowser, []);
 
   const [nodes, setNodes] = useState<GeographicNode[]>([]);
   const [loading, setLoading] = useState(true);

@@ -6,7 +6,8 @@
 // from the admin_config table via upsert_admin_config_setting RPC.
 
 import React, { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
+// FIX-Task-23 item 2: shared browser client.
+import { supabaseBrowser } from '@/lib/supabase/client';
 import {
   getAdminConfigMeta,
   getCurrentAdminId,
@@ -29,9 +30,8 @@ const DEFAULT_CONFIG: CartConfig = {
 };
 
 export default function CartSettingsPage() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-  const supabase = createClient(supabaseUrl, supabaseAnonKey);
+  // FIX-Task-23 item 2: shared browser client.
+  const supabase = supabaseBrowser;
 
   const [settings, setSettings] = useState<CartConfig>(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);

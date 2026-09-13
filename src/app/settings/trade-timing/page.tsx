@@ -9,7 +9,8 @@
 // F03/F05/F06/F08/F10 sections that drifted off this page).
 
 import React, { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
+// FIX-Task-23 item 2: shared browser client.
+import { supabaseBrowser } from '@/lib/supabase/client';
 import { TradeTimingConfig } from '@/types/config';
 import {
   getAdminConfigMeta,
@@ -142,9 +143,8 @@ const DEFAULT_CONFIG: Pick<TradeTimingConfig, ManagedTradeTimingKey> = {
 };
 
 export default function TradeTimingSettingsPage() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-  const supabase = createClient(supabaseUrl, supabaseAnonKey);
+  // FIX-Task-23 item 2: shared browser client.
+  const supabase = supabaseBrowser;
 
   const [settings, setSettings] = useState<Pick<TradeTimingConfig, ManagedTradeTimingKey>>(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);

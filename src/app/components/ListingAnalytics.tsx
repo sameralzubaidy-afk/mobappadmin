@@ -13,7 +13,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
+// FIX-Task-23 item 2: shared browser client (was a per-component GoTrue instance).
+import { supabaseBrowser } from '@/lib/supabase/client';
 
 interface ListingAnalytics {
   active_listings: number;
@@ -30,10 +31,8 @@ interface ListingAnalytics {
 }
 
 export default function ListingAnalytics() {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  // FIX-Task-23 item 2: shared browser client.
+  const supabase = supabaseBrowser;
 
   const [analytics, setAnalytics] = useState<ListingAnalytics | null>(null);
   const [loading, setLoading] = useState(true);

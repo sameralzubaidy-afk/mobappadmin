@@ -2,12 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// FIX-Task-23 item 2: shared browser client — the login page used to build its
+// own GoTrue instance, which added a second contender for the auth Web Lock.
+import { supabaseBrowser as supabase } from '@/lib/supabase/client';
 
 export default function LoginPage() {
   const router = useRouter();

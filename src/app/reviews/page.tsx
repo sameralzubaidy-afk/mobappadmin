@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+// FIX-Task-23 item 7: the relative-age formatter is now shared with the auth gate
+// (it used to be a local helper here — FIX-Task-21 item 8).
+import { formatAgo } from '@/lib/formatAgo';
 
 interface SubReport {
   id: string;
@@ -40,20 +43,6 @@ type StatusFilter = 'all' | 'pending_review' | 'reviewed' | 'hidden' | 'visible'
 type SortKey = 'reports' | 'newest' | 'oldest';
 
 const ITEMS_PER_PAGE = 10;
-
-/**
- * FIX-Task-21 item 8: relative age for the queue-freshness label. Coarse on purpose —
- * the queue refreshes after every moderation action, so this is a confidence signal,
- * not a live timer.
- */
-function formatAgo(ms: number): string {
-  const seconds = Math.max(0, Math.round(ms / 1000));
-  if (seconds < 10) return 'just now';
-  if (seconds < 60) return `${seconds}s ago`;
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  return `${Math.round(minutes / 60)}h ago`;
-}
 
 const adminSecret = process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '';
 

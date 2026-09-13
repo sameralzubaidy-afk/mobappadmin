@@ -3,7 +3,8 @@
 // filepath: p2p-kids-admin/src/app/subscriptions/manage/page.tsx
 
 import { useState, useEffect, FormEvent } from "react";
-import { createClient } from "@supabase/supabase-js";
+// FIX-Task-23 item 2: shared browser client (see @/lib/supabase/client).
+import { supabaseBrowser } from "@/lib/supabase/client";
 import type {
   SubscriptionWithProfile,
   SubscriptionMetrics,
@@ -112,11 +113,9 @@ export default function SubscriptionManagementPage() {
   const adminSecret = process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || "";
 
   // Browser supabase client — resolves the acting admin id so the grace-config
-  // saves below record updated_by (DEV-TASK-112 item 7).
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
-  );
+  // saves below record updated_by (DEV-TASK-112 item 7). FIX-Task-23 item 2: now the
+  // SHARED browser client, so it cannot add a competing auth-lock holder.
+  const supabase = supabaseBrowser;
 
   useEffect(() => {
     loadSubscriptions();

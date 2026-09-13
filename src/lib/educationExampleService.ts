@@ -1,13 +1,10 @@
 // FILE: p2p-kids-admin/src/lib/educationExampleService.ts
 // MODULE-18 V1 EDU-003: Education example service (admin CMS)
 
-import { createClient } from '@supabase/supabase-js';
+// FIX-Task-23 item 2: shared browser client (was a module-scope instance).
+import { supabaseBrowser as supabase } from './supabase/client';
 import type { EducationExample } from '../types/education';
 import { ContentValidationError } from '../types/education-errors';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 /**
  * Get all education examples (drafts + published)

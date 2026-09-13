@@ -21,7 +21,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
+// FIX-Task-23 item 2: shared browser client (see @/lib/supabase/client).
+import { supabaseBrowser as supabase } from '@/lib/supabase/client';
 import {
   Flag,
   Scale,
@@ -165,10 +166,7 @@ const adminSecret = process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '';
 
 // Used only to identify the acting admin (supabase.auth.getUser()) so approval
 // metadata / audit rows record who approved. Mirrors ListingSearch + /items/flagged.
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// FIX-Task-23 item 2: the shared browser client is imported above.
 
 interface ActionCenterProps {
   /**

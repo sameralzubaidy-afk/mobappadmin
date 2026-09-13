@@ -3,6 +3,9 @@
 // Module: MODULE-12-ADMIN-V3-CATEGORIES
 
 import { createClient } from '@supabase/supabase-js';
+// FIX-Task-23 item 2: the BROWSER fallback below returns this shared client instead of
+// building a new GoTrue instance per call (the server path keeps its own client).
+import { supabaseBrowser } from './supabase/client';
 import type {
   Category,
   CreateCategoryInput,
@@ -51,8 +54,9 @@ function getAdminClient() {
     });
   }
 
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-  return createClient(supabaseUrl, anonKey);
+  // FIX-Task-23 item 2: in the browser, return the SHARED client instead of building
+  // a new GoTrue instance on every call.
+  return supabaseBrowser;
 }
 
 /**

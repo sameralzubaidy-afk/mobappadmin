@@ -3,6 +3,8 @@
 // Module: MODULE-12-ADMIN-V3-CATEGORIES
 
 import { createClient } from '@supabase/supabase-js';
+// FIX-Task-23 item 2: the BROWSER fallback below returns this shared client.
+import { supabaseBrowser } from './supabase/client';
 import type {
   Category,
   CategorySPPreview,
@@ -29,8 +31,8 @@ function getAdminClient() {
     });
   }
 
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-  return createClient(supabaseUrl, anonKey);
+  // FIX-Task-23 item 2: browser fallback → the shared client (no per-call instance).
+  return supabaseBrowser;
 }
 
 /**

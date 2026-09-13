@@ -3,7 +3,8 @@
 // filepath: p2p-kids-admin/src/app/nodes/NodeFormModal.tsx
 
 import React, { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
+// FIX-Task-23 item 2: shared browser client.
+import { supabaseBrowser } from '@/lib/supabase/client';
 import type { GeographicNode, NodeFormData, ZipCodeLookupResult } from '@/types/nodes';
 
 interface NodeFormModalProps {
@@ -12,9 +13,8 @@ interface NodeFormModalProps {
 }
 
 export default function NodeFormModal({ node, onClose }: NodeFormModalProps) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-  const supabase = createClient(supabaseUrl, supabaseAnonKey);
+  // FIX-Task-23 item 2: shared browser client (was a per-mount GoTrue instance).
+  const supabase = supabaseBrowser;
 
   const [formData, setFormData] = useState<NodeFormData>({
     name: '',

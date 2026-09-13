@@ -3,14 +3,10 @@
 // filepath: p2p-kids-admin/src/app/analytics/page.tsx
 
 import { useState, useEffect, useCallback } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import type { RevenueMetrics, EngagementMetrics, TimeSeriesDataPoint } from '@/lib/revenueAnalytics';
 import FeeTierDistributionCard from '@/components/analytics/FeeTierDistributionCard';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// FIX-Task-23 item 2: shared browser client (was a per-page GoTrue instance).
+import { supabaseBrowser as supabase } from '@/lib/supabase/client';
 
 interface AnalyticsData {
   revenue: RevenueMetrics;

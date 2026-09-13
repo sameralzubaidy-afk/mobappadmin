@@ -3,7 +3,8 @@
 // Module: MODULE-12-ADMIN-V2 / TASK ADMIN-V2-003
 
 import { useState, useEffect, FormEvent } from 'react';
-import { createClient } from '@supabase/supabase-js';
+// FIX-Task-23 item 2: shared browser client.
+import { supabaseBrowser as supabase } from '@/lib/supabase/client';
 import type {
   SpWalletDetail,
   SpEconomyMetrics,
@@ -24,10 +25,7 @@ const authHeaders = {
 
 // Anon client used ONLY to identify the acting admin (supabase.auth.getUser /
 // getSession). No service-role key in the browser. Mirrors TradeActions.tsx.
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-);
+// FIX-Task-23 item 2: the shared browser client is imported at the top of this file.
 
 // DEV-TASK-62 (QA Task 8, Item 1): attach the admin's JWT to mutation calls so
 // the server route can record who acted (sp_ledger.admin_id /

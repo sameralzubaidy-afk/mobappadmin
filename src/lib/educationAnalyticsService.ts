@@ -1,7 +1,8 @@
 // FILE: p2p-kids-admin/src/lib/educationAnalyticsService.ts
 // MODULE-18 V1 EDU-003: Education analytics service (admin aggregations)
 
-import { createClient } from '@supabase/supabase-js';
+// FIX-Task-23 item 2: the shared browser client replaces this module's own instance.
+import { supabaseBrowser } from './supabase/client';
 
 let cachedSupabaseClient: any = null;
 
@@ -17,7 +18,8 @@ function getSupabaseClient() {
     throw new Error('Supabase environment variables are required for education analytics');
   }
 
-  cachedSupabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+  // FIX-Task-23 item 2: one shared client instead of a per-module GoTrue instance.
+  cachedSupabaseClient = supabaseBrowser;
   return cachedSupabaseClient;
 }
 

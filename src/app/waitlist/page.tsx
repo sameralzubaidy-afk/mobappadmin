@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
+// FIX-Task-23 item 2: shared browser client.
+import { supabaseBrowser as supabase } from '@/lib/supabase/client';
 
 type WaitlistStatus = 'pending' | 'notified' | 'joined';
 
@@ -33,11 +34,6 @@ interface WaitlistResponse {
   page_size: number;
   total_pages: number;
 }
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 const statusChipClass: Record<WaitlistStatus, string> = {
   pending: 'bg-amber-100 text-amber-800',

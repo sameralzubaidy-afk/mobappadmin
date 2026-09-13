@@ -1,14 +1,10 @@
 // FILE: p2p-kids-admin/src/lib/educationContentService.ts
 // MODULE-18 V1 EDU-003: Education content service (admin CMS)
 
-import { createClient } from '@supabase/supabase-js';
+// FIX-Task-23 item 2: shared browser client (was a module-scope instance).
+import { supabaseBrowser as supabase } from './supabase/client';
 import type { EducationSection, SectionType } from '../types/education';
 import { ContentValidationError, UnauthorizedError, DuplicatePublishedSectionError, ContentActionError } from '../types/education-errors';
-
-// Initialize Supabase client (use admin service role key for RPC execution)
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 /**
  * Get all education sections (drafts + published)

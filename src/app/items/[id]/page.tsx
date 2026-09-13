@@ -8,7 +8,8 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
+// FIX-Task-23 item 2: shared browser client.
+import { supabaseBrowser as supabase } from '@/lib/supabase/client';
 
 interface ItemRow {
   id: string;
@@ -45,11 +46,6 @@ interface TaxCategoryRow {
   description: string | null;
   is_active: boolean;
 }
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 export default function ItemDetailPage() {
   const params = useParams<{ id: string }>();

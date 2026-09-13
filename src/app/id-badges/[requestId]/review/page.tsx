@@ -7,7 +7,8 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
+// FIX-Task-23 item 2: shared browser client.
+import { supabaseBrowser as supabase } from '@/lib/supabase/client';
 
 const REJECTION_REASONS = [
   { value: 'unclear_photo', label: 'Unclear photo' },
@@ -23,10 +24,8 @@ const REJECTION_REASONS = [
 // only to recover the acting admin's identity so the decide route can record
 // reviewed_by + admin_activity_log (R35 actor-attribution discipline).
 const adminSecret = process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '';
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// FIX-Task-23 item 2: the shared browser client is imported above (it used to be a
+// module-scope `createClient(...)` duplicate GoTrue instance on this page).
 
 async function getAdminIdentity() {
   try {

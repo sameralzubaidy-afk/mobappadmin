@@ -4,13 +4,9 @@
 // Mark Under Review | Resolve → Complete | Resolve → Refund
 
 import { useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
-
 // Anon client used ONLY to identify the acting admin. Mirrors TradeActions.tsx.
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-);
+// FIX-Task-23 item 2: shared browser client.
+import { supabaseBrowser as supabase } from '@/lib/supabase/client';
 
 type DisputeStatus = 'reported' | 'under_review' | 'resolved' | 'none';
 

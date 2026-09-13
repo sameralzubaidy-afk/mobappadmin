@@ -19,7 +19,8 @@
  */
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { createClient } from '@supabase/supabase-js';
+// FIX-Task-23 item 2: shared browser client.
+import { supabaseBrowser as supabase } from '@/lib/supabase/client';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                             */
@@ -48,11 +49,6 @@ interface TaxCategory {
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 function fmtDate(iso: string | null): string {
   if (!iso) return '—';

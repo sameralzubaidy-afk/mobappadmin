@@ -1,7 +1,8 @@
 // FILE: p2p-kids-admin/src/lib/faqService.ts
 // Admin service for FAQ categories and items
 
-import { createClient } from '@supabase/supabase-js';
+// FIX-Task-23 item 2: shared browser client (was a module-scope instance).
+import { supabaseBrowser as supabase } from './supabase/client';
 import type {
   FaqCategory,
   FaqItem,
@@ -10,10 +11,6 @@ import type {
   CreateFaqItemPayload,
   UpdateFaqItemPayload,
 } from '../types/faq';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // ─── Categories ───────────────────────────────────────────────
 
