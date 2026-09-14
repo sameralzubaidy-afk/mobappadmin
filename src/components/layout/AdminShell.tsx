@@ -175,10 +175,27 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         onOpenSearch={() => setPaletteOpen(true)}
       />
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
+      {/*
+        FIX-Task-31 item 2 — main content must be OFFSET from the sidebar, not
+        merely padded by it.
+
+        With `paddingLeft`, <main>'s own box still started at x=0 and ran the full
+        viewport width, so it sat UNDERNEATH the fixed `<aside>` (z-30, width
+        var(--sidebar-width)); only the padding kept the *content* out. Anything
+        that escapes the content box — a full-bleed child, an absolutely
+        positioned descendant, a negative margin, or any future change to
+        `--sidebar-width` — therefore landed under the sidebar and had its
+        pointer events swallowed (the reported "Save N change" interception).
+
+        `marginLeft` moves the box itself, so the main column can never overlap
+        the sidebar at ANY viewport width. The offset is still derived from the
+        single `sidebarWidth` value the <aside> is rendered with, so the two can
+        never disagree.
+      */}
       <main
         className="min-h-screen transition-all duration-300"
         style={{
-          paddingLeft: `${sidebarWidth}px`,
+          marginLeft:  `${sidebarWidth}px`,
           paddingTop:  'var(--topbar-height)',
           background:  'var(--content-bg)',
         }}

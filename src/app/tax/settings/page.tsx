@@ -418,8 +418,11 @@ export default function TaxSettingsPage() {
             <span>Include marketplace transaction fee in sales-tax base</span>
           </label>
           <p className="text-xs text-gray-500 mt-1 ml-6">
-            When enabled, the mandatory buyer platform fee ($0.99 / $2.99) is
-            included in the taxable amount. This is a prospective-only setting —
+            When enabled, the mandatory buyer Safety &amp; Platform Fee is
+            included in the taxable amount. The live fee is a flat $1.49 for Kids
+            Club+ members and first-time buyers, or 5% of the cash portion + $1.99
+            (capped at $4.99) for repeat free-tier buyers — see Settings → Trade
+            Timing for the configured values. This is a prospective-only setting —
             historical trades retain their original tax snapshot. Review CPA guidance
             before enabling.
           </p>
